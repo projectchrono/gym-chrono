@@ -1,7 +1,0 @@
-README.md
-setup.py
-gym_chrono.egg-info/PKG-INFO
-gym_chrono.egg-info/SOURCES.txt
-gym_chrono.egg-info/dependency_links.txt
-gym_chrono.egg-info/requires.txt
-gym_chrono.egg-info/top_level.txt
