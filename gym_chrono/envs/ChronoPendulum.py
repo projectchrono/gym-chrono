@@ -1,13 +1,25 @@
 import pychrono as chrono
 from pychrono import irrlicht as chronoirr
 import numpy as np
+from gym import core, spaces
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+from ChronoBase import ChronoBaseEnv
 
 
-class Model(object):
+class ChronoPendulum(core.Env, ChronoBaseEnv):
    def __init__(self):
       self.render_setup = False
-      self.observation_space= np.empty([4,1])
-      self.action_space= np.empty([1,1])
+      #self._set_observation_space(np.ndarray([4,]))
+      #self.action_space = np.zeros([4,])
+      low = np.full(4, -1000)
+      high = np.full(4, 1000)
+      self.observation_space = spaces.Box(low, high, dtype=np.float32)
+      self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+      print('observation_space')
+      print(self.observation_space)
       self.info =  {}
       self.timestep = 0.01
     # ---------------------------------------------------------------------
@@ -214,3 +226,10 @@ class Model(object):
         else:
             print('Destructor called, No device to delete.')
         
+   def __setstate__(self, state):
+        self.__init__()
+        return {self}
+
+   def __getstate__(self):
+        self.__init__()
+        return {self}
