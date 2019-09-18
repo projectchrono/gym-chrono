@@ -1,15 +1,14 @@
 import pychrono as chrono
 from pychrono import irrlicht as chronoirr
 import numpy as np
-from gym import Env, spaces
+from gym import spaces
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__)))
-from ChronoBase import ChronoBaseEnv
+from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 
 
-class ChronoPendulum(ChronoBaseEnv, Env):
+class ChronoPendulum(ChronoBaseEnv):
    def __init__(self):
       self.render_setup = False
       #self._set_observation_space(np.ndarray([4,]))
@@ -183,14 +182,6 @@ class ChronoPendulum(ChronoBaseEnv, Env):
    def is_done(self):
           if abs(self.link_slider.GetDist()) > 2 or self.steps> 100000 or abs(self.pin_joint.GetRelAngle()) >  0.2  :
                  self.isdone = True
-   
-   def ScreenCapture(self, interval):
-          try: 
-              self.myapplication.SetVideoframeSave(True)
-              self.myapplication.SetVideoframeSaveInterval(interval)
-              
-          except:
-                 print('No ChIrrApp found. Cannot save video frames.')
                  
                  
    def render(self):
@@ -219,17 +210,3 @@ class ChronoPendulum(ChronoBaseEnv, Env):
          
          self.myapplication.EndScene()
        
-   def __del__(self):
-        if self.render_setup:
-            self.myapplication.GetDevice().closeDevice()
-            print('Destructor called, Device deleted.')
-        else:
-            print('Destructor called, No device to delete.')
-        
-   def __setstate__(self, state):
-        self.__init__()
-        return {self}
-
-   def __getstate__(self):
-
-        return {}

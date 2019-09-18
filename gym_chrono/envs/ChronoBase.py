@@ -1,26 +1,22 @@
 import pychrono as chrono
 from pychrono import irrlicht as chronoirr
 import numpy as np
-from gym import core, spaces
+from gym import Env, spaces
 from collections import OrderedDict
 
 
-class ChronoBaseEnv(object):
-   """def __init__(self):
-      #Wrapper.
+class ChronoBaseEnv(Env):
+   def __init__(self):
       self.render_setup = False
-      return """
+      return 
 
    def step(self, ac):
-       
        raise NotImplementedError
        
-
-              
+   def reset(self):
+       raise NotImplementedError
 
    def get_ob(self):
-           
-
           raise NotImplementedError
 
                  
@@ -67,4 +63,12 @@ class ChronoBaseEnv(object):
             print('Destructor called, Device deleted.')
         else:
             print('Destructor called, No device to delete.')
+        
+   def __setstate__(self, state):
+        self.__init__()
+        return {self}
+
+   def __getstate__(self):
+
+        return {}
         
