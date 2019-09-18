@@ -3,16 +3,21 @@
 import pychrono as chrono
 from pychrono import irrlicht as chronoirr
 import numpy as np
-
+from gym import spaces
 import math
+from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 
 
-class Model(object):
-   def __init__(self, render):
+class ChronoAnt(ChronoBaseEnv):
+   def __init__(self):
 
-      self.animate = render
-      self.observation_space = np.empty([30,])
-      self.action_space = np.zeros([8,])
+      self.render_setup = False
+      
+      low = np.full(30, -1000)
+      high = np.full(30, 1000)
+      self.observation_space = spaces.Box(low, high, dtype=np.float32)
+      self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
+      
       self.info =  {}
     # ---------------------------------------------------------------------
     #
@@ -67,19 +72,7 @@ class Model(object):
       self.ankle_limit.SetRmax(math.pi/9)
       self.ankle_limit.SetRmin(-math.pi/9)
       
-      if (self.animate) :
-             self.myapplication = chronoirr.ChIrrApp(self.ant_sys)
-             self.myapplication.AddShadowAll()
-             self.myapplication.SetStepManage(True)
-             self.myapplication.SetTimestep(self.timestep)
-             self. myapplication.SetTryRealtime(True)  
-             self.myapplication.AddTypicalSky('../data/skybox/')
-             self.myapplication.AddTypicalCamera(chronoirr.vector3df(0,1.5,0))
-             self.myapplication.AddLightWithShadow(chronoirr.vector3df(4,4,0),    # point
-                                            chronoirr.vector3df(0,0,0),    # aimpoint
-                                            20,                 # radius (power)
-                                            1,9,               # near, far
-                                            90)                # angle of FOV
+
 
    def reset(self):
     
@@ -211,7 +204,7 @@ class Model(object):
       self.ant_sys.Add(self.body_floor)
       #self.body_abdomen.SetBodyFixed(True)
    
-      if (self.animate):
+      if (self.render_setup):
             self.myapplication.AssetBindAll()
             self.myapplication.AssetUpdateAll()
 
@@ -222,11 +215,6 @@ class Model(object):
    def step(self, ac):
        xposbefore = self.body_abdomen.GetPos().x
        self.numsteps += 1
-       if (self.animate):
-
-              self.myapplication.GetDevice().run()
-              self.myapplication.BeginScene()
-              self.myapplication.DrawAll()
        self.ac = ac.reshape((-1,))
        for i in range(len(self.leg_motor)): 
 
@@ -236,11 +224,9 @@ class Model(object):
               self.ankle_motor[i].SetTorqueFunction(action_b)
 
 
-       if (self.animate):
-              self.myapplication.DoStep()
-              self.myapplication.EndScene()
-       else:
-              self.ant_sys.DoStepDynamics(self.timestep)
+       if self.render_setup:
+              self.render()
+       self.ant_sys.DoStepDynamics(self.timestep)
 
        obs= self.get_ob()
        rew = self.calc_rew(xposbefore)    
@@ -299,18 +285,28 @@ class Model(object):
           if ( self.alive_bonus < 0 or self.body_abdomen.GetPos().y > 49 or self.body_abdomen.GetPos().x > 49 or self.numsteps *self.timestep>100):
                  self.isdone = True
 
-          
-   def __del__(self):
-          if (self.animate):
-               self.myapplication.GetDevice().closeDevice()
-               print('Destructor called, Device deleted.')
-          else:
-               print('Destructor called, No device to delete.')
+   def render(self):
+         if not self.render_setup :
+             self.myapplication = chronoirr.ChIrrApp(self.ant_sys)
+             self.myapplication.AddShadowAll()
+             self.myapplication.SetTimestep(self.timestep)
+             self.myapplication.AddTypicalSky('../data/skybox/')
+             self.myapplication.AddTypicalCamera(chronoirr.vector3df(0,1.5,0))
+             self.myapplication.AddLightWithShadow(chronoirr.vector3df(4,4,0),    # point
+                                            chronoirr.vector3df(0,0,0),    # aimpoint
+                                            20,                 # radius (power)
+                                            1,9,               # near, far
+                                            90)                # angle of FOV
+             self.myapplication.AssetBindAll()
+             self.myapplication.AssetUpdateAll()
+             self.render_setup = True
+         
+         self.myapplication.GetDevice().run()
+         self.myapplication.BeginScene()
+         self.myapplication.DrawAll()
+         #self.myapplication.DoStep()
+         
+         self.myapplication.EndScene()
         
-   def ScreenCapture(self, interval):
-          try: 
-              self.myapplication.SetVideoframeSave(True)
-              self.myapplication.SetVideoframeSaveInterval(interval)
-          except:
-                 print('No ChIrrApp found. Cannot save video frames.')
+
                      

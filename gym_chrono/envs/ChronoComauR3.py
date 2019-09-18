@@ -2,11 +2,15 @@
 # Name:        modulo1
 # Purpose:
 #
-# Author:      Simone Benattis
+# Author:      Simone Benatti
 #
 # Created:     1/1/2019
 #-------------------------------------------------------------------------------
-#!/usr/bin/env python
+"""
+    ROBOT SPECIFICATIONS FREELY AVAILABLE ONLINE AT:
+        https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063
+    MISSING DATA HAVE BEEN ADDED 
+"""
 
 def main():
     pass
@@ -20,6 +24,8 @@ import math
 import numpy as np
 #import sys, getopt
 import pychrono as chrono
+from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
+from gym import spaces
 try:
    from pychrono import irrlicht as chronoirr
 except:
@@ -28,19 +34,19 @@ except:
 # ---------------------------------------------------------------------
 #
 # Parse command-line parameters
-class Model(object):
+class ChronoComauR3(ChronoBaseEnv):
        def __init__(self, render):
               self.animate = render
-              self.observation_space = np.empty([18,])
-              self.action_space = np.zeros([6,])
-              #TODO: check if targ is reachable
+              
+              low = np.full(18, -1000)
+              high = np.full(18, 1000)
+              self.observation_space = spaces.Box(low, high, dtype=np.float32)
+              self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(6,), dtype=np.float32)
               
               self.fingerdist = chrono.ChVectorD(0,0.1117,0)
-              #self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
               self.robosystem = chrono.ChSystemNSC()
               chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
               chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
-              #robosystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN) # precise, more slow
               self.timestep = 0.01
 
               self.info =  {}
@@ -92,18 +98,9 @@ class Model(object):
               self.coi_link = ["Coincident1", "Coincident2", "Coincident3", "Coincident4", "Coincident5", "Coincident6"]
               self.bodiesNames = ["Racer3_p01-3", "Racer3_p02-1", "Racer3_p03-1", "Racer3_p04-1", "Racer3_p05-1", "Racer3_p06-1", "Hand_base_and_p07-2"]
               self.maxSpeed = [430, 450, 500, 600, 600, 900] #°/s
-              # TODO: convert to rads (converted in every operation)
-              
-              #self.limits:
-              # TODO: check signs
-              # TODO: peridodicity ignored
-              # REAL self.limits
-              #self.maxRot = [170, 135, 90, 200, 125, 2700] # °
-              #self.minRot = [-170, -95, -155, -200, -125, -2700] # °
-              # MODIFIED self.limits
+
               self.maxRot = [170, 135, 90, 179, 100, 179] # °
               self.minRot = [-170, -95, -155, -179, -100, -179] # °
-              #self.maxT = np.asarray([28, 28, 28, 7.36, 7.36, 4.41])
               self.maxT = np.asarray([100, 100, 50, 7.36, 7.36, 4.41])
 
               if (self.animate) :
@@ -147,10 +144,6 @@ class Model(object):
               for my_item in self.exported_items:
               	self.robosystem.Add(my_item)
               
-              #TODO: some links not found (and not deleted)
-              #ll = self.robosystem.Get_linklist()
-              #print('link rimasti:')
-              #for l in ll: print(l.GetName())
               
               """
               $$$$$$$$ FIND THE SW DEFINED CONSTRAINTS, GET THEIR MARKERS AND GET RID OF EM $$$$$$$$ 
@@ -243,7 +236,6 @@ class Model(object):
               #posbefore = self.body_abdomen.GetPos().x
               self.numsteps += 1
               self.ac = ac.reshape((-1,))
-              #TODO: do not control each timestep. Frequency not reachable by real world contorllers
               torques = np.multiply(self.ac, self.maxT)
               for i, t in enumerate(torques):
                             if self.revs[i].GetRelWvel().z > self.maxSpeed[i]*(math.pi/180) and torques[i] > 0: 

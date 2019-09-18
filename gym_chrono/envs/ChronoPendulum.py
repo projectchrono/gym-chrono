@@ -186,7 +186,6 @@ class ChronoPendulum(ChronoBaseEnv):
                  
    def render(self):
          if not self.render_setup :
-             print('setting up render')
              self.myapplication = chronoirr.ChIrrApp(self.rev_pend_sys)
              self.myapplication.AddShadowAll()
              self.myapplication.SetTimestep(0.01)
