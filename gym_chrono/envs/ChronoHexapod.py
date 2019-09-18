@@ -15,7 +15,7 @@ if __name__ == '__main__':
     main()
 
 
-import os
+import os, sys
 import math
 import numpy as np
 #import sys, getopt
@@ -26,7 +26,7 @@ try:
    from pychrono import irrlicht as chronoirr
 except:
    print('Could not import ChronoIrrlicht')
-
+     
 # ---------------------------------------------------------------------
 #
 # Parse command-line parameters
@@ -323,6 +323,9 @@ class ChronoHexapod(ChronoBaseEnv):
 
                      
        def render(self):
+             if not self.animate :
+                 print('It seems that for efficiency reasons visualization has been turned OFF. To render the simulation set self.animate = True in ChronoHexapod.py')
+                 sys.exit(1)
              if not self.render_setup :
                      self.myapplication = chronoirr.ChIrrApp(self.hexapod_sys, 'Test', chronoirr.dimension2du(1280,720))
                      self.myapplication.AddShadowAll()
