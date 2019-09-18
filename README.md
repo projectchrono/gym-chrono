@@ -1,26 +1,35 @@
-**Status:** Archive (code is provided as-is, no updates expected)
+**Status:** Under Active Development (New Environments and features will be added)
 
-# gym-soccer
+# gym-chrono
 
-The [Soccer environment](https://github.com/LARG/HFO) is a multiagent
-domain featuring continuous state and action spaces. Currently,
-several tasks are supported:
+Gym Chrono is a set of continuous state and action spaces DRL environmentbased on the open-source physics engine [Project Chrono](https://projectchrono.org/). 
+In order to run these environment you need to install [PyChrono](https://projectchrono.org/pychrono/). 
+Being part of Project Chrono, PyChrono is free and open-source. Moreover, it provides an [Anaconda installer](https://anaconda.org/projectchrono/pychrono).
 
-## Soccer
+Currently, these tasks are supported:
+**chrono_pendulum-v0** 
+![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_pendulum.jpg)
 
-The soccer task initializes a single offensive agent on the field and rewards +1 for scoring a goal and 0 otherwise. In order to score a goal, the agent will need to know how to approach the ball and kick towards the goal. The sparse nature of the goal reward makes this task very difficult to accomplish.
+Reverse pendulum, the goal is to balance a pole on a cart.  1 action (force along the z axis) and 4 observations (position and speed of cart and pole).
 
-## SoccerEmptyGoal
+**chrono_ant-v0** 
+![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
+A 4-legged walker, the goal is learning to walk straight as fast as possible. 8 actions (motor torques) and 30 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
 
-The SoccerEmptyGoal task features a more informative reward signal than the Soccer task. As before, the objective is to score a goal. However, SoccerEmtpyGoal rewards the agent for approaching the ball and moving the ball towards the goal. These frequent rewards make the task much more accessible.
+**chrono_hexapod-v0** 
+![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
+A 6-legged walker, the goal is learning to walk straight as fast as possible. Heach legs counts 3 actuated joints.
+18 actions (motor torques) and 53 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
 
-## SoccerAgainstKeeper
-
-The objective of the SoccerAgainstKeeper task is to score against a goal keeper. The agent is rewarded for moving the ball towards the goal and for scoring a goal. The goal keeper uses a hand-coded policy developed by the Helios RoboCup team. The difficulty in this task is learning how to shoot around the goal keeper.
+**ChronoRacer3Reach-v0** 
+![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
+A 6-DOF robotic arm, the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical were retrieved from  [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
+6 actions (motor torques) and 18 observations (joints rotation, joints speed, end-effector position, target position).
 
 # Installation
 
 ```bash
-cd gym-soccer
+git clone https://github.com/Benatti1991/gym-chrono
+cd gym-chrono
 pip install -e .
 ```
