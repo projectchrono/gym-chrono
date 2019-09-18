@@ -34,7 +34,7 @@ A 6-legged walker, the goal is learning to walk straight as fast as possible. He
 
 ![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
 
-A 6-DOF robotic arm, the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical were retrieved from  [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
+A 6-DOF robotic arm, the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical data were retrieved from  [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
 6 actions (motor torques) and 18 observations (joints rotation, joints speed, end-effector position, target position).
 
 # Installation
