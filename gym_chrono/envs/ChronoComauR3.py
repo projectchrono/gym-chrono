@@ -189,10 +189,6 @@ class ChronoComauR3(ChronoBaseEnv):
               self.body_floor.GetAssets().push_back(body_floor_texture)     
               self.robosystem.Add(self.body_floor)
               r = np.random.rand(2,) - np.asarray([0.5,0.5])
-              #r = np.asarray([0.5,0.5])
-              #rho = float(0.35+0.1*r[0])+0.12
-              #theta = float((r[1]-0.5)*(math.pi/4))
-              #self.targ_init_pos = [-0.25,0.015,-0.25]
               self.targ_init_pos = [-0.52 + 2*(r[0]*0.05)  ,  0.015    , 2*r[1]*0.05 ]
               self.targ_box = chrono.ChBody()
               # UNset to grasp
