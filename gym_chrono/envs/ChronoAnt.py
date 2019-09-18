@@ -10,8 +10,7 @@ from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 
 class ChronoAnt(ChronoBaseEnv):
    def __init__(self):
-
-      self.render_setup = False
+      ChronoBaseEnv.__init__(self)
       
       low = np.full(30, -1000)
       high = np.full(30, 1000)
@@ -199,7 +198,7 @@ class ChronoAnt(ChronoBaseEnv):
       body_floor_shape.SetColor(chrono.ChColor(0.4,0.4,0.5))
       self.body_floor.GetAssets().push_back(body_floor_shape)
       body_floor_texture = chrono.ChTexture()
-      body_floor_texture.SetTextureFilename('../data/grass.jpg')
+      body_floor_texture.SetTextureFilename(chrono.GetChronoDataPath() + '/vehicle/terrain/textures/grass.jpg')
       self.body_floor.GetAssets().push_back(body_floor_texture)     
       self.ant_sys.Add(self.body_floor)
       #self.body_abdomen.SetBodyFixed(True)
@@ -287,7 +286,7 @@ class ChronoAnt(ChronoBaseEnv):
              self.myapplication = chronoirr.ChIrrApp(self.ant_sys)
              self.myapplication.AddShadowAll()
              self.myapplication.SetTimestep(self.timestep)
-             self.myapplication.AddTypicalSky('../data/skybox/')
+             self.myapplication.AddTypicalSky(chrono.GetChronoDataPath() + '/skybox/')
              self.myapplication.AddTypicalCamera(chronoirr.vector3df(0,1.5,0))
              self.myapplication.AddLightWithShadow(chronoirr.vector3df(4,4,0),    # point
                                             chronoirr.vector3df(0,0,0),    # aimpoint

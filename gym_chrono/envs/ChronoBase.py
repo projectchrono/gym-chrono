@@ -3,10 +3,13 @@ from pychrono import irrlicht as chronoirr
 import numpy as np
 from gym import Env, spaces
 from collections import OrderedDict
+import os
 
 
 class ChronoBaseEnv(Env):
    def __init__(self):
+      chronopath = os.path.join(os.path.dirname(__file__), 'data')
+      chrono.SetChronoDataPath(chronopath)
       self.render_setup = False
       return 
 
