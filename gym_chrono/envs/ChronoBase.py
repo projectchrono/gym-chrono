@@ -6,9 +6,10 @@ from collections import OrderedDict
 
 
 class ChronoBaseEnv(object):
-   def __init__(self):
+   """def __init__(self):
+      #Wrapper.
       self.render_setup = False
-      return self.get_ob()
+      return """
 
    def step(self, ac):
        

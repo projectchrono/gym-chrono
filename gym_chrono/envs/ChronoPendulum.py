@@ -1,7 +1,7 @@
 import pychrono as chrono
 from pychrono import irrlicht as chronoirr
 import numpy as np
-from gym import core, spaces
+from gym import Env, spaces
 
 import os
 import sys
@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 from ChronoBase import ChronoBaseEnv
 
 
-class ChronoPendulum(core.Env, ChronoBaseEnv):
+class ChronoPendulum(ChronoBaseEnv, Env):
    def __init__(self):
       self.render_setup = False
       #self._set_observation_space(np.ndarray([4,]))
@@ -18,8 +18,6 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
       high = np.full(4, 1000)
       self.observation_space = spaces.Box(low, high, dtype=np.float32)
       self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-      print('observation_space')
-      print(self.observation_space)
       self.info =  {}
       self.timestep = 0.01
     # ---------------------------------------------------------------------
@@ -60,7 +58,7 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
       self.size_table_x = 0.3
       self.size_table_y = 0.3
       self.size_table_z = 0.3
-
+      self.reset()
 
    def reset(self):
       #print("reset")
@@ -94,7 +92,12 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
       self.body_floor.SetBodyFixed(True)
       self.body_floor.SetPos(chrono.ChVectorD(0, -5, 0 ))
       self.body_floor.SetMaterialSurface(self.rod_material)
-
+      self.body_floor_shape = chrono.ChBoxShape()
+      self.body_floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(3, 1, 3)
+      self.body_floor.GetAssets().push_back(self.body_floor_shape)
+      #self.body_floor_texture = chrono.ChTexture()
+      #self.body_floor_texture.SetTextureFilename('../../../data/concrete.jpg')
+      #self.body_floor.GetAssets().push_back(self.body_floor_texture)
 
       self.rev_pend_sys.Add(self.body_floor)
 
@@ -105,6 +108,13 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
       self.body_table.SetMaterialSurface(self.rod_material)
 
       self.body_table.SetMass(0.1)
+      self.body_table_shape = chrono.ChBoxShape()
+      self.body_table_shape.GetBoxGeometry().Size = chrono.ChVectorD(self.size_table_x/2, self.size_table_y/2, self.size_table_z/2)
+      self.body_table_shape.SetColor(chrono.ChColor(0.4,0.4,0.5))
+      self.body_table.GetAssets().push_back(self.body_table_shape)
+      #self.body_table_texture = chrono.ChTexture()
+      #self.body_table_texture.SetTextureFilename('../../../data/concrete.jpg')
+      #self.body_table.GetAssets().push_back(self.body_table_texture)
       self.rev_pend_sys.Add(self.body_table)
 
 
@@ -133,8 +143,10 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
       self.pin_joint = chrono.ChLinkLockRevolute()
       self.pin_joint.Initialize(self.rod_pin, self.table_pin)
       self.rev_pend_sys.Add(self.pin_joint)
-     
-
+      
+      if self.render_setup:
+             self.myapplication.AssetBindAll()
+             self.myapplication.AssetUpdateAll()	
 	
       self.isdone= False
       self.steps= 0
@@ -149,11 +161,9 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
        self.actuator.SetForceFunction(self.ac)
        self.omega = self.pin_joint.GetRelWvel().Length()  
        
-       if self.render:
-              self.Render()
-              self.myapplication.DoStep()
-       else:
-              self.rev_pend_sys.DoStepDynamics(self.timestep)
+       if self.render_setup:
+              self.render()
+       self.rev_pend_sys.DoStepDynamics(self.timestep)
        self.rew = 1.0
                   
        self.obs= self.get_ob()
@@ -183,39 +193,29 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
                  print('No ChIrrApp found. Cannot save video frames.')
                  
                  
-   def Render(self):
+   def render(self):
          if not self.render_setup :
+             print('setting up render')
              self.myapplication = chronoirr.ChIrrApp(self.rev_pend_sys)
-             self.myapplication.AddShadowAll();
-             self.myapplication.SetStepManage(True)
+             self.myapplication.AddShadowAll()
              self.myapplication.SetTimestep(0.01)
-             self. myapplication.SetTryRealtime(True)
+             #self.myapplication.SetTryRealtime(True)
              
-             self.myapplication.AddTypicalSky('../data/skybox/')
+             #self.myapplication.AddTypicalSky('../data/skybox/')
              self.myapplication.AddTypicalCamera(chronoirr.vector3df(0.5,0.5,1.0))
              self.myapplication.AddLightWithShadow(chronoirr.vector3df(2,4,2),    # point
                                             chronoirr.vector3df(0,0,0),    # aimpoint
                                             9,                 # radius (power)
                                             1,9,               # near, far
                                             30)                # angle of FOV
-             self.body_floor_shape = chrono.ChBoxShape()
-             self.body_floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(3, 1, 3)
-             self.body_floor.GetAssets().push_back(self.body_floor_shape)
-             self.body_floor_texture = chrono.ChTexture()
-             self.body_floor_texture.SetTextureFilename('../../../data/concrete.jpg')
-             self.body_floor.GetAssets().push_back(self.body_floor_texture)
-             self.body_table_shape = chrono.ChBoxShape()
-             self.body_table_shape.GetBoxGeometry().Size = chrono.ChVectorD(self.size_table_x/2, self.size_table_y/2, self.size_table_z/2)
-             self.body_table_shape.SetColor(chrono.ChColor(0.4,0.4,0.5))
-             self.body_table.GetAssets().push_back(self.body_table_shape)
-       
-             self.body_table_texture = chrono.ChTexture()
-             self.body_table_texture.SetTextureFilename('../../../data/concrete.jpg')
-             self.body_table.GetAssets().push_back(self.body_table_texture)
+             self.myapplication.AssetBindAll()
+             self.myapplication.AssetUpdateAll()	
              self.render_setup = True
          
-         self.myapplication.AssetBindAll()
-         self.myapplication.AssetUpdateAll()
+         self.myapplication.GetDevice().run()
+         self.myapplication.BeginScene()
+         self.myapplication.DrawAll()
+         #self.myapplication.DoStep()
          
          self.myapplication.EndScene()
        
@@ -231,5 +231,5 @@ class ChronoPendulum(core.Env, ChronoBaseEnv):
         return {self}
 
    def __getstate__(self):
-        self.__init__()
-        return {self}
+
+        return {}
