@@ -24,7 +24,7 @@ A 4-legged walker, the goal is learning to walk straight as fast as possible. 8 
 **chrono_hexapod-v0** 
 
 
-![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
+![](https://previews.dropbox.com/p/thumb/AAj-vzideDoJDgTsBYfdoCeFGqq8CZ5AB0JkXo6fithec_td36XnxFwGb1VbB4oStTZ2DeQO2TjWhGfFfIFvOoOlWRrHfeSG3xfcQPIEsAF9h-btw5Z1-v_lH2L0qlYHPGEPbu5vEmvn_-ulXJcAu801QShJZYicO3ZLJxy8z6HEsjfPIAXzC05ybsWEc1p0bIFYccNYNgrYXI1XPoS7nfp1mKO7jcj5BQ7hwXNb-1sOKHOfJiR6TABVcxQYHpuIPyTTL7zoQPcM0Pb8rbQQ8H4whdI5NUHRdFjhuWHOdAPh0AhEgCIQdjgs_pg9L8TEJxGGAjPLTWIYtsBp-d8PhhXw/p.jpeg?fv_content=true&size_mode=5)
 
 A 6-legged walker, the goal is learning to walk straight as fast as possible. Heach legs counts 3 actuated joints.
 18 actions (motor torques) and 53 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
@@ -32,7 +32,7 @@ A 6-legged walker, the goal is learning to walk straight as fast as possible. He
 **ChronoRacer3Reach-v0** 
 
 
-![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
+![](https://previews.dropbox.com/p/thumb/AAisoJxioqXgMcBNDu8oH6i-y-tTDY0DvH_MUrUXFybCIJT4OJiLE7DfcwJ2bk1sVRiDilva3D4S9DLoCw00H1f3sEIQhfm2OfKTXpe9zct-KIbQmIuNR5f94eaMWlsa71-UEnIPc0wISFf6ljFeNaCp9eIJvxt1TSmZ95j804XAXvL023nhu6QEOdBg-oqvxXYpUZcK0bR1P_cKffVvWeWNbk5ubYyHt3_sNxwYfomnTQx4iMcrmg-GeUBSTp_g0ACdjcmjVx882FOz2WA9PlKHAR1QS_pvjmlBOdTfqX7R_Jt1gLte2F3eb9SM-g0QF_Kv-Pbp6ropfNtix_vaTy61/p.jpeg?fv_content=true&size_mode=5)
 
 A 6-DOF robotic arm, the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical data were retrieved from  [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
 6 actions (motor torques) and 18 observations (joints rotation, joints speed, end-effector position, target position).
