@@ -223,9 +223,6 @@ class ChronoAnt(ChronoBaseEnv):
               self.leg_motor[i].SetTorqueFunction(action_a)
               self.ankle_motor[i].SetTorqueFunction(action_b)
 
-
-       if self.render_setup:
-              self.render()
        self.ant_sys.DoStepDynamics(self.timestep)
 
        obs= self.get_ob()

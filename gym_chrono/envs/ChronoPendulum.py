@@ -160,8 +160,6 @@ class ChronoPendulum(ChronoBaseEnv):
        self.actuator.SetForceFunction(self.ac)
        self.omega = self.pin_joint.GetRelWvel().Length()  
        
-       if self.render_setup:
-              self.render()
        self.rev_pend_sys.DoStepDynamics(self.timestep)
        self.rew = 1.0
                   

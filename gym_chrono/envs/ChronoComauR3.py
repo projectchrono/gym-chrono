@@ -235,8 +235,6 @@ class ChronoComauR3(ChronoBaseEnv):
                                    torques[i] = 0
               for m, t in zip(self.motors, torques): m.SetTorqueFunction(chrono.ChFunction_Const(float(t)))
               
-              if (self.render_setup):
-                     self.render()
               self.robosystem.DoStepDynamics(self.timestep)
               
               obs= self.get_ob()
