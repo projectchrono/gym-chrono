@@ -9,15 +9,15 @@ register(
     id='chrono_ant-v0',
     entry_point='gym_chrono.envs:ChronoAnt'
 )
-"""
+
 register(
-    id='ChronoHexapod-v0',
-    entry_point='gym_chrono.envs:chrono_Hexapod'
+    id='chrono_hexapod-v0',
+    entry_point='gym_chrono.envs:ChronoHexapod'
     #timestep_limit=1000,
     #reward_threshold=1.0,
     #nondeterministic = True,
 )
-"""
+
 register(
     id='ChronoRacer3Reach-v0',
     entry_point='gym_chrono.envs:ChronoComauR3'
