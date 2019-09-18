@@ -17,12 +17,12 @@ register(
     #reward_threshold=1.0,
     #nondeterministic = True,
 )
-
+"""
 register(
     id='ChronoRacer3Reach-v0',
-    entry_point='gym_chrono.envs:chrono_ComauR3'
+    entry_point='gym_chrono.envs:ChronoComauR3'
     #timestep_limit=1000,
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
-"""
+

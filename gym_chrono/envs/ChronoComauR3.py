@@ -35,9 +35,8 @@ except:
 #
 # Parse command-line parameters
 class ChronoComauR3(ChronoBaseEnv):
-       def __init__(self, render):
-              self.animate = render
-              
+       def __init__(self):
+              self.render_setup = False
               low = np.full(18, -1000)
               high = np.full(18, 1000)
               self.observation_space = spaces.Box(low, high, dtype=np.float32)
@@ -103,15 +102,7 @@ class ChronoComauR3(ChronoBaseEnv):
               self.minRot = [-170, -95, -155, -179, -100, -179] # °
               self.maxT = np.asarray([100, 100, 50, 7.36, 7.36, 4.41])
 
-              if (self.animate) :
-                     self.myapplication = chronoirr.ChIrrApp(self.robosystem, 'Test', chronoirr.dimension2du(1280,720))
-                     self.myapplication.AddShadowAll()
-                     self.myapplication.SetStepManage(True)
-                     self.myapplication.SetTimestep(self.timestep)
-                     self.myapplication.AddTypicalSky(chrono.GetChronoDataPath() + 'skybox/')
-                     self.myapplication.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
-                     self.myapplication.AddTypicalCamera(chronoirr.vector3df(1,1,1),chronoirr.vector3df(0.0,0.0,0.0))
-                     self.myapplication.AddTypicalLights()               # angle of FOV
+
 
        def reset(self):
     
@@ -227,7 +218,7 @@ class ChronoComauR3(ChronoBaseEnv):
               
               self.numsteps= 0
 
-              if (self.animate):
+              if (self.render_setup):
                      self.myapplication.AssetBindAll()
                      self.myapplication.AssetUpdateAll()	
               return self.get_ob()
@@ -244,14 +235,9 @@ class ChronoComauR3(ChronoBaseEnv):
                                    torques[i] = 0
               for m, t in zip(self.motors, torques): m.SetTorqueFunction(chrono.ChFunction_Const(float(t)))
               
-              if (self.animate):
-                     self.myapplication.GetDevice().run()
-                     self.myapplication.BeginScene()
-                     self.myapplication.DrawAll()
-                     self.myapplication.DoStep()
-                     self.myapplication.EndScene()
-              else:
-                     self.robosystem.DoStepDynamics(self.timestep)
+              if (self.render_setup):
+                     self.render()
+              self.robosystem.DoStepDynamics(self.timestep)
               
               obs= self.get_ob()
               rew = self.calc_rew()    
@@ -296,14 +282,7 @@ class ChronoComauR3(ChronoBaseEnv):
               self.dist = np.linalg.norm([self.grip-self.targ])
               rew = ( dist_coeff/(self.dist+0.0001)) + self.self_coll + fing_con - electricity_cost*np.linalg.norm(np.multiply(self.ac, self.q_dot_mot)) + joints_limit
               return rew
-
-       """
-       WE DO NOT USE APPROACHING SPEED BUT IT COULD BE USED IN FUTURE
-       def calc_progress(self):
-              d = np.linalg.norm( [self.Ytarg - self.body_abdomen.GetPos().y, self.Xtarg - self.body_abdomen.GetPos().x] )
-              progress = -(d - self.d_old )/self.timestep
-              self.d_old = d
-              return progress      """               
+            
        def is_done(self):
        
               if (self.self_coll < -1 or self.numsteps *self.timestep>1):
@@ -311,25 +290,25 @@ class ChronoComauR3(ChronoBaseEnv):
        def get_prog(self):
           
               return np.array([[self.numsteps *self.timestep], [self.dist]])
-
-                                     
-       def __del__(self):
-              if (self.animate):
-                     self.myapplication.GetDevice().closeDevice()
-                     print('Destructor called, Device deleted.')
-              else:
-                     print('Destructor called, No device to delete.')
        
-       def ScreenCapture(self, interval):
-              try: 
-                     self.myapplication.SetVideoframeSave(True)
-                     self.myapplication.SetVideoframeSaveInterval(interval)
-              except:
-                     print('No ChIrrApp found. Cannot save video self.frames.')
                      
               
               
-              
-       """"grip.SetRot(bdy_hand.GetRot())
-       # to place the center of the box at the same distance as the finger tip consider the distance between the hand origin and the finger tip plus the distance between the hand origin and the han COG (SetFrame_COG_to_REF in imported model)
-       grip.SetPos(bdy_hand.GetPos() + bdy_hand.GetRot().Rotate(chrono.ChVectorD(0,0.1117,0)) )"""
+       def render(self):
+             if not self.render_setup :
+                     self.myapplication = chronoirr.ChIrrApp(self.robosystem, 'Test', chronoirr.dimension2du(1280,720))
+                     self.myapplication.AddShadowAll()
+                     self.myapplication.SetStepManage(True)
+                     self.myapplication.SetTimestep(self.timestep)
+                     self.myapplication.AddTypicalSky(chrono.GetChronoDataPath() + 'skybox/')
+                     self.myapplication.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+                     self.myapplication.AddTypicalCamera(chronoirr.vector3df(1,1,1),chronoirr.vector3df(0.0,0.0,0.0))
+                     self.myapplication.AddTypicalLights()               # angle of FOV
+                     self.myapplication.AssetBindAll()
+                     self.myapplication.AssetUpdateAll()
+                     self.render_setup = True
+             
+             self.myapplication.GetDevice().run()
+             self.myapplication.BeginScene()
+             self.myapplication.DrawAll()
+             self.myapplication.EndScene()
