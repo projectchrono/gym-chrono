@@ -51,7 +51,7 @@ class ChronoHexapod(ChronoBaseEnv):
               chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0001)
               #hexapod_sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN) # precise, more slow
 
-              self.info =  {}
+              self.info =  {"timeout": 3200.0}
               if self.animate:
                   m_filename = "hexapod"
               else:

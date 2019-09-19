@@ -17,7 +17,7 @@ class ChronoAnt(ChronoBaseEnv):
       self.observation_space = spaces.Box(low, high, dtype=np.float32)
       self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
       
-      self.info =  {}
+      self.info =  {"timeout": 10000.0}
     # ---------------------------------------------------------------------
     #
     #  Create the simulation system and add items

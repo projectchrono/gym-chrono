@@ -17,7 +17,7 @@ class ChronoPendulum(ChronoBaseEnv):
       high = np.full(4, 1000)
       self.observation_space = spaces.Box(low, high, dtype=np.float32)
       self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-      self.info =  {}
+      self.info =  {"timeout": 100000}
       self.timestep = 0.01
     # ---------------------------------------------------------------------
     #

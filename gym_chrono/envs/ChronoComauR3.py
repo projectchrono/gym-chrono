@@ -48,7 +48,7 @@ class ChronoComauR3(ChronoBaseEnv):
               chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
               self.timestep = 0.01
 
-              self.info =  {}
+              self.info =  {"timeout": 2000.0}
        
               m_filename = "ComauR3"
               self.timestep = 0.001
@@ -277,7 +277,7 @@ class ChronoComauR3(ChronoBaseEnv):
             
        def is_done(self):
        
-              if (self.self_coll < -1 or self.numsteps *self.timestep>1):
+              if (self.self_coll < -1 or self.numsteps *self.timestep>2):
                             self.isdone = True
        def get_prog(self):
           
