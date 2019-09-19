@@ -52,3 +52,9 @@ git clone https://github.com/Benatti1991/gym-chrono
 cd gym-chrono
 pip install -e .
 ```
+
+# Example
+Training the ant environment using the PPOalgorithm in [OpenAI Baselines](https://github.com/openai/baselines)
+```bash
+python -m baselines.run --alg=ppo2 --env=gym_chrono.envs:chrono_ant-v0 --network=mlp --num_timesteps=2e7 --ent_coef=0.1 --num_hidden=32 --num_layers=3 --value_network=copy
+```
