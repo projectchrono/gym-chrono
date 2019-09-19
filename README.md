@@ -4,8 +4,7 @@
 
 Gym Chrono is a set of continuous state and action spaces DRL environmentbased on the open-source physics engine [Project Chrono](https://projectchrono.org/). 
 In order to run these environment you need to install [PyChrono](https://projectchrono.org/pychrono/). 
-Being part of Project Chrono, PyChrono is free and open-source. Moreover, it provides an [Anaconda installer](https://anaconda.org/projectchrono/pychrono).
-
+Being part of Project Chrono, PyChrono is **free and open-source**. Moreover, it provides an [Anaconda installer](https://anaconda.org/projectchrono/pychrono).
 Currently, these tasks are supported:
 **chrono_pendulum-v0** 
 
@@ -29,16 +28,24 @@ A 4-legged walker, the goal is learning to walk straight as fast as possible. 8 
 A 6-legged walker, the goal is learning to walk straight as fast as possible. Heach legs counts 3 actuated joints.
 18 actions (motor torques) and 53 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
 
+This is a model of a real hexapod robot, the PhantomX Hexapod Mark II. Motors dara are available [here](https://trossenrobotics.com/dynamixel-ax-12-robot-actuator.aspx). Credit to [Hendricks](https://grabcad.com/hendricks-1) for the CAD drawings.
+
 **ChronoRacer3Reach-v0** 
 
 
 ![](https://previews.dropbox.com/p/thumb/AAisoJxioqXgMcBNDu8oH6i-y-tTDY0DvH_MUrUXFybCIJT4OJiLE7DfcwJ2bk1sVRiDilva3D4S9DLoCw00H1f3sEIQhfm2OfKTXpe9zct-KIbQmIuNR5f94eaMWlsa71-UEnIPc0wISFf6ljFeNaCp9eIJvxt1TSmZ95j804XAXvL023nhu6QEOdBg-oqvxXYpUZcK0bR1P_cKffVvWeWNbk5ubYyHt3_sNxwYfomnTQx4iMcrmg-GeUBSTp_g0ACdjcmjVx882FOz2WA9PlKHAR1QS_pvjmlBOdTfqX7R_Jt1gLte2F3eb9SM-g0QF_Kv-Pbp6ropfNtix_vaTy61/p.jpeg?fv_content=true&size_mode=5)
 
-A 6-DOF robotic arm, the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical data were retrieved from  [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
+A 6-DOF robotic arm (Comau Racer-3), the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical data are freely available from the Comau website [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
 6 actions (motor torques) and 18 observations (joints rotation, joints speed, end-effector position, target position).
 
 # Installation
-
+If you want to install Gym and Chrono in a virtual environment (Conda or VirtualEnv), don't forget to activate the environment first.
+To install Chrono follow [these](http://api.projectchrono.org/development/pychrono_installation.html) instructions. 
+Install Gym. Obviously, OpenAI Gym is a prerequisite for gym-chrono. 
+```bash
+pip install gym
+```
+Then, install the PyChrono extension for Gym:
 ```bash
 git clone https://github.com/Benatti1991/gym-chrono
 cd gym-chrono
