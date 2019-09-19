@@ -6,6 +6,7 @@ Gym Chrono is a set of continuous state and action spaces DRL environmentbased o
 In order to run these environment you need to install [PyChrono](https://projectchrono.org/pychrono/). 
 Being part of Project Chrono, PyChrono is **free and open-source**. Moreover, it provides an [Anaconda installer](https://anaconda.org/projectchrono/pychrono).
 Currently, these tasks are supported:
+
 **chrono_pendulum-v0** 
 
 
