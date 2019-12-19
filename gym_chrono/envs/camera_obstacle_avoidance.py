@@ -2,7 +2,6 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import pychrono.irrlicht as chronoirr
-from driver import Driver
 import numpy as np
 import math
 import os
@@ -44,8 +43,7 @@ def checkFile(file):
     if not os.path.exists(file):
         raise Exception('Cannot find {}. Explanation located in chrono_sim.py file'.format(file))
 
-chrono.SetChronoDataPath('/home/simonebenatti/codes/Chrono/chrono/data/')
-veh.SetDataPath('/home/simonebenatti/codes/Chrono/chrono/data/vehicle/')
+
 """
 def GetInitPose(p1, p2, z=0.55, reversed=0):
     initLoc = chrono.ChVectorD(p1[0], p1[1], z)
@@ -59,17 +57,20 @@ def GetInitPose(p1, p2, z=0.55, reversed=0):
 
     return initLoc, initRot
 """
-class self.camera_obstacle_avoidance(ChronoBaseEnv):
+class camera_obstacle_avoidance(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
-        super(self.camera_obstacle_avoidance, self).__init__()
-
+        ChronoBaseEnv.__init__(self)
+        chrono.SetChronoDataPath('/home/simonebenatti/codes/Chrono/chrono/data/')
+        veh.SetDataPath('/home/simonebenatti/codes/Chrono/chrono/data/vehicle/')
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(9,)
+        self.camera_width  = 320
+        self.camera_height = 180
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -79,62 +80,64 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
         #
         self.Xtarg = 100.0
         self.Ytarg = 0.0
-        self.timeend = 15
+        self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
+        self.timeend = 20
         self.control_frequency = 50
-        # JSON file for vehicle model
-        self.vehicle_file = veh.GetDataPath() + os.path.join('hmmwv', 'vehicle', 'HMMWV_Vehicle.json')
-        checkFile(self.vehicle_file)
 
-        # JSON file for powertrain (simple)
-        self.simplepowertrain_file = veh.GetDataPath() + os.path.join('generic', 'powertrain', 'SimplePowertrain.json')
-        checkFile(self.simplepowertrain_file)
-
-        # JSON files tire models (rigid)
-        self.rigidtire_file = veh.GetDataPath() + os.path.join('hmmwv', 'tire', 'HMMWV_RigidTire.json')
-        checkFile(self.rigidtire_file)
-
+        self.initLoc = chrono.ChVectorD(0, 0, 1.0)
+        self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
         self.terrain_model = veh.RigidTerrain.BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 250.0  # size in X direction
         self.terrainWidth = 15.0  # size in Y direction
-
         self.render_setup = False
 
     def reset(self):
-        self.vehicle = veh.WheeledVehicle(self.vehicle_file, chrono.ChMaterialSurface.NSC)
-        self.vehicle.Initialize(chrono.ChCoordsysD(self.initLoc, self.initRot))
-        self.vehicle.SetStepsize(self.timestep)
-        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.vehicle = veh.HMMWV_Full()
+        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
+
+        self.vehicle.SetChassisFixed(False)
+        self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
+        self.vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+        self.vehicle.SetDriveType(veh.DrivelineType_AWD)
+        self.vehicle.SetSteeringType(veh.SteeringType_PITMAN_ARM)
+        self.vehicle.SetTireType(veh.TireModelType_TMEASY)
+        self.vehicle.SetTireStepSize(self.timestep)
+        self.vehicle.Initialize()
+
+        #self.vehicle.SetStepsize(self.timestep)
+        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_NONE)
+        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
         self.chassis_body = self.vehicle.GetChassisBody()
+
+        # Driver
+        self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # Rigid terrain
         self.system = self.vehicle.GetSystem()
-        terrain = veh.RigidTerrain(self.system)
-        patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
+        self.terrain = veh.RigidTerrain(self.system)
+        patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
                                  chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
         patch.SetContactFrictionCoefficient(0.9)
         patch.SetContactRestitutionCoefficient(0.01)
         patch.SetContactMaterialProperties(2e7, 0.3)
         patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-        terrain.Initialize()
+        self.terrain.Initialize()
 
         ground_body = patch.GetGroundBody()
         ground_asset = ground_body.GetAssets()[0]
         visual_asset = chrono.CastToChVisualization(ground_asset)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(chrono.GetDataFile("concrete.jpg"))
+        vis_mat.SetKdTexture(chrono.GetChronoDataFile("concrete.jpg"))
         visual_asset.material_list.append(vis_mat)
 
 
-        # Create and initialize the powertrain system
-        self.powertrain = veh.SimplePowertrain(self.simplepowertrain_file)
-        self.vehicle.InitializePowertrain(self.powertrain)
-
         # Create and initialize the tires
+        """
         for axle in self.vehicle.GetAxles():
             tireL = veh.RigidTire(self.rigidtire_file)
             self.vehicle.InitializeTire(
@@ -142,13 +145,14 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
             tireR = veh.RigidTire(self.rigidtire_file)
             self.vehicle.InitializeTire(
                 tireR, axle.m_wheels[1], veh.VisualizationType_MESH)
+        """
 
 
         # create obstacles
         self.boxes = []
-        for i in range(2):
-            box = chrono.ChBodyEasyBox(1.5, 1.5, 10, 1000, True, True)
-            box.SetPos(chrono.ChVectorD(50 + 25*i,(np.random.rand(1)-0.5)*13, 5.05))
+        for i in range(3):
+            box = chrono.ChBodyEasyBox(2, 2, 10, 1000, True, True)
+            box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10 , 5.05))
             box.SetBodyFixed(True)
             box_asset = box.GetAssets()[0]
             visual_asset = chrono.CastToChVisualization(box_asset)
@@ -162,21 +166,17 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
             self.boxes.append(box)
             self.system.Add(box)
 
-        # -------------
-        # Create driver
-        # -------------
-        self.driver = Driver(self.vehicle)
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
         steering_time = 1.0
         # time to go from 0 to +1 (or from 0 to -1)
-        throttle_time = 1.0
+        throttle_time = .5
         # time to go from 0 to +1
         braking_time = 0.3
         # time to go from 0 to +1
-        self.driver.SetSteeringDelta(self.timestep / steering_time)
-        self.driver.SetThrottleDelta(self.timestep / throttle_time)
-        self.driver.SetBrakingDelta(self.timestep / braking_time)
+        self.SteeringDelta = (self.timestep / steering_time)
+        self.ThrottleDelta = (self.timestep / throttle_time)
+        self.BrakingDelta  =(self.timestep / braking_time)
         
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
@@ -189,10 +189,10 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
             50,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(1, 0, .875)),
             # offset pose
-            320,  # number of horizontal samples
-            180,  # number of vertical channels
+            self.camera_width,  # number of horizontal samples
+            self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 3,  # horizontal field of view
-            (180 / 320) * chrono.CH_C_PI / 3.  # vertical field of view
+            (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
         self.manager.AddSensor(self.camera)
@@ -204,23 +204,29 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
         
         self.step_number = 0
+        self.c_f = 0
         self.isdone = False
+        self.render_setup = False
         return self.get_ob()
 
     def step(self, ac):
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
 
-        for i in range(round(1/self.control_frequency*self.timestep)):
+        for i in range(round(1/(self.control_frequency*self.timestep))):
             self.driver_inputs = self.driver.GetInputs()
             # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
             self.driver.Synchronize(time)
             self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
             self.terrain.Synchronize(time)
-            self.driver.SetTargetThrottle(self.ac[0,])
-            self.driver.SetTargetSteering(self.ac[1,])
-            self.driver.SetTargetBraking(self.ac[2,])
+
+            trot = np.clip( (self.ac[0,]+1)/2 , self.driver.GetThrottle()-self.ThrottleDelta, self.driver.GetThrottle()+self.ThrottleDelta)
+            self.driver.SetThrottle(trot)
+            steer = np.clip(self.ac[1,], self.driver.GetSteering() - self.SteeringDelta,  self.driver.GetSteering() + self.SteeringDelta)
+            self.driver.SetSteering(steer)
+            self.driver.SetBraking(0)
+            #self.driver.SetTargetBraking(self.ac[2,])
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
@@ -229,6 +235,9 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
             self.system.DoStepDynamics(self.timestep)
             self.manager.Update()
 
+            for box in self.boxes:
+                self.c_f += box.GetContactForce().Length()
+
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
@@ -236,21 +245,29 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
 
 
     def get_ob(self):
-        #TODO self.camera input
 
-        return np.asarray(self.state)
+        camera_data_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
+        if camera_data_RGBA8.HasData():
+            rgb = camera_data_RGBA8.GetRGBA8Data()[:,:,0:3]
+        else:
+            rgb = np.zeros((self.camera_height,self.camera_width,3))
+            print('NO DATA \n')
 
-    def calc_rew(self, pos):
+        return rgb
+
+    def calc_rew(self):
         dist_coeff = 10
         time_cost = -0.1
         progress = self.calc_progress()
         rew = dist_coeff*progress + time_cost*self.system.GetChTime()
         return rew
 
-    def is_done(self, pos):
+    def is_done(self):
+
+        collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif self.chassis_body.GetPos().z < -1 or self.collision:
+        elif self.chassis_body.GetPos().z < -1 or collision:
             self.rew += -1000
             self.isdone = True
 
@@ -295,14 +312,14 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
             vis_camera = sens.ChCameraSensor(
                 self.chassis_body,  # body camera is attached to
                 30,  # scanning rate in Hz
-                chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 6, chrono.ChVectorD(0, 1, 0))),
+                chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                 # offset pose
                 1280,  # number of horizontal samples
                 720,  # number of vertical channels
                 chrono.CH_C_PI / 3,  # horizontal field of view
                 (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
             )
-            vis_camera.SetName("Camera Sensor")
+            vis_camera.SetName("Vis Camera Sensor")
             self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
@@ -332,17 +349,22 @@ class self.camera_obstacle_avoidance(ChronoBaseEnv):
         del self
 
     def ScreenCapture(self, interval):
+        raise NotImplementedError
+        """
         try:
             self.myapplication.SetVideoframeSave(True)
             self.myapplication.SetVideoframeSaveInterval(interval)
         except:
             print("No ChIrrApp found. Cannot save video frames.")
-
+        """
 
     def __del__(self):
+        del self.manager
+        """
         if self.render:
             if hasattr(self, 'app'):
                 self.myapplication.GetDevice().closeDevice()
             print("Destructor called, Device deleted.")
         else:
             print("Destructor called, No device to delete.")
+        """
