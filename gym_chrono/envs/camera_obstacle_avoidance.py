@@ -67,8 +67,8 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width  = 320
-        self.camera_height = 180
+        self.camera_width  = 80
+        self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
@@ -107,10 +107,10 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.vehicle.Initialize()
 
         #self.vehicle.SetStepsize(self.timestep)
-        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.chassis_body = self.vehicle.GetChassisBody()
 
         # Driver
@@ -187,7 +187,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
             50,  # scanning rate in Hz
-            chrono.ChFrameD(chrono.ChVectorD(1, 0, .875)),
+            chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875)),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
@@ -256,7 +256,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         return rgb
 
     def calc_rew(self):
-        dist_coeff = 10
+        dist_coeff = 0.1
         time_cost = -0.1
         progress = self.calc_progress()
         rew = dist_coeff*progress + time_cost*self.system.GetChTime()
