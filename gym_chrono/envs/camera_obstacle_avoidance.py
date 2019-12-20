@@ -91,6 +91,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.terrainLength = 250.0  # size in X direction
         self.terrainWidth = 15.0  # size in Y direction
         self.render_setup = False
+        self.play_mode = False
 
     def reset(self):
         self.vehicle = veh.HMMWV_Reduced()
@@ -107,10 +108,14 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.vehicle.Initialize()
 
         #self.vehicle.SetStepsize(self.timestep)
-        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+        if self.play_mode == True :
+            self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+            self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+        else:
+            self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+            self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.chassis_body = self.vehicle.GetChassisBody()
         self.chassis_body.GetCollisionModel().ClearModel()
         size = chrono.ChVectorD(3,2,0.2)
@@ -211,6 +216,9 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.c_f = 0
         self.isdone = False
         self.render_setup = False
+        if self.play_mode:
+            self.render()
+
         return self.get_ob()
 
     def step(self, ac):
@@ -280,7 +288,11 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             self.isdone = True
 
 
-    def render(self):
+    def render(self, mode='human'):
+        if not (self.play_mode==True):
+            raise Exception('Please set play_mode=True to render')
+        if not (mode=='human'):
+            raise Exception('Only human mode render accepted')
         if not self.render_setup:
             """
             self.myapplication = veh.ChVehicleIrrApp(self.vehicle)
