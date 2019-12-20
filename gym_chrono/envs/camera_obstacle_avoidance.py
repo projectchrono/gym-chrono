@@ -93,7 +93,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.render_setup = False
 
     def reset(self):
-        self.vehicle = veh.HMMWV_Full()
+        self.vehicle = veh.HMMWV_Reduced()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
 
@@ -101,7 +101,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
         self.vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
         self.vehicle.SetDriveType(veh.DrivelineType_AWD)
-        self.vehicle.SetSteeringType(veh.SteeringType_PITMAN_ARM)
+        #self.vehicle.SetSteeringType(veh.SteeringType_PITMAN_ARM)
         self.vehicle.SetTireType(veh.TireModelType_TMEASY)
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
@@ -112,6 +112,10 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.chassis_body = self.vehicle.GetChassisBody()
+        self.chassis_body.GetCollisionModel().ClearModel()
+        size = chrono.ChVectorD(3,2,0.2)
+        self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
+        self.chassis_body.GetCollisionModel().BuildModel()
 
         # Driver
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
@@ -267,7 +271,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif self.chassis_body.GetPos().z < -1 or collision:
+        elif self.chassis_body.GetPos().z < -1 or collision or abs(self.chassis_body.GetPos().y) + 1.2 > self.terrainWidth/2 :
             self.rew += -1000
             self.isdone = True
 
