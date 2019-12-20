@@ -82,7 +82,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.Ytarg = 0.0
         self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
         self.timeend = 20
-        self.control_frequency = 50
+        self.control_frequency = 10
 
         self.initLoc = chrono.ChVectorD(0, 0, 1.0)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
@@ -291,8 +291,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
     def render(self, mode='human'):
         if not (self.play_mode==True):
             raise Exception('Please set play_mode=True to render')
-        if not (mode=='human'):
-            raise Exception('Only human mode render accepted')
+
         if not self.render_setup:
             """
             self.myapplication = veh.ChVehicleIrrApp(self.vehicle)
@@ -346,8 +345,9 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
             vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
             self.render_setup = True
-            
-        pass
+
+        if (mode == 'rgb_array'):
+            return self.get_ob()
         """
         self.myapplication.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
         self.myapplication.DrawAll()
