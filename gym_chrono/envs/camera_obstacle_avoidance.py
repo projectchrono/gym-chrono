@@ -263,13 +263,13 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             rgb = camera_data_RGBA8.GetRGBA8Data()[:,:,0:3]
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
-            print('NO DATA \n')
+            #print('NO DATA \n')
 
         return rgb
 
     def calc_rew(self):
         dist_coeff = 0.1
-        time_cost = -0.1
+        time_cost = -2
         progress = self.calc_progress()
         rew = dist_coeff*progress + time_cost*self.system.GetChTime()
         return rew
@@ -280,7 +280,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
         elif self.chassis_body.GetPos().z < -1 or collision or abs(self.chassis_body.GetPos().y) + 1.2 > self.terrainWidth/2 :
-            self.rew += -1000
+            self.rew += -500
             self.isdone = True
 
         elif self.chassis_body.GetPos().x > self.Xtarg :
