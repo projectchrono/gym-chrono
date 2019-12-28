@@ -280,7 +280,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
         elif self.chassis_body.GetPos().z < -1 or collision or abs(self.chassis_body.GetPos().y) + 1.2 > self.terrainWidth/2 :
-            self.rew += -500
+            #self.rew += -500
             self.isdone = True
 
         elif self.chassis_body.GetPos().x > self.Xtarg :
