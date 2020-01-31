@@ -57,7 +57,7 @@ def GetInitPose(p1, p2, z=0.55, reversed=0):
 
     return initLoc, initRot
 """
-class camera_obstacle_avoidance(ChronoBaseEnv):
+class multisens_obst_avoid(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
@@ -70,7 +70,9 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.camera_width  = 80
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
+        self.observation_space = spaces.Tuple(
+            (spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),
+                                    spaces.Box(low=-200, high=200, shape=(2,), dtype=np.uint8)))
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -211,7 +213,17 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         # -----------------------------------------------------------------
 
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
-        
+
+        # ----------------------------------------------
+        # Create an IMU sensor and add it to the manager
+        # ----------------------------------------------
+        self.imu = sens.ChIMUSensor(self.chassis_body,
+                               50,
+                               chrono.ChFrameD(chrono.VNULL))
+        self.imu.SetName("IMU Sensor")
+        self.imu.FilterList().append(sens.ChFilterIMUAccess())
+        self.manager.AddSensor(self.imu)
+
         self.step_number = 0
         self.c_f = 0
         self.isdone = False
@@ -257,15 +269,22 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
 
 
     def get_ob(self):
-
+        # RGB camera
         camera_data_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
         if camera_data_RGBA8.HasData():
             rgb = camera_data_RGBA8.GetRGBA8Data()[:,:,0:3]
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
             #print('NO DATA \n')
-
-        return rgb
+        # IMU sensor (take only X )
+        imu_data = self.imu.GetMostRecentIMUBuffer()
+        if imu_data.HasData():
+            imu = imu_data.GetIMUData()[0]
+            v = self.chassis_body.GetRot().RotateBack(self.chassis_body.GetPos_dt()).x
+            data = np.asarray([imu, v])
+        else:
+            data =  np.zeros((2,))
+        return (rgb, data)
 
     def calc_rew(self):
         dist_coeff = 0.1
@@ -347,7 +366,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             self.render_setup = True
 
         if (mode == 'rgb_array'):
-            return self.get_ob()
+            return self.get_ob()[0]
         """
         self.myapplication.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
         self.myapplication.DrawAll()
