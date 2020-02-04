@@ -33,3 +33,11 @@ register(
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
+
+register(
+    id='camera_obstacle_avoidance-v1',
+    entry_point='gym_chrono.envs:multisens_obst_avoid'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
+)
