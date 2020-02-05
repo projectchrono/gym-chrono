@@ -1,7 +1,7 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import pychrono.irrlicht as chronoirr
+#import pychrono.irrlicht as chronoirr
 import numpy as np
 import math
 import os
