@@ -290,7 +290,7 @@ class multisens_obst_avoid(ChronoBaseEnv):
         dist_coeff = 0.1
         #time_cost = -2
         progress = self.calc_progress()
-        rew = dist_coeff*progress + #time_cost*self.system.GetChTime()
+        rew = dist_coeff*progress #+ time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
