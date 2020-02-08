@@ -62,8 +62,8 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        chrono.SetChronoDataPath('/home/simonebenatti/codes/Chrono/chrono/data/')
-        veh.SetDataPath('/home/simonebenatti/codes/Chrono/chrono/data/vehicle/')
+        chrono.SetChronoDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/')
+        veh.SetDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/vehicle/')
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
@@ -80,7 +80,6 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         #
         self.Xtarg = 100.0
         self.Ytarg = 0.0
-        self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
         self.timeend = 20
         self.control_frequency = 10
 
@@ -211,7 +210,8 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         # -----------------------------------------------------------------
 
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
-        
+
+        self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
         self.step_number = 0
         self.c_f = 0
         self.isdone = False
@@ -284,7 +284,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             self.isdone = True
 
         elif self.chassis_body.GetPos().x > self.Xtarg :
-            self.rew += 1000
+            self.rew += 3000
             self.isdone = True
 
 
