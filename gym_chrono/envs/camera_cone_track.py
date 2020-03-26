@@ -62,7 +62,7 @@ def GetInitPose(p1, p2, z=0.1, reversed=0):
 
     return initLoc, initRot
 
-class camera_obstacle_avoidance_custom(ChronoBaseEnv):
+class camera_cone_track(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):

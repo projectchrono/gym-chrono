@@ -41,3 +41,19 @@ register(
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
+
+register(
+    id='camera_rccar_hallway-v0',
+    entry_point='gym_chrono.envs:camera_rccar_hallway'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
+)
+
+register(
+    id='camera_cone_track-v0',
+    entry_point='gym_chrono.envs:camera_cone_track'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
+)
