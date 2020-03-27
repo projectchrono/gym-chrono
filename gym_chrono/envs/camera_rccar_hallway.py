@@ -202,15 +202,15 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.DrawCones(self.track.right.points, 'red')
 
         f = 0
-        start_light = 4
-        end_light = 5
+        start_light = 0
+        end_light = 8
         self.manager = sens.ChSensorManager(self.system)
         for i in range(8):
             f += 3
             if i <= start_light or i > end_light:
                 continue
-            self.manager.scene.AddPointLight(chrono.ChVectorF(f,1.25,2.3)+offsetF,chrono.ChVectorF(1,1,1),10)
-            self.manager.scene.AddPointLight(chrono.ChVectorF(f,3.75,2.3)+offsetF,chrono.ChVectorF(1,1,1),10)
+            self.manager.scene.AddPointLight(chrono.ChVectorF(f,1.25,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
+            self.manager.scene.AddPointLight(chrono.ChVectorF(f,3.75,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # ------------------------------------------------
@@ -331,11 +331,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
             print("Over self.timeend")
             self.isdone = True
         elif p.Length() > self.track.width / 2.25:
-            # self.rew += -200
             self.isdone = True
-        # elif self.chassis_body.GetPos().x > self.Xtarg :
-        #     self.rew += 1000
-        #     self.isdone = True
 
 
     def render(self, mode='human'):

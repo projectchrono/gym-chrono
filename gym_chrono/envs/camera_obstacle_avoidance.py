@@ -85,7 +85,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
 
         self.initLoc = chrono.ChVectorD(0, 0, 1.0)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-        self.terrain_model = veh.RigidTerrain.BOX
+        self.terrain_model = veh.RigidTerrain.PatchType_BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 250.0  # size in X direction
         self.terrainWidth = 15.0  # size in Y direction
