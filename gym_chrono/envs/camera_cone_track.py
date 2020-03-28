@@ -71,8 +71,8 @@ class camera_cone_track(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width  = 80
-        self.camera_height = 45
+        self.camera_width  = 80*2
+        self.camera_height = 45*2
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
@@ -109,6 +109,31 @@ class camera_cone_track(ChronoBaseEnv):
         self.initLoc.z = 0.15
         print(self.initLoc)
 
+    def DrawCones(self, points, color, z=.001, n=10):
+        for p in points[::n]:
+            p.z += z
+            cmesh = chrono.ChTriangleMeshConnected()
+            if color=='red':
+                cmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/cones/red_cone.obj"), False, True)
+            elif color=='green':
+                cmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/cones/green_cone.obj"), False, True)
+
+            cshape = chrono.ChTriangleMeshShape()
+            cshape.SetMesh(cmesh)
+            cshape.SetName("Cone")
+            cshape.SetStatic(True)
+
+            cbody = chrono.ChBody()
+            cbody.SetPos(p)
+            cbody.AddAsset(cshape)
+            cbody.SetBodyFixed(True)
+            cbody.SetCollide(False)
+            if color=='red':
+                cbody.AddAsset(chrono.ChColorAsset(1,0,0))
+            elif color=='green':
+                cbody.AddAsset(chrono.ChColorAsset(0,1,0))
+
+            self.system.Add(cbody)
     def reset(self):
         self.track_seed = 1# randint(0, 100)
         self.generate_track()
@@ -163,52 +188,11 @@ class camera_cone_track(ChronoBaseEnv):
         # create obstacles
         self.cones = []
 
-        lp = self.track.left.points[::50]
-        rp = self.track.right.points[::50]
+        lp = self.track.left.points#[::50]
+        rp = self.track.right.points#[::50]
 
-        for p in lp:
-            p.z = .126
-
-            # cbody.SetCollide(True)
-
-            box = chrono.ChBodyEasyBox(.25, .25, .25, 1000, False, True)
-            box.SetPos(p)
-
-            box.SetBodyFixed(True)
-            box_asset = box.GetAssets()[0]
-            visual_asset = chrono.CastToChVisualization(box_asset)
-
-            vis_mat = chrono.ChVisualMaterial()
-            vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
-            vis_mat.SetDiffuseColor(chrono.ChVectorF(0, 1, 0))
-            vis_mat.SetSpecularColor(chrono.ChVectorF(.7, .7, .7))
-
-            visual_asset.material_list.append(vis_mat)
-
-            self.cones.append(box)
-            self.system.Add(box)
-
-        for p in rp:
-            p.z =  .126
-
-            # cbody.SetCollide(True)
-
-            box = chrono.ChBodyEasyBox(.25, .25, .25, 1000, False, True)
-            box.SetPos(p)
-
-            box.SetBodyFixed(True)
-            box_asset = box.GetAssets()[0]
-            visual_asset = chrono.CastToChVisualization(box_asset)
-
-            vis_mat = chrono.ChVisualMaterial()
-            vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
-            vis_mat.SetDiffuseColor(chrono.ChVectorF(1, 0, 0))
-            vis_mat.SetSpecularColor(chrono.ChVectorF(.7, .7, .7))
-
-            visual_asset.material_list.append(vis_mat)
-
-            self.cones.append(box)
-            self.system.Add(box)
+        self.DrawCones(lp, 'green')
+        self.DrawCones(rp, 'red')
 
 
         # Set the time response for steering and throttle inputs.
@@ -236,7 +220,7 @@ class camera_cone_track(ChronoBaseEnv):
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
-            3*chrono.CH_C_PI / 2,  # horizontal field of view
+            chrono.CH_C_PI / 2,  # horizontal field of view
             (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
@@ -345,7 +329,7 @@ class camera_cone_track(ChronoBaseEnv):
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
                 # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if True:
+                if False:
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
@@ -361,9 +345,9 @@ class camera_cone_track(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if True:
+                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if False:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
