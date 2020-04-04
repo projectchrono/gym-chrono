@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+gym_chrono.egg-info/
+*.bmp

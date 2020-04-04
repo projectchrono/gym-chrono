@@ -46,13 +46,13 @@ def map(arr, from_range, to_range):
 
     return to_range[0] + (arr - from_range[0]) / float(np.diff(from_range)) * float(np.diff(to_range))
 
-def generate_random_bitmap():
+def generate_random_bitmap(file_name="height_map.bmp"):
     noise = generate_perlin_noise_2d(shape=(256, 256), res=(8, 8))
     noise = map(noise, np.array([-1,1]), np.array([0,255]))
     img = Image.fromarray(np.uint8(noise))
     width, height = img.size
     img = img.resize((int(width/2), int(height/2)))
-    img.save("height_map.bmp")
+    img.save(file_name)
 
 if __name__ == '__main__':
     show = False

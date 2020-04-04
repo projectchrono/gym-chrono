@@ -11,7 +11,7 @@ from random import randint
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from utils.perlin_bitmap_generator import generate_random_bitmap
+from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 
 # openai-gym imports
 import gym
@@ -44,16 +44,16 @@ def setDataDirectory():
     CONDA_PREFIX = os.environ.get('CONDA_PREFIX')
     CHRONO_DATA_DIR = os.environ.get('CHRONO_DATA_DIR')
     if CONDA_PREFIX and not CHRONO_DATA_DIR:
-        CHRONO_DATA_DIR = os.path.join(CONDA_PREFIX, 'share', 'chrono', 'data', ')
+        CHRONO_DATA_DIR = os.path.join(CONDA_PREFIX, 'share', 'chrono', 'data', '')
     if not CHRONO_DATA_DIR:
-        CHRONO_DATA_DIR = os.path.join(Path(os.path.dirname(os.path.realpath(__file__))).parents[1], 'chrono', 'data', ')
+        CHRONO_DATA_DIR = os.path.join(Path(os.path.dirname(os.path.realpath(__file__))).parents[1], 'chrono', 'data', '')
     elif not CHRONO_DATA_DIR:
         raise Exception('Cannot find the chrono data directory. Please verify that CHRONO_DATA_DIR is set correctly.')
 
     chrono.SetChronoDataPath(CHRONO_DATA_DIR)
     veh.SetDataPath(os.path.join(CHRONO_DATA_DIR, 'vehicle', ''))
 
-class camera_cone_track(ChronoBaseEnv):
+class solo_off_road(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
@@ -65,11 +65,11 @@ class camera_cone_track(ChronoBaseEnv):
         self.camera_width  = 80*2
         self.camera_height = 45*2
 
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Tuple(
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+        self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
                 spaces.Box(low=0, high=500, shape=(3,), dtype=np.float),                                        # current gps
-                spaces.Box(low=0, high=500, shape=(3,), dtype=np.float))                                        # goal gps
+                spaces.Box(low=0, high=500, shape=(3,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 1e-3
@@ -78,26 +78,26 @@ class camera_cone_track(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 20
+        self.timeend = 100
         self.control_frequency = 10
 
         self.min_terrain_height = -4     # min terrain height
         self.max_terrain_height = 0 # max terrain height
-        self.terrain_length = 300.0 # size in X direction
-        self.terrain_width = 300.0  # size in Y direction
+        self.terrain_length = 100.0 # size in X direction
+        self.terrain_width = 100.0  # size in Y direction
 
-        self.initLoc = chrono.ChVectorD(-self.terrain_length / 2.0, -self.terrain_width / 2.0, self.max_terrain_height + 1)
+        self.initLoc = chrono.ChVectorD(-self.terrain_length / 2.25, -self.terrain_width / 2.25, self.max_terrain_height + 1)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-
-        self.goal = chrono.ChVectorD(self.terrain_length / 2.0, self.terrain_width / 2.0, self.max_terrain_height + 1)
-        self.goal_coord = toGPSCoordinate(self.goal)
 
         self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0) # Origin being somewhere in Madison WI
         self.cur_coord = self.origin
         # used for converting to cartesian coordinates
-        self.lat_rad = radians(self.origin.x)
-        self.long_rad = radians(self.origin.y)
-        self.lat_cos = cos(self.origin.x)
+        self.lat_rad = math.radians(self.origin.x)
+        self.long_rad = math.radians(self.origin.y)
+        self.lat_cos = math.cos(self.origin.x)
+
+        self.goal = chrono.ChVectorD(self.terrain_length / 2.25, self.terrain_width / 2.25, self.max_terrain_height + 1)
+        self.goal_coord = self.toGPSCoordinate(self.goal)
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
@@ -107,8 +107,8 @@ class camera_cone_track(ChronoBaseEnv):
     def toCartesian(self, coord):
         """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
 
-        lat_rad = radians(coord.x)
-        long_rad = radians(coord.y)
+        lat_rad = math.radians(coord.x)
+        long_rad = math.radians(coord.y)
         EARTH_RADIUS = 6378.1e3 # [m]
 
         # x is East, y is North
@@ -124,8 +124,8 @@ class camera_cone_track(ChronoBaseEnv):
         EARTH_RADIUS = 6378.1e3 # [m]
 
         # x is East, y is North
-        lat = degrees(pos.x / EARTH_RADIUS / self.lat_cos + self.long_rad)
-        long = degrees(pos.y / EARTH_RADIUS + self.lat_rad)
+        lat = math.degrees(pos.x / EARTH_RADIUS / self.lat_cos + self.long_rad)
+        long = math.degrees(pos.y / EARTH_RADIUS + self.lat_rad)
         alt = pos.z + self.origin.z
 
         return chrono.ChVectorD(lat, long, alt)
@@ -145,6 +145,7 @@ class camera_cone_track(ChronoBaseEnv):
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.system = self.vehicle.GetSystem()
         self.chassis_body = self.vehicle.GetChassisBody()
         # self.chassis_body.GetCollisionModel().ClearModel()
         # size = chrono.ChVectorD(3,2,0.2)
@@ -155,11 +156,11 @@ class camera_cone_track(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # Create the terrain
-        self.bitmap_file = "height_map.bmp"
+        self.bitmap_file = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map.bmp"
         generate_random_bitmap(self.bitmap_file)
 
-        self.terrain = veh.RigidTerrain(self.vehicle.GetSystem())
-        patch = terrain.AddPatch(chrono.CSYSNORM,            # position
+        self.terrain = veh.RigidTerrain(self.system)
+        patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                     self.bitmap_file,        # heightmap file (.bmp)
                                     "test",                  # mesh name
                                     self.terrain_length,     # sizeX
@@ -175,12 +176,19 @@ class camera_cone_track(ChronoBaseEnv):
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
 
+        ground_body = patch.GetGroundBody()
+        ground_asset = ground_body.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(ground_asset)
+        vis_mat = chrono.ChVisualMaterial()
+        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        visual_asset.material_list.append(vis_mat)
+
         # create goal sphere
         self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, False, True)
         self.goal_sphere.SetBodyFixed(True)
         self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
         self.goal_sphere.SetPos(self.goal)
-        self.vehicle.GetSystem().Add(self.goal_sphere)
+        self.system.Add(self.goal_sphere)
 
         # create obstacles
 
@@ -285,33 +293,39 @@ class camera_cone_track(ChronoBaseEnv):
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
         if gps_buffer.HasData():
-            cur_gps_data = gps_buffer.GetGPSData()
-            self.cur_coord = chrono.ChVectorD(cur_gps_data.Latitude, cur_gps_data.Longitude, cur_gps_data.Altitude)
-            print(cur_gps_data)
+            cur_gps_data = gps_buffer.GetGPSData()[0:3]
+            self.cur_coord = chrono.ChVectorD(cur_gps_data[0], cur_gps_data[1], cur_gps_data[2])
         else:
             cur_gps_data = np.zeros((3,))
 
         goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
+        # print(cur_gps_data, goal_gps_data)
+
         return (rgb, cur_gps_data, goal_gps_data)
 
     def calc_rew(self):
         progress_coeff = 10
-        #time_cost = -2
+        time_cost = -.5
         progress = self.calc_progress()
-        rew = progress_coeff*progress# + time_cost*self.system.GetChTime()
+        rew = progress_coeff*progress + time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
 
-        p = self.track.center.calcClosestPoint(self.chassis_body.GetPos())
-        p = p-self.chassis_body.GetPos()
+        pos = self.chassis_body.GetPos()
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif p.Length() > self.track.width / 2.5:
+        elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width or pos.z < self.min_terrain_height:
+            # print(abs(pos.x), self.terrain_length / 2.0)
+            # print(abs(pos.y), self.terrain_width / 2.0)
+            # print(abs(pos.z), self.min_terrain_height)
             self.rew += -200
+            self.isdone = True
+        elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
+            self.rew += 2500
             self.isdone = True
         # elif self.chassis_body.GetPos().x > self.Xtarg :
         #     self.rew += 1000
@@ -345,7 +359,7 @@ class camera_cone_track(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 0, 1))),
                     # offset pose
                     1280,  # number of horizontal samples
                     720,  # number of vertical channels
@@ -353,9 +367,9 @@ class camera_cone_track(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
+                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if True:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
@@ -372,9 +386,10 @@ class camera_cone_track(ChronoBaseEnv):
             return self.get_ob()
 
     def calc_progress(self):
-        dist = (self.toCartesian(self.cur_coord) - self.goal).Length()
-        progress = dist - self.old_dist
+        dist = (self.chassis_body.GetPos() - self.goal).Length()
+        progress = self.old_dist - dist 
         self.old_dist = dist
+        # print('Progress :: ', progress)
         return progress
 
     def close(self):
