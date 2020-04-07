@@ -72,13 +72,13 @@ class solo_off_road(ChronoBaseEnv):
                 spaces.Box(low=0, high=500, shape=(3,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
-        self.timestep = 1e-3
+        self.timestep = 3e-3
 
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 100
+        self.timeend = 50
         self.control_frequency = 10
 
         self.min_terrain_height = -4     # min terrain height
@@ -98,8 +98,6 @@ class solo_off_road(ChronoBaseEnv):
 
         self.goal = chrono.ChVectorD(self.terrain_length / 2.25, self.terrain_width / 2.25, self.max_terrain_height + 1)
         self.goal_coord = self.toGPSCoordinate(self.goal)
-
-        self.old_dist = (self.goal - self.initLoc).Length()
 
         self.render_setup = False
         self.play_mode = False
@@ -157,16 +155,27 @@ class solo_off_road(ChronoBaseEnv):
 
         # Create the terrain
         self.bitmap_file = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map.bmp"
+        self.bitmap_file_backup = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map_backup.bmp"
         generate_random_bitmap(self.bitmap_file)
 
         self.terrain = veh.RigidTerrain(self.system)
-        patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
-                                    self.bitmap_file,        # heightmap file (.bmp)
-                                    "test",                  # mesh name
-                                    self.terrain_length,     # sizeX
-                                    self.terrain_width,      # sizeY
-                                    self.min_terrain_height, # hMin
-                                    self.max_terrain_height) # hMax
+        try:
+            patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
+                                        self.bitmap_file,        # heightmap file (.bmp)
+                                        "test",                  # mesh name
+                                        self.terrain_length,     # sizeX
+                                        self.terrain_width,      # sizeY
+                                        self.min_terrain_height, # hMin
+                                        self.max_terrain_height) # hMax
+        except Exception:
+            print('Corrupt Bitmap File')
+            patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
+                                        self.bitmap_file_backup,        # heightmap file (.bmp)
+                                        "test",                  # mesh name
+                                        self.terrain_length,     # sizeX
+                                        self.terrain_width,      # sizeY
+                                        self.min_terrain_height, # hMin
+                                        self.max_terrain_height) # hMax
 
         patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
 
@@ -238,6 +247,24 @@ class solo_off_road(ChronoBaseEnv):
         self.gps.SetName("GPS Sensor")
         self.gps.FilterList().append(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
+        # vis_camera = sens.ChCameraSensor(
+        #     self.chassis_body,  # body camera is attached to
+        #     30,  # scanning rate in Hz
+        #     chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+        #     # offset pose
+        #     1280,  # number of horizontal samples
+        #     720,  # number of vertical channels
+        #     chrono.CH_C_PI / 3,  # horizontal field of view
+        #     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
+        # )
+        # vis_camera.SetName("Follow Camera Sensor")
+        # # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        # # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+        # if True:
+        #     vis_camera.FilterList().append(sens.ChFilterSave())
+        # self.manager.AddSensor(vis_camera)
+        #
+        self.old_dist = (self.goal - self.initLoc).Length()
 
         self.step_number = 0
         self.c_f = 0
@@ -259,13 +286,19 @@ class solo_off_road(ChronoBaseEnv):
             self.driver.Synchronize(time)
             self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
             self.terrain.Synchronize(time)
-
+            
             steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta, self.driver.GetSteering() + self.SteeringDelta)
-            throttle = np.clip(self.ac[1,], self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-            braking = np.clip(self.ac[2,], self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
+            if self.ac[1,] >= 0:
+                throttle = np.clip(self.ac[1,], self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
+                braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
+            else:
+                braking = np.clip(abs(self.ac[2,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
+                throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
             self.driver.SetSteering(steering)
-            self.driver.SetThrottle(throttle)
-            self.driver.SetBraking(braking)
+            # self.driver.SetThrottle(throttle)
+            # self.driver.SetBraking(braking)
+            self.driver.SetThrottle(0.5)
+            self.driver.SetBraking(0)
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
@@ -300,8 +333,6 @@ class solo_off_road(ChronoBaseEnv):
 
         goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
-        # print(cur_gps_data, goal_gps_data)
-
         return (rgb, cur_gps_data, goal_gps_data)
 
     def calc_rew(self):
@@ -324,13 +355,12 @@ class solo_off_road(ChronoBaseEnv):
             # print(abs(pos.z), self.min_terrain_height)
             self.rew += -200
             self.isdone = True
-        elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
-            self.rew += 2500
+        elif (self.chassis_body.GetPos() - self.goal).Length() < 10:
+            self.rew += 25000
             self.isdone = True
         # elif self.chassis_body.GetPos().x > self.Xtarg :
         #     self.rew += 1000
         #     self.isdone = True
-
 
     def render(self, mode='human'):
         if not (self.play_mode==True):
@@ -359,7 +389,7 @@ class solo_off_road(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 0, 1))),
+                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     1280,  # number of horizontal samples
                     720,  # number of vertical channels
