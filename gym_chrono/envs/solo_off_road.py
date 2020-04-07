@@ -78,7 +78,7 @@ class solo_off_road(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 50
+        self.timeend = 100
         self.control_frequency = 10
 
         self.min_terrain_height = -4     # min terrain height
@@ -266,6 +266,8 @@ class solo_off_road(ChronoBaseEnv):
         #
         self.old_dist = (self.goal - self.initLoc).Length()
 
+        self.old_dist = (self.goal - self.initLoc).Length()
+
         self.step_number = 0
         self.c_f = 0
         self.isdone = False
@@ -286,7 +288,7 @@ class solo_off_road(ChronoBaseEnv):
             self.driver.Synchronize(time)
             self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
             self.terrain.Synchronize(time)
-            
+
             steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta, self.driver.GetSteering() + self.SteeringDelta)
             if self.ac[1,] >= 0:
                 throttle = np.clip(self.ac[1,], self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
@@ -333,6 +335,8 @@ class solo_off_road(ChronoBaseEnv):
 
         goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
+        # print(cur_gps_data, goal_gps_data)
+
         return (rgb, cur_gps_data, goal_gps_data)
 
     def calc_rew(self):
@@ -355,8 +359,8 @@ class solo_off_road(ChronoBaseEnv):
             # print(abs(pos.z), self.min_terrain_height)
             self.rew += -200
             self.isdone = True
-        elif (self.chassis_body.GetPos() - self.goal).Length() < 10:
-            self.rew += 25000
+        elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
+            self.rew += 2500
             self.isdone = True
         # elif self.chassis_body.GetPos().x > self.Xtarg :
         #     self.rew += 1000
@@ -417,7 +421,7 @@ class solo_off_road(ChronoBaseEnv):
 
     def calc_progress(self):
         dist = (self.chassis_body.GetPos() - self.goal).Length()
-        progress = self.old_dist - dist 
+        progress = self.old_dist - dist
         self.old_dist = dist
         # print('Progress :: ', progress)
         return progress
