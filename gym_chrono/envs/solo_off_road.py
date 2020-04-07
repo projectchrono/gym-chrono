@@ -68,8 +68,7 @@ class solo_off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=0, high=500, shape=(3,), dtype=np.float),                                        # current gps
-                spaces.Box(low=0, high=500, shape=(3,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=0, high=500, shape=(6,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -154,7 +153,7 @@ class solo_off_road(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # Create the terrain
-        self.bitmap_file = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map.bmp"
+        self.bitmap_file =  os.getcwd() + "/utils/height_map.bmp"
         self.bitmap_file_backup = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map_backup.bmp"
         generate_random_bitmap(self.bitmap_file)
 
@@ -238,11 +237,13 @@ class solo_off_road(ChronoBaseEnv):
         # -----------------------------------------------------
         # Create a self.gps and add it to the sensor manager
         # -----------------------------------------------------
+        gps_noise_none = sens.ChGPSNoiseNone()
         self.gps = sens.ChGPSSensor(
             self.chassis_body,
             100,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             self.origin,
+            gps_noise_none
         )
         self.gps.SetName("GPS Sensor")
         self.gps.FilterList().append(sens.ChFilterGPSAccess())
@@ -337,7 +338,7 @@ class solo_off_road(ChronoBaseEnv):
 
         # print(cur_gps_data, goal_gps_data)
 
-        return (rgb, cur_gps_data, goal_gps_data)
+        return (rgb, np.concatenate([cur_gps_data, goal_gps_data]))
 
     def calc_rew(self):
         progress_coeff = 10
