@@ -77,7 +77,7 @@ class solo_off_road(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 100
+        self.timeend = 50
         self.control_frequency = 10
 
         self.min_terrain_height = -4     # min terrain height
@@ -153,8 +153,8 @@ class solo_off_road(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # Create the terrain
-        self.bitmap_file =  os.getcwd() + "/utils/height_map.bmp"
-        self.bitmap_file_backup = "/home/aaron/controls/control_sandbox/rl/RLPT/height_map_backup.bmp"
+        self.bitmap_file =  os.getcwd() + "/height_map.bmp"
+        self.bitmap_file_backup = os.getcwd() + "/height_map_backup.bmp"
         generate_random_bitmap(self.bitmap_file)
 
         self.terrain = veh.RigidTerrain(self.system)
@@ -187,6 +187,7 @@ class solo_off_road(ChronoBaseEnv):
         ground_body = patch.GetGroundBody()
         ground_asset = ground_body.GetAssets()[0]
         visual_asset = chrono.CastToChVisualization(ground_asset)
+        visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
         vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
         visual_asset.material_list.append(vis_mat)
@@ -267,8 +268,6 @@ class solo_off_road(ChronoBaseEnv):
         #
         self.old_dist = (self.goal - self.initLoc).Length()
 
-        self.old_dist = (self.goal - self.initLoc).Length()
-
         self.step_number = 0
         self.c_f = 0
         self.isdone = False
@@ -342,7 +341,7 @@ class solo_off_road(ChronoBaseEnv):
 
     def calc_rew(self):
         progress_coeff = 10
-        time_cost = -.5
+        time_cost = 0# -.5
         progress = self.calc_progress()
         rew = progress_coeff*progress + time_cost*self.system.GetChTime()
         return rew
@@ -358,7 +357,7 @@ class solo_off_road(ChronoBaseEnv):
             # print(abs(pos.x), self.terrain_length / 2.0)
             # print(abs(pos.y), self.terrain_width / 2.0)
             # print(abs(pos.z), self.min_terrain_height)
-            self.rew += -200
+            # self.rew -= 200
             self.isdone = True
         elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
             self.rew += 2500
