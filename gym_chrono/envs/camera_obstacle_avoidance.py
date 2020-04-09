@@ -342,8 +342,8 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             # -----------------------------------------------------------------
 
 
-            self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            #self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
+            vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720,"Visualization Camera"))
             self.render_setup = True
 
         if (mode == 'rgb_array'):

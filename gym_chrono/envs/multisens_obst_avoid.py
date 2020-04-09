@@ -88,7 +88,7 @@ class multisens_obst_avoid(ChronoBaseEnv):
 
         self.initLoc = chrono.ChVectorD(0, 0, 1.0)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-        self.terrain_model = veh.RigidTerrain.BOX
+        self.terrain_model = veh.RigidTerrain.PatchType_BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 250.0  # size in X direction
         self.terrainWidth = 15.0  # size in Y direction
@@ -211,19 +211,18 @@ class multisens_obst_avoid(ChronoBaseEnv):
         # -----------------------------------------------------------------
         # Create a filter graph for post-processing the data from the lidar
         # -----------------------------------------------------------------
-
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
-
         # ----------------------------------------------
         # Create an IMU sensor and add it to the manager
         # ----------------------------------------------
+        imu_noise_none = sens.ChIMUNoiseNone()
         self.imu = sens.ChIMUSensor(self.chassis_body,
                                50,
-                               chrono.ChFrameD(chrono.VNULL))
+                               chrono.ChFrameD(chrono.VNULL),
+                               imu_noise_none,)
         self.imu.SetName("IMU Sensor")
         self.imu.FilterList().append(sens.ChFilterIMUAccess())
         self.manager.AddSensor(self.imu)
-
         self.d_old = np.linalg.norm(self.Xtarg + self.Ytarg)
         self.step_number = 0
         self.c_f = 0
@@ -362,8 +361,8 @@ class multisens_obst_avoid(ChronoBaseEnv):
             # -----------------------------------------------------------------
 
 
-            self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+            vis_camera.FilterList().append(sens.ChFilterVisualize(1208, 720,"Visualization Camera"))
             self.render_setup = True
 
         if (mode == 'rgb_array'):
