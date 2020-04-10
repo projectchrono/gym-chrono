@@ -16,6 +16,7 @@ from control_utilities.chrono_utilities import calcPose, setDataDirectory
 from control_utilities.driver import Driver
 from control_utilities.track import Track
 from gym_chrono.envs.utils.pid_controller import PIDLongitudinalController
+from control_utilities.obstacle import getObstacleBoundaryDim
 
 # openai-gym imports
 import gym
@@ -45,6 +46,7 @@ import math as m
 #       Variable value: <chrono's data directory>
 #           Ex. Variable value: C:\Users\user\chrono\data\
 # ----------------------------------------------------------------------------------------------------
+obstacles = ['sensor/offroad/rock2.obj','sensor/offroad/rock3.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
 
 class BezierPath(chrono.ChBezierCurve):
     def __init__(self, beginPos, endPos, z):
@@ -62,6 +64,12 @@ class BezierPath(chrono.ChBezierCurve):
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
         self.current_t += delta_t
+
+    def getPoints(self):
+        points = []
+        for i in range(self.getNumPoints()):
+            points.append(self.getPoint(i))
+        return points
 
     # Param-only derivative
     def par_evalD(self, t):
@@ -103,30 +111,48 @@ class GVSETS_env(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 100
+        self.timeend = 35
         self.control_frequency = 10
-
-        self.initLoc = chrono.ChVectorD(0, 0, .1)
+        self.initLoc = chrono.ChVectorD(0, 0, 1)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
         leader_initloc = [-90, -40]
         leader_endloc = [90, 40]
         # time needed by the leader to get to the end of the path
         self.leader_totaltime = 20/5e-3
-        self.path = BezierPath(leader_initloc, leader_endloc, 10.0)
+        self.path = BezierPath(leader_initloc, leader_endloc, 2.0)
         self.terrain_model = veh.RigidTerrain.PatchType_BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 150.0  # size in X direction
         self.terrainWidth = 150.0  # size in Y direction
-
-
         self.render_setup = False
         self.play_mode = False
         self.step_number = 0
 
+    def placeObstacle(self, pos):
+        obst = chrono.ChBody()
+        obst.SetPos(pos)
+        obst.SetBodyFixed(True)
+        vis_mesh = chrono.ChTriangleMeshConnected()
+        vis_mesh.LoadWavefrontMesh(veh.GetDataFile("hmmwv/hmmwv_chassis.obj"), True, True)
+        trimesh_shape = chrono.ChTriangleMeshShape()
+        trimesh_shape.SetMesh(vis_mesh)
+        trimesh_shape.SetName("mesh_name")
+        trimesh_shape.SetStatic(True)
+        obst.AddAsset(trimesh_shape)
+        x, y, z = getObstacleBoundaryDim(vis_mesh)
+        obst.GetCollisionModel().ClearModel()
+        obst.GetCollisionModel().AddBox(x / 2, y / 2, z / 2)  # must set half sizes
+        obst.GetCollisionModel().BuildModel()
+        obst.SetCollide(True)
+
+        self.obstacles.append(obst)
+        self.system.Add(obst)
 
     def reset(self):
+        self.path.current_t = 0
         self.vehicle = veh.HMMWV_Reduced()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.surf_material = chrono.ChMaterialSurfaceNSC()
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
 
         self.vehicle.SetChassisFixed(False)
@@ -138,7 +164,6 @@ class GVSETS_env(ChronoBaseEnv):
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
 
-        # self.vehicle.SetStepsize(self.timestep)
         if self.play_mode == True:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
@@ -189,10 +214,18 @@ class GVSETS_env(ChronoBaseEnv):
         patch.SetContactFrictionCoefficient(0.9)
         patch.SetContactRestitutionCoefficient(0.01)
         patch.SetContactMaterialProperties(2e7, 0.3)
-        patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
         self.groundBody = patch.GetGroundBody()
+        ground_asset = self.groundBody.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(ground_asset)
+        vis_mat = chrono.ChVisualMaterial()
+        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        visual_asset.material_list.append(vis_mat)
+
+        # self.vehicle.SetStepsize(self.timestep)
+
         # Leader
         self.leader = chrono.ChBody()
         vis_mesh = chrono.ChTriangleMeshConnected()
@@ -205,6 +238,10 @@ class GVSETS_env(ChronoBaseEnv):
 
         self.leader.AddAsset(trimesh_shape)
         self.system.Add(self.leader)
+        # Add obstacles:
+        self.obstacles = []
+        for point in self.path.getPoints():
+            self.placeObstacle(point)
 
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
@@ -228,7 +265,6 @@ class GVSETS_env(ChronoBaseEnv):
 
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
 
-        #self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
 
         self.step_number = 0
         self.c_f = 0
@@ -262,13 +298,12 @@ class GVSETS_env(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
-            self.manager.Update()
-
-            leaderPos, leaderRot = self.path.getState()
-            self.leader.SetPos(leaderPos)
-            # TODO set proper rot
-            self.leader.SetRot(leaderRot)
             self.path.Advance(1 / self.leader_totaltime)
+            leaderPos, leaderRot = self.path.getState()
+            print(str(leaderPos.z))
+            self.leader.SetPos(leaderPos)
+            self.leader.SetRot(leaderRot)
+            self.manager.Update()
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
@@ -297,15 +332,17 @@ class GVSETS_env(ChronoBaseEnv):
         return rew
 
     def is_done(self):
-        pass
+
         """
         p = self.track.center.calcClosestPoint(self.chassis_body.GetPos())
         p = p - self.chassis_body.GetPos()
 
         collision = not (self.c_f == 0)
+        """
         if self.system.GetChTime() > self.timeend:
             print("Over self.timeend")
             self.isdone = True
+        """
         elif p.Length() > self.track.width / 2.25:
             self.isdone = True
         """
@@ -314,7 +351,7 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if True:
+            if False:
                 vis_camera = sens.ChCameraSensor(
                     self.groundBody,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -333,12 +370,12 @@ class GVSETS_env(ChronoBaseEnv):
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
-            if False:
+            if True:
                 vis_camera = sens.ChCameraSensor(
-                    self.chassis_body,  # body camera is attached to
+                    self.leader,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5),
-                                    chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(-6, 0, 1.5),
+                                    chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 1, 0))),
                     # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
                     # offset pose
                     1280,  # number of horizontal samples
