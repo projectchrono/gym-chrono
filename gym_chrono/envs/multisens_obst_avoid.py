@@ -1,7 +1,7 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-#import pychrono.irrlicht as chronoirr
+from control_utilities.chrono_utilities import setDataDirectory
 import numpy as np
 import math
 import os
@@ -62,8 +62,7 @@ class multisens_obst_avoid(ChronoBaseEnv):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        chrono.SetChronoDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/')
-        veh.SetDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/vehicle/')
+        setDataDirectory()
 
         # Define action and observation space
         # They must be gym.spaces objects
