@@ -46,7 +46,7 @@ import math as m
 #       Variable value: <chrono's data directory>
 #           Ex. Variable value: C:\Users\user\chrono\data\
 # ----------------------------------------------------------------------------------------------------
-obstacles = ['sensor/offroad/rock2.obj','sensor/offroad/rock3.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+obst_paths = ['sensor/offroad/rock2.obj','sensor/offroad/rock3.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
 
 class BezierPath(chrono.ChBezierCurve):
     def __init__(self, beginPos, endPos, z):
@@ -81,12 +81,14 @@ class BezierPath(chrono.ChBezierCurve):
         return self.evalD(int(i), epar - i)
 
     # Current positon and rotation of the leader vehicle chassis
-    def getState(self):
-        pos = self.eval(self.current_t)
-        posD = self.par_evalD(self.current_t)
+    def getPosRot(self, t):
+        pos = self.eval(t)
+        posD = self.par_evalD(t)
         alpha = m.atan2(posD.y, posD.x)
         rot = chrono.Q_from_AngZ(alpha)
         return pos, rot
+    def getState(self):
+        return self.getPosRot(self.current_t)
 
 class GVSETS_env(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
@@ -118,8 +120,9 @@ class GVSETS_env(ChronoBaseEnv):
         leader_initloc = [-90, -40]
         leader_endloc = [90, 40]
         # time needed by the leader to get to the end of the path
+        #TODO this is wrong, to be fixed
         self.leader_totaltime = 20/5e-3
-        self.path = BezierPath(leader_initloc, leader_endloc, 2.0)
+        self.path = BezierPath(leader_initloc, leader_endloc, 0.0)
         self.terrain_model = veh.RigidTerrain.PatchType_BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 150.0  # size in X direction
@@ -128,25 +131,32 @@ class GVSETS_env(ChronoBaseEnv):
         self.play_mode = False
         self.step_number = 0
 
-    def placeObstacle(self, pos):
-        obst = chrono.ChBody()
-        obst.SetPos(pos)
-        obst.SetBodyFixed(True)
-        vis_mesh = chrono.ChTriangleMeshConnected()
-        vis_mesh.LoadWavefrontMesh(veh.GetDataFile("hmmwv/hmmwv_chassis.obj"), True, True)
-        trimesh_shape = chrono.ChTriangleMeshShape()
-        trimesh_shape.SetMesh(vis_mesh)
-        trimesh_shape.SetName("mesh_name")
-        trimesh_shape.SetStatic(True)
-        obst.AddAsset(trimesh_shape)
-        x, y, z = getObstacleBoundaryDim(vis_mesh)
-        obst.GetCollisionModel().ClearModel()
-        obst.GetCollisionModel().AddBox(x / 2, y / 2, z / 2)  # must set half sizes
-        obst.GetCollisionModel().BuildModel()
-        obst.SetCollide(True)
+    def placeObstacle(self, numob):
 
-        self.obstacles.append(obst)
-        self.system.Add(obst)
+        for i in range(numob):
+            side = randint(1,2)
+            path = randint(0,len(obst_paths)-1)
+            obst = chrono.ChBody()
+            vis_mesh = chrono.ChTriangleMeshConnected()
+            vis_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(obst_paths[path]), True, True)
+            trimesh_shape = chrono.ChTriangleMeshShape()
+            trimesh_shape.SetMesh(vis_mesh)
+            trimesh_shape.SetName("mesh_name")
+            trimesh_shape.SetStatic(True)
+            obst.AddAsset(trimesh_shape)
+            x, y, z = getObstacleBoundaryDim(vis_mesh)
+            obst.GetCollisionModel().ClearModel()
+            obst.GetCollisionModel().AddBox(x / 2, y / 2, z / 2)  # must set half sizes
+            obst.GetCollisionModel().BuildModel()
+            obst.SetCollide(True)
+            p0, q = self.path.getPosRot( (i+1)/(numob+1) )
+            dist = np.max([x,y]) + self.leader_box[1]
+            pos = p0 + q.RotateBack(chrono.VECT_Y) * (dist* pow(-1,side))
+            obst.SetPos(pos)
+            obst.SetBodyFixed(True)
+
+            self.obstacles.append(obst)
+            self.system.Add(obst)
 
     def reset(self):
         self.path.current_t = 0
@@ -238,10 +248,10 @@ class GVSETS_env(ChronoBaseEnv):
 
         self.leader.AddAsset(trimesh_shape)
         self.system.Add(self.leader)
+        self.leader_box = getObstacleBoundaryDim(vis_mesh)
         # Add obstacles:
         self.obstacles = []
-        for point in self.path.getPoints():
-            self.placeObstacle(point)
+        self.placeObstacle(8)
 
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
