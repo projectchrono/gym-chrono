@@ -22,6 +22,7 @@ import gym
 from gym import spaces
 
 import cv2
+import time as t
 
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
@@ -54,18 +55,18 @@ class camera_rccar_hallway(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width  = 210
-        self.camera_height = 160
+        self.camera_width  = 160
+        self.camera_height = 90
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
         self.info =  {"timeout": 10000.0}
-        self.timestep = 5e-3
+        self.timestep = 1e-3
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 100
+        self.timeend = 40
         self.control_frequency = 10
 
         self.initLoc = chrono.ChVectorD(0, 0, .1)
@@ -77,7 +78,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.play_mode = False
         self.step_number = 0
 
-    def generate_track(self, starting_index=1):
+    def generate_track(self, starting_index=1, z=0.0):
         points = [[-8.713, -1.646],
                   [-7.851, -1.589],
                   [-6.847, -1.405],
@@ -128,12 +129,12 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.track.generateTrack()
         self.initLoc, self.initRot = calcPose(self.track.center.getPoint(starting_index), self.track.center.getPoint(starting_index+1))
         self.track.center.last_index = starting_index
-        self.initLoc.z = 0.5
+        self.initLoc.z = z
 
     def reset(self):
-        self.generate_track(starting_index=350)
+        self.generate_track(starting_index=350, z=.40)
         self.vehicle = veh.RCCar()
-        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
 
         self.vehicle.SetChassisFixed(False)
@@ -178,7 +179,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
 
         self.terrain = veh.RigidTerrain(self.system)
         coord_sys = chrono.ChCoordsysD(offset, chrono.ChQuaternionD(1,0,0,0))
-        patch = self.terrain.AddPatch(coord_sys, chrono.GetChronoDataFile("sensor/textures/hallway.obj"), "mesh", 0.01, False)
+        patch = self.terrain.AddPatch(coord_sys, chrono.GetChronoDataFile("sensor/textures/hallway_contact.obj"), "mesh", 0.01, False)
 
 
         vis_mesh = chrono.ChTriangleMeshConnected()
@@ -207,22 +208,25 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.manager = sens.ChSensorManager(self.system)
         for i in range(8):
             f += 3
-            if i <= start_light or i > end_light:
+            if i < start_light or i > end_light:
                 continue
             self.manager.scene.AddPointLight(chrono.ChVectorF(f,1.25,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
             self.manager.scene.AddPointLight(chrono.ChVectorF(f,3.75,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
+        # self.manager = sens.ChSensorManager(self.system)
+        # self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+        # self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # ------------------------------------------------
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
-            30,  # scanning rate in Hz
+            50,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(-.075, 0, .15), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
-            chrono.CH_C_PI / 4,  # horizontal field of view
-            (self.camera_height / self.camera_width) * chrono.CH_C_PI / 4.  # vertical field of view
+            chrono.CH_C_PI / 2,  # horizontal field of view
+            (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
         self.manager.AddSensor(self.camera)
@@ -244,7 +248,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
 
         return self.get_ob()
 
-    def DrawCones(self, points, color, z=.3, n=10):
+    def DrawCones(self, points, color, z=.31, n=10):
         for p in points[::n]:
             p.z += z
             cmesh = chrono.ChTriangleMeshConnected()
@@ -271,6 +275,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
             self.system.Add(cbody)
 
     def step(self, ac):
+        # s = t.time()
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
 
@@ -292,11 +297,14 @@ class camera_rccar_hallway(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
+            # start = t.time()
             self.manager.Update()
+            # print(i, t.time() - start)
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
+        # print(2, t.time() - s)
         return self.obs, self.rew, self.isdone, self.info
 
 
@@ -318,19 +326,20 @@ class camera_rccar_hallway(ChronoBaseEnv):
         dist_coeff = 10
         time_coeff = 0
         progress = self.calc_progress()
-        rew = dist_coeff*progress + time_coeff*self.system.GetChTime()
+        rew = dist_coeff*progress# + time_coeff*self.system.GetChTime()
         return rew
 
     def is_done(self):
 
         p = self.track.center.calcClosestPoint(self.chassis_body.GetPos())
+        p.z = self.chassis_body.GetPos().z
         p = p-self.chassis_body.GetPos()
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             print("Over self.timeend")
             self.isdone = True
-        elif p.Length() > self.track.width / 2.25:
+        elif p.Length() > self.track.width / 2.75:
             self.isdone = True
 
 
