@@ -1,3 +1,8 @@
+# TODO list:
+# double ghost leader: ghost init in separate method (called twice)
+# add tire
+# domain randomization (speed  and leader interval correlation)
+
 # PyChrono imports
 import pychrono as chrono
 import pychrono.vehicle as veh
@@ -48,6 +53,36 @@ import math as m
 # ----------------------------------------------------------------------------------------------------
 obst_paths = ['sensor/offroad/rock2.obj','sensor/offroad/rock3.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
 
+class ghostLeaders(object):
+    def __init__(self, numlead, system, path, interval = 0.05):
+        self.interval = interval
+        self.path = path
+        self.leaders = []
+        self.vis_mesh = chrono.ChTriangleMeshConnected()
+        self.vis_mesh.LoadWavefrontMesh(veh.GetDataFile("hmmwv/hmmwv_chassis.obj"), True, True)
+        for i in range(numlead):
+            leader = chrono.ChBody()
+            trimesh_shape = chrono.ChTriangleMeshShape()
+            trimesh_shape.SetMesh(self.vis_mesh)
+            trimesh_shape.SetName("mesh_name")
+            trimesh_shape.SetStatic(True)
+            leader.AddAsset(trimesh_shape)
+            system.Add(leader)
+            self.leaders.append(leader)
+
+    def getBBox(self):
+        box = getObstacleBoundaryDim(self.vis_mesh)
+        return box
+    def __getitem__(self, item):
+        return self.leaders[item]
+    def Update(self):
+        t = self.path.current_t
+        for i, leader in enumerate(self.leaders):
+            leaderPos, leaderRot = self.path.getPosRot(t + i*self.interval)
+            leader.SetPos(leaderPos)
+            leader.SetRot(leaderRot)
+
+
 class BezierPath(chrono.ChBezierCurve):
     def __init__(self, beginPos, endPos, z):
         # making 4 turns to get to the end point
@@ -87,8 +122,6 @@ class BezierPath(chrono.ChBezierCurve):
         alpha = m.atan2(posD.y, posD.x)
         rot = chrono.Q_from_AngZ(alpha)
         return pos, rot
-    def getState(self):
-        return self.getPosRot(self.current_t)
 
 class GVSETS_env(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
@@ -106,7 +139,6 @@ class GVSETS_env(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3),
                                             dtype=np.uint8)
-
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
@@ -235,20 +267,8 @@ class GVSETS_env(ChronoBaseEnv):
         visual_asset.material_list.append(vis_mat)
 
         # self.vehicle.SetStepsize(self.timestep)
-
-        # Leader
-        self.leader = chrono.ChBody()
-        vis_mesh = chrono.ChTriangleMeshConnected()
-        vis_mesh.LoadWavefrontMesh(veh.GetDataFile("hmmwv/hmmwv_chassis.obj"), True, True)
-
-        trimesh_shape = chrono.ChTriangleMeshShape()
-        trimesh_shape.SetMesh(vis_mesh)
-        trimesh_shape.SetName("mesh_name")
-        trimesh_shape.SetStatic(True)
-
-        self.leader.AddAsset(trimesh_shape)
-        self.system.Add(self.leader)
-        self.leader_box = getObstacleBoundaryDim(vis_mesh)
+        self.leaders = ghostLeaders(3, self.system, self.path)
+        self.leader_box = self.leaders.getBBox()
         # Add obstacles:
         self.obstacles = []
         self.placeObstacle(8)
@@ -309,10 +329,7 @@ class GVSETS_env(ChronoBaseEnv):
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
             self.path.Advance(1 / self.leader_totaltime)
-            leaderPos, leaderRot = self.path.getState()
-            print(str(leaderPos.z))
-            self.leader.SetPos(leaderPos)
-            self.leader.SetRot(leaderRot)
+            self.leaders.Update()
             self.manager.Update()
 
         self.rew = self.calc_rew()
@@ -382,7 +399,7 @@ class GVSETS_env(ChronoBaseEnv):
 
             if True:
                 vis_camera = sens.ChCameraSensor(
-                    self.leader,  # body camera is attached to
+                    self.leaders[0],  # body camera is attached to
                     30,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(-6, 0, 1.5),
                                     chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 1, 0))),
