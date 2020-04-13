@@ -11,6 +11,7 @@ from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 import gym
 from gym import spaces
 
+from control_utilities.chrono_utilities import setDataDirectory
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
 #
@@ -62,8 +63,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        chrono.SetChronoDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/')
-        veh.SetDataPath('/home/simonebenatti/codes/chronosensor/chrono-dev/data/vehicle/')
+        setDataDirectory()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
@@ -171,6 +171,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
             vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
 
             visual_asset.material_list.append(vis_mat)
+            visual_asset.SetStatic(True)
             self.boxes.append(box)
             self.system.Add(box)
 
@@ -204,7 +205,6 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.manager.AddSensor(self.camera)
-
         # -----------------------------------------------------------------
         # Create a filter graph for post-processing the data from the lidar
         # -----------------------------------------------------------------
@@ -343,7 +343,10 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
 
 
             #self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720,"Visualization Camera"))
+            # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720,"Visualization Camera"))
+            # self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
+            # vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            vis_camera.FilterList().append(sens.ChFilterSave())
             self.render_setup = True
 
         if (mode == 'rgb_array'):

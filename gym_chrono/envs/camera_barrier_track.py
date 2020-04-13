@@ -12,17 +12,12 @@ from random import randint
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from control_utilities.chrono_utilities import calcPose, setDataDirectory
+from control_utilities.track import RandomTrack
 from control_utilities.driver import Driver
-from control_utilities.track import Track
-from gym_chrono.envs.utils.pid_controller import PIDLongitudinalController
 
 # openai-gym imports
 import gym
 from gym import spaces
-
-import cv2
-import time as t
 
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
@@ -45,18 +40,40 @@ import time as t
 #       Variable value: <chrono's data directory>
 #           Ex. Variable value: C:\Users\user\chrono\data\
 # ----------------------------------------------------------------------------------------------------
-class camera_rccar_hallway(ChronoBaseEnv):
+def SetDataPath():
+    try:
+        chrono.SetChronoDataPath(os.environ['CHRONO_DATA_DIR'])
+        veh.SetDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'vehicle', ''))
+    except:
+        raise Exception('Cannot find CHRONO_DATA_DIR environmental variable. Explanation located in chrono_sim.py file')
+
+def checkFile(file):
+    if not os.path.exists(file):
+        raise Exception('Cannot find {}. Explanation located in chrono_sim.py file'.format(file))
+
+def GetInitPose(p1, p2, z=0.1, reversed=0):
+    initLoc = p1
+
+    vec = p2 - p1
+    theta = math.atan2((vec%chrono.ChVectorD(1,0,0)).Length(),vec^chrono.ChVectorD(1,0,0))
+    if reversed:
+        theta *= -1
+    initRot = chrono.ChQuaternionD()
+    initRot.Q_from_AngZ(theta)
+
+    return initLoc, initRot
+
+class camera_cone_track(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        setDataDirectory()
-
+        SetDataPath()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width  = 160
-        self.camera_height = 90
+        self.camera_width  = 80*2
+        self.camera_height = 45*2
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
@@ -66,73 +83,81 @@ class camera_rccar_hallway(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 40
+        self.timeend = 50
         self.control_frequency = 10
 
         self.initLoc = chrono.ChVectorD(0, 0, .1)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
-        self.target_speed = .75
+        self.terrainHeight = 0  # terrain height (FLAT terrain only)
+        self.terrainLength = 300.0  # size in X direction
+        self.terrainWidth = 300.0  # size in Y direction
+
+        self.target_speed = 5.0 # Target speed of the throttle controller
+
+        # Track parameters
+        self.track_x_max = 100
+        self.track_y_max = 100
+        self.track_width = 12.5
 
         self.render_setup = False
         self.play_mode = False
-        self.step_number = 0
 
-    def generate_track(self, starting_index=1, z=0.0):
-        points = [[-8.713, -1.646],
-                  [-7.851, -1.589],
-                  [-6.847, -1.405],
-                  [-6.048, -1.449],
-                  [-5.350, -1.658],
-                  [-4.628, -1.767],
-                  [-3.807, -1.789],
-                  [-2.865, -1.778],
-                  [-1.823, -1.743],
-                  [-0.724, -1.691],
-                  [0.373, -1.650],
-                  [1.411, -1.527],
-                  [2.349, -1.453],
-                  [3.174, -1.439],
-                  [3.915, -1.474],
-                  [4.652, -1.513],
-                  [5.487, -1.694],
-                  [6.506, -1.756],
-                  [7.506, -1.456],
-                  [7.732, -1.060],
-                  [7.983, -0.617],
-                  [7.432, 1.112],
-                  [6.610, 1.143],
-                  [5.688, 1.206],
-                  [4.950, 1.281],
-                  [4.331, 1.337],
-                  [3.754, 1.349],
-                  [3.152, 1.303],
-                  [2.478, 1.207],
-                  [1.708, 1.077],
-                  [0.832, 0.940],
-                  [-0.143, 0.828],
-                  [-1.201, 0.767],
-                  [-2.318, 0.781],
-                  [-3.463, 0.830],
-                  [-4.605, 0.838],
-                  [-5.715, 0.864],
-                  [-6.765, 0.934],
-                  [-7.737, 1.121],
-                  [-8.822, 1.318],
-                  [-10.024, 0.608],
-                  [-10.102, 0.437],
-                  [-10.211, -0.569],
-                  [-9.522, -1.514],
-                  [-8.713, -1.646]]
-        width = 1.1
-        self.track = Track(points, width=width)
-        self.track.generateTrack()
-        self.initLoc, self.initRot = calcPose(self.track.center.getPoint(starting_index), self.track.center.getPoint(starting_index+1))
-        self.track.center.last_index = starting_index
-        self.initLoc.z = z
+    def generate_track(self):
+        reversed = randint(0,1)
+        self.track = RandomTrack(x_max=self.track_x_max, y_max=self.track_y_max, width=self.track_width)
+        self.track.generateTrack(seed=randint(0, 100), reversed=reversed)
+        self.initLoc, self.initRot = GetInitPose(self.track.center.getPoint(0), self.track.center.getPoint(1), reversed=reversed)
+        self.initLoc.z = 0.4
+
+    def DrawBarriers(self, points, n=5, height=2, width=1):
+        points = points[::n]
+        if points[-1] != points[0]:
+            points.append(points[-1])
+        for i in range(len(points) - 1):
+            p1 = points[i]
+            p2 = points[i + 1]
+            box = chrono.ChBodyEasyBox((p2 - p1).Length(), height, width, 1000, True, True)
+            box.SetPos(p1)
+
+            q = chrono.ChQuaternionD()
+            v1 = p2 - p1
+            v2 = chrono.ChVectorD(1, 0, 0)
+            ang = math.atan2((v1 % v2).Length(), v1 ^ v2)
+            if chrono.ChVectorD(0, 0, 1) ^ (v1 % v2) > 0.0:
+                ang *= -1
+            q.Q_from_AngZ(ang)
+            box.SetRot(q)
+            box.SetBodyFixed(True)
+
+            if use_sensors:
+                box_asset = box.GetAssets()[0]
+                visual_asset = chrono.CastToChVisualization(box_asset)
+
+                vis_mat = chrono.ChVisualMaterial()
+                vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
+
+                if i % 2 == 0:
+                    vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 0, 0))
+                else:
+                    vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 1.0, 1.0))
+                vis_mat.SetSpecularColor(chrono.ChVectorF(0.9, 0.9, 0.9))
+                vis_mat.SetFresnelMin(0)
+                vis_mat.SetFresnelMax(0.1)
+
+                visual_asset.material_list.append(vis_mat)
+
+            color = chrono.ChColorAsset()
+            if i % 2 == 0:
+                color.SetColor(chrono.ChColor(1, 0, 0))
+            else:
+                color.SetColor(chrono.ChColor(1, 1, 1))
+            box.AddAsset(color)
+            self.system.Add(box)
+            self.barriers.append(box)
 
     def reset(self):
-        self.generate_track(starting_index=350, z=.40)
+        self.generate_track()
         self.vehicle = veh.RCCar()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
@@ -148,17 +173,46 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.chassis_body = self.vehicle.GetChassisBody()
-        self.system = self.vehicle.GetVehicle().GetSystem()
 
         # Driver
         self.driver = Driver(self.vehicle.GetVehicle())
 
+        # Throttle controller
+        #self.throttle_controller = PIDThrottleController()
+        #self.throttle_controller.SetGains(Kp=0.4, Ki=0, Kd=0)
+        #self.throttle_controller.SetTargetSpeed(speed=self.target_speed)
+
+        # Rigid terrain
+        self.system = self.vehicle.GetSystem()
+        self.terrain = veh.RigidTerrain(self.system)
+        patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
+                                 chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
+        patch.SetContactFrictionCoefficient(0.9)
+        patch.SetContactRestitutionCoefficient(0.01)
+        patch.SetContactMaterialProperties(2e7, 0.3)
+        patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+        patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+        self.terrain.Initialize()
+
+        ground_body = patch.GetGroundBody()
+        ground_asset = ground_body.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(ground_asset)
+        vis_mat = chrono.ChVisualMaterial()
+        vis_mat.SetKdTexture(chrono.GetChronoDataFile("concrete.jpg"))
+        visual_asset.material_list.append(vis_mat)
+
+        # create barriers
+        self.barriers = []
+        lp = self.track.left.points#[::50]
+        rp = self.track.right.points#[::50]
+        self.DrawBarriers(lp)
+        self.DrawBarriers(rp)
+
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
-        steering_time = 1.0
+        steering_time = 0.5
         # time to go from 0 to +1 (or from 0 to -1)
-        throttle_time = .5
+        throttle_time = 0.5
         # time to go from 0 to +1
         braking_time = 0.3
         # time to go from 0 to +1
@@ -166,55 +220,9 @@ class camera_rccar_hallway(ChronoBaseEnv):
         self.driver.SetThrottleDelta(self.timestep / throttle_time)
         self.driver.SetBrakingDelta(self.timestep / braking_time)
 
-        # Longitudinal controller (throttle and braking)
-        self.long_controller = PIDLongitudinalController(self.vehicle, self.driver)
-        self.long_controller.SetGains(Kp=0.4, Ki=0, Kd=0)
-        self.long_controller.SetTargetSpeed(speed=0.75)
-
-        # Mesh hallway 
-        y_max = 5.65
-        x_max = 23
-        offset = chrono.ChVectorD(-x_max/2, -y_max/2, .21)
-        offsetF = chrono.ChVectorF(offset.x, offset.y, offset.z)
-
-        self.terrain = veh.RigidTerrain(self.system)
-        coord_sys = chrono.ChCoordsysD(offset, chrono.ChQuaternionD(1,0,0,0))
-        patch = self.terrain.AddPatch(coord_sys, chrono.GetChronoDataFile("sensor/textures/hallway_contact.obj"), "mesh", 0.01, False)
-
-
-        vis_mesh = chrono.ChTriangleMeshConnected()
-        vis_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/textures/hallway.obj"), True, True)
-
-        trimesh_shape = chrono.ChTriangleMeshShape()
-        trimesh_shape.SetMesh(vis_mesh)
-        trimesh_shape.SetName("mesh_name")
-        trimesh_shape.SetStatic(True)
-
-        patch.GetGroundBody().AddAsset(trimesh_shape)
-
-        patch.SetContactFrictionCoefficient(0.9)
-        patch.SetContactRestitutionCoefficient(0.01)
-        patch.SetContactMaterialProperties(2e7, 0.3)
-
-        self.terrain.Initialize()
-
-        # create obstacles
-        self.DrawCones(self.track.left.points, 'green')
-        self.DrawCones(self.track.right.points, 'red')
-
-        f = 0
-        start_light = 0
-        end_light = 8
         self.manager = sens.ChSensorManager(self.system)
-        for i in range(8):
-            f += 3
-            if i < start_light or i > end_light:
-                continue
-            self.manager.scene.AddPointLight(chrono.ChVectorF(f,1.25,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
-            self.manager.scene.AddPointLight(chrono.ChVectorF(f,3.75,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
-        # self.manager = sens.ChSensorManager(self.system)
-        # self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-        # self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # ------------------------------------------------
@@ -236,7 +244,6 @@ class camera_rccar_hallway(ChronoBaseEnv):
         # -----------------------------------------------------------------
 
         self.camera.FilterList().append(sens.ChFilterRGBA8Access())
-
         self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
 
         self.step_number = 0
@@ -248,34 +255,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
 
         return self.get_ob()
 
-    def DrawCones(self, points, color, z=.31, n=10):
-        for p in points[::n]:
-            p.z += z
-            cmesh = chrono.ChTriangleMeshConnected()
-            if color=='red':
-                cmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/cones/red_cone.obj"), False, True)
-            elif color=='green':
-                cmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/cones/green_cone.obj"), False, True)
-
-            cshape = chrono.ChTriangleMeshShape()
-            cshape.SetMesh(cmesh)
-            cshape.SetName("Cone")
-            cshape.SetStatic(True)
-
-            cbody = chrono.ChBody()
-            cbody.SetPos(p)
-            cbody.AddAsset(cshape)
-            cbody.SetBodyFixed(True)
-            cbody.SetCollide(False)
-            if color=='red':
-                cbody.AddAsset(chrono.ChColorAsset(1,0,0))
-            elif color=='green':
-                cbody.AddAsset(chrono.ChColorAsset(0,1,0))
-
-            self.system.Add(cbody)
-
     def step(self, ac):
-        # s = t.time()
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
 
@@ -287,24 +267,22 @@ class camera_rccar_hallway(ChronoBaseEnv):
             self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
             self.terrain.Synchronize(time)
 
-            throttle, braking = self.long_controller.Advance(self.timestep)
-            self.driver.SetTargetThrottle(throttle)
-            self.driver.SetTargetBraking(braking)
             self.driver.SetTargetSteering(self.ac[0,])
-                
+            self.driver.SetTargetThrottle(self.ac[1,])
+            self.driver.SetTargetBraking(self.ac[2,])
+
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
-            # start = t.time()
             self.manager.Update()
-            # print(i, t.time() - start)
+
+            self.c_f += self.chassis_body.GetContactForce().Length()
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
-        # print(2, t.time() - s)
         return self.obs, self.rew, self.isdone, self.info
 
 
@@ -312,9 +290,6 @@ class camera_rccar_hallway(ChronoBaseEnv):
         camera_data_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
         if camera_data_RGBA8.HasData():
             rgb = camera_data_RGBA8.GetRGBA8Data()[:,:,0:3]
-            # print('Image Saving {}'.format(self.step_number))
-            # cv2.imwrite('frame{}.png'.format(self.step_number), rgb)
-            # self.step_number += 1
             #rgb = cv2.flip(rgb, 0)
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
@@ -324,22 +299,17 @@ class camera_rccar_hallway(ChronoBaseEnv):
 
     def calc_rew(self):
         dist_coeff = 10
-        time_coeff = 0
+        #time_cost = -2
         progress = self.calc_progress()
-        rew = dist_coeff*progress# + time_coeff*self.system.GetChTime()
+        rew = dist_coeff*progress# + time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
-
-        p = self.track.center.calcClosestPoint(self.chassis_body.GetPos())
-        p.z = self.chassis_body.GetPos().z
-        p = p-self.chassis_body.GetPos()
-
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
-            print("Over self.timeend")
             self.isdone = True
-        elif p.Length() > self.track.width / 2.75:
+        elif collision:
+            self.rew += -200
             self.isdone = True
 
 
@@ -360,8 +330,8 @@ class camera_rccar_hallway(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
-                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if False:
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
@@ -371,7 +341,6 @@ class camera_rccar_hallway(ChronoBaseEnv):
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
-                    # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
                     # offset pose
                     1280,  # number of horizontal samples
                     720,  # number of vertical channels
@@ -379,9 +348,9 @@ class camera_rccar_hallway(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if True:
+                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if False:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
@@ -399,7 +368,7 @@ class camera_rccar_hallway(ChronoBaseEnv):
 
     def calc_progress(self):
         progress = self.track.center.calcDistance(self.chassis_body.GetPos())# - self.old_dist
-        self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
+        # self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
         return progress
 
     def close(self):

@@ -1,11 +1,12 @@
 import numpy as np
-import camera_rccar_hallway, camera_cone_track, solo_off_road
+import camera_rccar_hallway, camera_cone_track, solo_off_road, camera_obstacle_avoidance
 import time
 
 numep = 1
 
 # env = camera_rccar_hallway.camera_rccar_hallway()
-env = camera_cone_track.camera_cone_track()
+env = camera_obstacle_avoidance.camera_obstacle_avoidance()
+# env = camera_cone_track.camera_cone_track()
 # env = solo_off_road.solo_off_road()
 
 env.reset()

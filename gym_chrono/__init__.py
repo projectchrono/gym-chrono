@@ -59,6 +59,14 @@ register(
 )
 
 register(
+    id='camera_barrier_track-v0',
+    entry_point='gym_chrono.envs:camera_barrier_track'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
+)
+
+register(
     id='solo_off_road-v0',
     entry_point='gym_chrono.envs:solo_off_road'
     #timestep_limit=1000,

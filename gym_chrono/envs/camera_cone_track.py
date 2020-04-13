@@ -12,12 +12,16 @@ from random import randint
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from control_utilities.track import RandomTrack
+from control_utilities.track import RandomTrack, Track
 
 # openai-gym imports
 import gym
 from gym import spaces
 
+from control_utilities.driver import Driver
+from gym_chrono.envs.utils.pid_controller import PIDLongitudinalController
+from control_utilities.chrono_utilities import calcPose, setDataDirectory
+import time as t
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
 #
@@ -84,7 +88,7 @@ class camera_cone_track(ChronoBaseEnv):
         #
         self.Xtarg = 100.0
         self.Ytarg = 0.0
-        self.timeend = 20
+        self.timeend = 40
         self.control_frequency = 10
 
         self.initLoc = chrono.ChVectorD(0, 0, .1)
@@ -93,21 +97,72 @@ class camera_cone_track(ChronoBaseEnv):
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 300.0  # size in X direction
         self.terrainWidth = 300.0  # size in Y direction
-        self.target_speed = 1.0
+        self.target_speed = 1.5
         self.render_setup = False
         self.play_mode = False
         #self.track_seed = randint(0,100)
         self.num_points = 1000
         self.interval = 1. / self.num_points
 
-    def generate_track(self):
-        reversed = 1#randint(0,1)
-        self.track = RandomTrack(x_max=10, y_max=10, width=1)
-        self.track.generator.min_distance = 1
-        self.track.generateTrack(seed=self.track_seed, reversed=reversed)
-        self.initLoc, self.initRot = GetInitPose(self.track.center.getPoint(0), self.track.center.getPoint(1), reversed=reversed)
-        self.initLoc.z = 0.15
-        print(self.initLoc)
+    def generate_track(self, is_random=True, starting_index=1, z=.15):
+        if is_random:
+            reversed = randint(0,1)
+            self.track = RandomTrack(x_max=10, y_max=10, width=1)
+            self.track.generator.min_distance = 1
+            self.track.generateTrack(seed=self.track_seed, reversed=reversed)
+        else:
+            points = [[-8.713, -1.646],
+                      [-7.851, -1.589],
+                      [-6.847, -1.405],
+                      [-6.048, -1.449],
+                      [-5.350, -1.658],
+                      [-4.628, -1.767],
+                      [-3.807, -1.789],
+                      [-2.865, -1.778],
+                      [-1.823, -1.743],
+                      [-0.724, -1.691],
+                      [0.373, -1.650],
+                      [1.411, -1.527],
+                      [2.349, -1.453],
+                      [3.174, -1.439],
+                      [3.915, -1.474],
+                      [4.652, -1.513],
+                      [5.487, -1.694],
+                      [6.506, -1.756],
+                      [7.506, -1.456],
+                      [7.732, -1.060],
+                      [7.983, -0.617],
+                      [7.432, 1.112],
+                      [6.610, 1.143],
+                      [5.688, 1.206],
+                      [4.950, 1.281],
+                      [4.331, 1.337],
+                      [3.754, 1.349],
+                      [3.152, 1.303],
+                      [2.478, 1.207],
+                      [1.708, 1.077],
+                      [0.832, 0.940],
+                      [-0.143, 0.828],
+                      [-1.201, 0.767],
+                      [-2.318, 0.781],
+                      [-3.463, 0.830],
+                      [-4.605, 0.838],
+                      [-5.715, 0.864],
+                      [-6.765, 0.934],
+                      [-7.737, 1.121],
+                      [-8.822, 1.318],
+                      [-10.024, 0.608],
+                      [-10.102, 0.437],
+                      [-10.211, -0.569],
+                      [-9.522, -1.514],
+                      [-8.713, -1.646]]
+            width = 1.1
+            self.track = Track(points, width=width)
+            self.track.generateTrack()
+            self.target_speed = .75
+        self.initLoc, self.initRot = calcPose(self.track.center.getPoint(starting_index), self.track.center.getPoint(starting_index+1))
+        self.track.center.last_index = starting_index
+        self.initLoc.z = z
 
     def DrawCones(self, points, color, z=.001, n=10):
         for p in points[::n]:
@@ -134,9 +189,14 @@ class camera_cone_track(ChronoBaseEnv):
                 cbody.AddAsset(chrono.ChColorAsset(0,1,0))
 
             self.system.Add(cbody)
+
     def reset(self):
-        self.track_seed = 1# randint(0, 100)
-        self.generate_track()
+        hallway = True
+        self.track_seed = randint(0, 100)
+        if hallway:
+            self.generate_track(is_random=False, starting_index=350, z=.40)
+        else:
+            self.generate_track(is_random=False, starting_index=350)
         self.vehicle = veh.RCCar()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
@@ -159,31 +219,84 @@ class camera_cone_track(ChronoBaseEnv):
         # self.chassis_body.GetCollisionModel().BuildModel()
 
         # Driver
-        self.driver = veh.ChDriver(self.vehicle.GetVehicle())
+        self.driver = Driver(self.vehicle.GetVehicle())
+
+        # Set the time response for steering and throttle inputs.
+        # NOTE: this is not exact, since we do not render quite at the specified FPS.
+        steering_time = .65
+        # time to go from 0 to +1 (or from 0 to -1)
+        throttle_time = .5
+        # time to go from 0 to +1
+        braking_time = 0.3
+        # time to go from 0 to +1
+        self.driver.SetSteeringDelta(self.timestep / steering_time)
+        self.driver.SetThrottleDelta(self.timestep / throttle_time)
+        self.driver.SetBrakingDelta(self.timestep / braking_time)
 
         # Throttle controller
-        #self.throttle_controller = PIDThrottleController()
-        #self.throttle_controller.SetGains(Kp=0.4, Ki=0, Kd=0)
-        #self.throttle_controller.SetTargetSpeed(speed=self.target_speed)
+        self.long_controller = PIDLongitudinalController(self.vehicle, self.driver)
+        self.long_controller.SetGains(Kp=0.4, Ki=0, Kd=0)
+        self.long_controller.SetTargetSpeed(speed=self.target_speed)
 
         # Rigid terrain
-        self.system = self.vehicle.GetSystem()
-        self.terrain = veh.RigidTerrain(self.system)
-        patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
-                                 chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
-        patch.SetContactFrictionCoefficient(0.9)
-        patch.SetContactRestitutionCoefficient(0.01)
-        patch.SetContactMaterialProperties(2e7, 0.3)
-        patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-        patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-        self.terrain.Initialize()
+        self.system = self.vehicle.GetVehicle().GetSystem()
+        if hallway:
+            # Mesh hallway 
+            y_max = 5.65
+            x_max = 23
+            offset = chrono.ChVectorD(-x_max/2, -y_max/2, .21)
+            offsetF = chrono.ChVectorF(offset.x, offset.y, offset.z)
 
-        ground_body = patch.GetGroundBody()
-        ground_asset = ground_body.GetAssets()[0]
-        visual_asset = chrono.CastToChVisualization(ground_asset)
-        vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(chrono.GetChronoDataFile("concrete.jpg"))
-        visual_asset.material_list.append(vis_mat)
+            self.terrain = veh.RigidTerrain(self.system)
+            coord_sys = chrono.ChCoordsysD(offset, chrono.ChQuaternionD(1,0,0,0))
+            patch = self.terrain.AddPatch(coord_sys, chrono.GetChronoDataFile("sensor/textures/hallway_contact.obj"), "mesh", 0.01, False)
+
+
+            vis_mesh = chrono.ChTriangleMeshConnected()
+            vis_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("sensor/textures/hallway.obj"), True, True)
+
+            trimesh_shape = chrono.ChTriangleMeshShape()
+            trimesh_shape.SetMesh(vis_mesh)
+            trimesh_shape.SetName("mesh_name")
+            trimesh_shape.SetStatic(True)
+
+            patch.GetGroundBody().AddAsset(trimesh_shape)
+
+            patch.SetContactFrictionCoefficient(0.9)
+            patch.SetContactRestitutionCoefficient(0.01)
+            patch.SetContactMaterialProperties(2e7, 0.3)
+
+            self.terrain.Initialize()
+            f = 0
+            start_light = 0
+            end_light = 8
+            self.manager = sens.ChSensorManager(self.system)
+            for i in range(8):
+                f += 3
+                if i < start_light or i > end_light:
+                    continue
+                self.manager.scene.AddPointLight(chrono.ChVectorF(f,1.25,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
+                self.manager.scene.AddPointLight(chrono.ChVectorF(f,3.75,2.3)+offsetF,chrono.ChVectorF(1,1,1),5)
+        else:
+            self.terrain = veh.RigidTerrain(self.system)
+            patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
+                                     chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
+            patch.SetContactFrictionCoefficient(0.9)
+            patch.SetContactRestitutionCoefficient(0.01)
+            patch.SetContactMaterialProperties(2e7, 0.3)
+            patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+            patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+            self.terrain.Initialize()
+
+            ground_body = patch.GetGroundBody()
+            ground_asset = ground_body.GetAssets()[0]
+            visual_asset = chrono.CastToChVisualization(ground_asset)
+            vis_mat = chrono.ChVisualMaterial()
+            vis_mat.SetKdTexture(chrono.GetChronoDataFile("concrete.jpg"))
+            visual_asset.material_list.append(vis_mat)
+            self.manager = sens.ChSensorManager(self.system)
+            self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+            self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
 
         # create obstacles
         self.cones = []
@@ -191,8 +304,12 @@ class camera_cone_track(ChronoBaseEnv):
         lp = self.track.left.points#[::50]
         rp = self.track.right.points#[::50]
 
-        self.DrawCones(lp, 'green')
-        self.DrawCones(rp, 'red')
+        if hallway:
+            self.DrawCones(lp, 'green', z=.31)
+            self.DrawCones(rp, 'red', z=.31)
+        else:
+            self.DrawCones(lp, 'green')
+            self.DrawCones(rp, 'red')
 
 
         # Set the time response for steering and throttle inputs.
@@ -207,9 +324,7 @@ class camera_cone_track(ChronoBaseEnv):
         self.ThrottleDelta = (self.timestep / throttle_time)
         self.BrakingDelta = (self.timestep / braking_time)
 
-        self.manager = sens.ChSensorManager(self.system)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # ------------------------------------------------
@@ -243,6 +358,7 @@ class camera_cone_track(ChronoBaseEnv):
         return self.get_ob()
 
     def step(self, ac):
+        # s = t.time()
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
 
@@ -254,25 +370,32 @@ class camera_cone_track(ChronoBaseEnv):
             self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
             self.terrain.Synchronize(time)
 
-            self.driver.SetThrottle(0.2)
-            steer = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta,
-                            self.driver.GetSteering() + self.SteeringDelta)
-            self.driver.SetSteering(steer)
-            self.driver.SetBraking(0)
+
+            throttle, braking = self.long_controller.Advance(self.timestep)
+            self.driver.SetTargetThrottle(throttle)
+            self.driver.SetTargetBraking(braking)
+            self.driver.SetTargetSteering(self.ac[0,])
+            # self.driver.SetThrottle(0.2)
+            # steer = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta,
+            #                 self.driver.GetSteering() + self.SteeringDelta)
+            # self.driver.SetSteering(steer)
+            # self.driver.SetBraking(0)
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
+            # start = t.time()
             self.manager.Update()
-
-            for cones in self.cones:
-                self.c_f += cones.GetContactForce().Length()
+            # print(i, t.time() - start)
+            # for cones in self.cones:
+            #     self.c_f += cones.GetContactForce().Length()
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
+        # print(2, t.time() - s)
         return self.obs, self.rew, self.isdone, self.info
 
 
@@ -302,7 +425,7 @@ class camera_cone_track(ChronoBaseEnv):
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif p.Length() > self.track.width / 2.5:
+        elif p.Length() > self.track.width / 2.25:
             self.rew += -200
             self.isdone = True
         # elif self.chassis_body.GetPos().x > self.Xtarg :
@@ -345,9 +468,9 @@ class camera_cone_track(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
+                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if True:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 

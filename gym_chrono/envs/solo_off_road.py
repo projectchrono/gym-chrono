@@ -7,7 +7,7 @@ import pychrono.sensor as sens
 import numpy as np
 import math
 import os
-from random import randint
+import random
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
@@ -77,11 +77,11 @@ class solo_off_road(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 50
+        self.timeend = 30
         self.control_frequency = 10
 
-        self.min_terrain_height = -4     # min terrain height
-        self.max_terrain_height = 0 # max terrain height
+        self.min_terrain_height = 0     # min terrain height
+        self.max_terrain_height = 2 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
 
@@ -89,7 +89,6 @@ class solo_off_road(ChronoBaseEnv):
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
         self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0) # Origin being somewhere in Madison WI
-        self.cur_coord = self.origin
         # used for converting to cartesian coordinates
         self.lat_rad = math.radians(self.origin.x)
         self.long_rad = math.radians(self.origin.y)
@@ -100,6 +99,7 @@ class solo_off_road(ChronoBaseEnv):
 
         self.render_setup = False
         self.play_mode = False
+        random.seed(1000)
 
     def toCartesian(self, coord):
         """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
@@ -197,14 +197,14 @@ class solo_off_road(ChronoBaseEnv):
         self.goal_sphere.SetBodyFixed(True)
         self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
         self.goal_sphere.SetPos(self.goal)
-        self.system.Add(self.goal_sphere)
+        # self.system.Add(self.goal_sphere)
 
         # create obstacles
 
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
-        steering_time = .25
+        steering_time = 0.75
         # time to go from 0 to +1 (or from 0 to -1)
         throttle_time = .5
         # time to go from 0 to +1
@@ -267,6 +267,7 @@ class solo_off_road(ChronoBaseEnv):
         # self.manager.AddSensor(vis_camera)
         #
         self.old_dist = (self.goal - self.initLoc).Length()
+        self.cur_coord = self.origin
 
         self.step_number = 0
         self.c_f = 0
@@ -296,11 +297,13 @@ class solo_off_road(ChronoBaseEnv):
             else:
                 braking = np.clip(abs(self.ac[2,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
                 throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
+            # print(steering, self.ac[0,])
             self.driver.SetSteering(steering)
-            # self.driver.SetThrottle(throttle)
-            # self.driver.SetBraking(braking)
-            self.driver.SetThrottle(0.5)
-            self.driver.SetBraking(0)
+            self.driver.SetThrottle(throttle)
+            self.driver.SetBraking(braking)
+            # self.driver.SetSteering(0.05)
+            # self.driver.SetThrottle(0.5)
+            # self.driver.SetBraking(0)
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
@@ -312,6 +315,7 @@ class solo_off_road(ChronoBaseEnv):
             # for cones in self.cones:
             #     self.c_f += cones.GetContactForce().Length()
 
+        # print(' Time :: ', time)
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
@@ -353,7 +357,7 @@ class solo_off_road(ChronoBaseEnv):
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width or pos.z < self.min_terrain_height:
+        elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width / 2 or pos.z < self.min_terrain_height:
             # print(abs(pos.x), self.terrain_length / 2.0)
             # print(abs(pos.y), self.terrain_width / 2.0)
             # print(abs(pos.z), self.min_terrain_height)
