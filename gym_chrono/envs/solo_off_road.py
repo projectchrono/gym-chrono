@@ -68,7 +68,7 @@ class solo_off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=0, high=500, shape=(6,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100000, high=300000, shape=(6,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -81,7 +81,7 @@ class solo_off_road(ChronoBaseEnv):
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
-        self.max_terrain_height = 2 # max terrain height
+        self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
 
@@ -94,12 +94,9 @@ class solo_off_road(ChronoBaseEnv):
         self.long_rad = math.radians(self.origin.y)
         self.lat_cos = math.cos(self.origin.x)
 
-        self.goal = chrono.ChVectorD(self.terrain_length / 2.25, self.terrain_width / 2.25, self.max_terrain_height + 1)
-        self.goal_coord = self.toGPSCoordinate(self.goal)
 
         self.render_setup = False
         self.play_mode = False
-        random.seed(1000)
 
     def toCartesian(self, coord):
         """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
@@ -192,12 +189,18 @@ class solo_off_road(ChronoBaseEnv):
         vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
         visual_asset.material_list.append(vis_mat)
 
-        # create goal sphere
+        # create goal
+        gx = random.random() * self.terrain_length - self.terrain_length / 2
+        gy = random.random() * self.terrain_width - self.terrain_width / 2
+        self.goal = chrono.ChVectorD(gx, gy, self.max_terrain_height + 1)
+        self.goal_coord = self.toGPSCoordinate(self.goal)
+
         self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, False, True)
         self.goal_sphere.SetBodyFixed(True)
         self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
         self.goal_sphere.SetPos(self.goal)
-        # self.system.Add(self.goal_sphere)
+        if self.play_mode:
+            self.system.Add(self.goal_sphere)
 
         # create obstacles
 
@@ -276,6 +279,7 @@ class solo_off_road(ChronoBaseEnv):
         if self.play_mode:
             self.render()
 
+        # print(self.get_ob()[1])
         return self.get_ob()
 
     def step(self, ac):
@@ -291,8 +295,8 @@ class solo_off_road(ChronoBaseEnv):
             self.terrain.Synchronize(time)
 
             steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta, self.driver.GetSteering() + self.SteeringDelta)
-            if self.ac[1,] >= 0:
-                throttle = np.clip(self.ac[1,], self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
+            if self.ac[1,] > 0:
+                throttle = np.clip(abs(self.ac[1,]), self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
                 braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
             else:
                 braking = np.clip(abs(self.ac[2,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
@@ -326,6 +330,7 @@ class solo_off_road(ChronoBaseEnv):
         camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
         if camera_buffer_RGBA8.HasData():
             rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
+            rgb = np.zeros((self.camera_height,self.camera_width,3))
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
             #print('NO DATA \n')
@@ -335,19 +340,23 @@ class solo_off_road(ChronoBaseEnv):
             cur_gps_data = gps_buffer.GetGPSData()[0:3]
             self.cur_coord = chrono.ChVectorD(cur_gps_data[0], cur_gps_data[1], cur_gps_data[2])
         else:
-            cur_gps_data = np.zeros((3,))
+            cur_gps_data = np.array([self.origin.x, self.origin.y, self.origin.z])
 
         goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
-        # print(cur_gps_data, goal_gps_data)
+        # print(np.concatenate([cur_gps_data, goal_gps_data]))
+        gps_data = np.concatenate([cur_gps_data, goal_gps_data]) * 1000
+        # print(gps_data)
 
-        return (rgb, np.concatenate([cur_gps_data, goal_gps_data]))
+        return (rgb, gps_data)
 
     def calc_rew(self):
-        progress_coeff = 10
+        progress_coeff = 5
+        vel_coeff = 1
         time_cost = 0# -.5
         progress = self.calc_progress()
-        rew = progress_coeff*progress + time_cost*self.system.GetChTime()
+        vel = self.vehicle.GetVehicle().GetVehicleSpeed()
+        rew = progress_coeff*progress + vel_coeff*vel + time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
