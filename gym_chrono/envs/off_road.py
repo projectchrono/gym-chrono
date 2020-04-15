@@ -275,7 +275,6 @@ class off_road(ChronoBaseEnv):
         camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
         if camera_buffer_RGBA8.HasData():
             rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
-            rgb = np.zeros((self.camera_height,self.camera_width,3))
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
             #print('NO DATA \n')

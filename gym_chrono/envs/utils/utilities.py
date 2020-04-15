@@ -3,7 +3,7 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 
-from control_utilities import Track
+from control_utilities.track import Track
 
 def SetChronoDataDirectories():
     """
