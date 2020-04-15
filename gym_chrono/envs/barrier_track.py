@@ -21,23 +21,7 @@ from gym import spaces
 from control_utilities.driver import Driver
 from control_utilities.track import RandomTrack
 
-def GetInitPose(p1, p2, z=0.1, reversed=0):
-    initLoc = p1
-
-    vec = p2 - p1
-    theta = math.atan2((vec%chrono.ChVectorD(1,0,0)).Length(),vec^chrono.ChVectorD(1,0,0))
-    if reversed:
-        theta *= -1
-    initRot = chrono.ChQuaternionD()
-    initRot.Q_from_AngZ(theta)
-
-    return initLoc, initRot
-
-<<<<<<< Updated upstream:gym_chrono/envs/camera_barrier_track.py
-class camera_cone_track(ChronoBaseEnv):
-=======
 class barrier_track(ChronoBaseEnv):
->>>>>>> Stashed changes:gym_chrono/envs/barrier_track.py
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
@@ -51,7 +35,8 @@ class barrier_track(ChronoBaseEnv):
         # Example when using discrete actions:
         self.camera_width  = 80*2
         self.camera_height = 45*2
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8)
 
         self.info =  {"timeout": 10000.0}
@@ -89,7 +74,7 @@ class barrier_track(ChronoBaseEnv):
         self.track.center.last_index = starting_index
         self.initLoc.z = z
 
-    def DrawBarriers(self, points, n=5, height=2, width=1):
+    def DrawBarriers(self, points, n=5, height=1, width=1):
         points = points[::n]
         if points[-1] != points[0]:
             points.append(points[-1])
@@ -109,22 +94,21 @@ class barrier_track(ChronoBaseEnv):
             box.SetRot(q)
             box.SetBodyFixed(True)
 
-            if use_sensors:
-                box_asset = box.GetAssets()[0]
-                visual_asset = chrono.CastToChVisualization(box_asset)
+            box_asset = box.GetAssets()[0]
+            visual_asset = chrono.CastToChVisualization(box_asset)
 
-                vis_mat = chrono.ChVisualMaterial()
-                vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
+            vis_mat = chrono.ChVisualMaterial()
+            vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
 
-                if i % 2 == 0:
-                    vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 0, 0))
-                else:
-                    vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 1.0, 1.0))
-                vis_mat.SetSpecularColor(chrono.ChVectorF(0.9, 0.9, 0.9))
-                vis_mat.SetFresnelMin(0)
-                vis_mat.SetFresnelMax(0.1)
+            if i % 2 == 0:
+                vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 0, 0))
+            else:
+                vis_mat.SetDiffuseColor(chrono.ChVectorF(1.0, 1.0, 1.0))
+            vis_mat.SetSpecularColor(chrono.ChVectorF(0.9, 0.9, 0.9))
+            vis_mat.SetFresnelMin(0)
+            vis_mat.SetFresnelMax(0.1)
 
-                visual_asset.material_list.append(vis_mat)
+            visual_asset.material_list.append(vis_mat)
 
             color = chrono.ChColorAsset()
             if i % 2 == 0:
@@ -141,7 +125,6 @@ class barrier_track(ChronoBaseEnv):
         self.vehicle = veh.Sedan()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
-
         self.vehicle.SetChassisFixed(False)
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
         self.vehicle.SetTireType(veh.TireModelType_RIGID)
@@ -171,7 +154,6 @@ class barrier_track(ChronoBaseEnv):
         #self.throttle_controller.SetTargetSpeed(speed=self.target_speed)
 
         # Rigid terrain
-        self.system = self.vehicle.GetSystem()
         self.terrain = veh.RigidTerrain(self.system)
         patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
                                  chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
@@ -191,10 +173,8 @@ class barrier_track(ChronoBaseEnv):
 
         # create barriers
         self.barriers = []
-        lp = self.track.left.points#[::50]
-        rp = self.track.right.points#[::50]
-        self.DrawBarriers(lp)
-        self.DrawBarriers(rp)
+        self.DrawBarriers(self.track.left.points)
+        self.DrawBarriers(self.track.right.points)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -262,7 +242,8 @@ class barrier_track(ChronoBaseEnv):
             self.terrain.Advance(self.timestep)
             self.manager.Update()
 
-            self.c_f += self.chassis_body.GetContactForce().Length()
+            for barrier in self.barriers:
+                self.c_f += barrier.GetContactForce().Length()
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
@@ -282,11 +263,22 @@ class barrier_track(ChronoBaseEnv):
         return rgb
 
     def calc_rew(self):
-        dist_coeff = 10
-        #time_cost = -2
+        dist_coeff = .1
+        vel_coeff = 1
+        err_coeff = -1
+        time_cost = 0
+        vel = self.vehicle.GetVehicle().GetVehicleSpeed()
         progress = self.calc_progress()
-        rew = dist_coeff*progress# + time_cost*self.system.GetChTime()
+        pos = self.vehicle.GetVehicle().GetVehiclePos()
+        err = (self.track.center.calcClosestPoint(pos) - pos).Length()
+        rew = dist_coeff*progress + vel_coeff*vel + err_coeff*err + time_cost*self.system.GetChTime()
         return rew
+
+    def calc_progress(self):
+        dist = self.track.center.calcDistance(self.chassis_body.GetPos())
+        progress = dist - self.old_dist
+        self.old_dist = dist
+        return progress
 
     def is_done(self):
 
@@ -325,7 +317,7 @@ class barrier_track(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     1280,  # number of horizontal samples
                     720,  # number of vertical channels
@@ -333,9 +325,9 @@ class barrier_track(ChronoBaseEnv):
                     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
+                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if True:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
@@ -350,11 +342,6 @@ class barrier_track(ChronoBaseEnv):
 
         if (mode == 'rgb_array'):
             return self.get_ob()
-
-    def calc_progress(self):
-        progress = self.track.center.calcDistance(self.chassis_body.GetPos())# - self.old_dist
-        # self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
-        return progress
 
     def close(self):
         del self
