@@ -5,6 +5,8 @@ import pychrono.sensor as sens
 
 from control_utilities.track import Track
 
+import math
+
 def SetChronoDataDirectories():
     """
     Set data directory

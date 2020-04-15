@@ -36,7 +36,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100000, high=300000, shape=(6,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -74,8 +74,8 @@ class off_road(ChronoBaseEnv):
         EARTH_RADIUS = 6378.1e3 # [m]
 
         # x is East, y is North
-        x = EARTH_RADIUS * (long_rad - self.long_rad) * self.lat_cos
-        y = EARTH_RADIUS * (lat_rad - self.lat_rad)
+        x = EARTH_RADIUS * (lat_rad - self.long_rad) 
+        y = EARTH_RADIUS * (long_rad - self.lat_rad) * self.lat_cos
         z = coord.z - self.origin.z
 
         return chrono.ChVectorD(x, y, z)
@@ -195,7 +195,7 @@ class off_road(ChronoBaseEnv):
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
             50,  # scanning rate in Hz
-            chrono.ChFrameD(chrono.ChVectorD(-.075, 0, .15), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
@@ -286,15 +286,22 @@ class off_road(ChronoBaseEnv):
         else:
             cur_gps_data = np.array([self.origin.x, self.origin.y, self.origin.z])
 
-        goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
+        # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
-        gps_data = np.concatenate([cur_gps_data, goal_gps_data]) * 1000
+        # gps_data = np.concatenate([cur_gps_data, goal_gps_data]) * 1000
+        # print(0, self.cur_coord)
+        # print(1, self.chassis_body.GetPos())
+        # print(2, self.goal)
+        err = self.goal - self.chassis_body.GetPos()
+        # print(3, err)
+        goal_gps_data = np.array([err.x, err.y, err.z])
+        # print(err)
 
-        return (rgb, gps_data)
+        return (rgb, goal_gps_data)
 
     def calc_rew(self):
         progress_coeff = 5
-        vel_coeff = 1
+        vel_coeff = .01
         time_cost = 0
         progress = self.calc_progress()
         vel = self.vehicle.GetVehicle().GetVehicleSpeed()
@@ -318,6 +325,7 @@ class off_road(ChronoBaseEnv):
     def calc_progress(self):
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
+        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
@@ -359,7 +367,8 @@ class off_road(ChronoBaseEnv):
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
                 # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if True:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
+                    # vis_camera.FilterList().append(sens.ChFilterSave())
+                    self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------

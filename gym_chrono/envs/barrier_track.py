@@ -198,7 +198,7 @@ class barrier_track(ChronoBaseEnv):
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
             50,  # scanning rate in Hz
-            chrono.ChFrameD(chrono.ChVectorD(-.075, 0, .15), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
@@ -329,6 +329,7 @@ class barrier_track(ChronoBaseEnv):
                 # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if True:
                     vis_camera.FilterList().append(sens.ChFilterSave())
+                    # self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
