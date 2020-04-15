@@ -12,53 +12,21 @@ import random
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose
 
 # openai-gym imports
 import gym
 from gym import spaces
 
-def setDataDirectory():
-    """
-    Set data directory
-
-    This is useful so data directory paths don't need to be changed everytime
-    you pull from or push to github. To make this useful, make sure you perform
-    step 2, as defined for your operating system.
-
-    For Linux or Mac users:
-      Replace bashrc with the shell your using. Could be .zshrc.
-      1. echo 'export CHRONO_DATA_DIR=<chrono's data directory>' >> ~/.bashrc
-          Ex. echo 'export CHRONO_DATA_DIR=/home/user/chrono/data/' >> ~/.zshrc
-      2. source ~/.zshrc
-
-    For Windows users:
-      Link as reference: https://helpdeskgeek.com/how-to/create-custom-environment-variables-in-windows/
-      1. Open the System Properties dialog, click on Advanced and then Environment Variables
-      2. Under User variables, click New... and create a variable as described below
-          Variable name: CHRONO_DATA_DIR
-          Variable value: <chrono's data directory>
-              Ex. Variable value: C:\ Users\ user\ chrono\ data\
-    """
-    from pathlib import Path
-
-    CONDA_PREFIX = os.environ.get('CONDA_PREFIX')
-    CHRONO_DATA_DIR = os.environ.get('CHRONO_DATA_DIR')
-    if CONDA_PREFIX and not CHRONO_DATA_DIR:
-        CHRONO_DATA_DIR = os.path.join(CONDA_PREFIX, 'share', 'chrono', 'data', '')
-    if not CHRONO_DATA_DIR:
-        CHRONO_DATA_DIR = os.path.join(Path(os.path.dirname(os.path.realpath(__file__))).parents[1], 'chrono', 'data', '')
-    elif not CHRONO_DATA_DIR:
-        raise Exception('Cannot find the chrono data directory. Please verify that CHRONO_DATA_DIR is set correctly.')
-
-    chrono.SetChronoDataPath(CHRONO_DATA_DIR)
-    veh.SetDataPath(os.path.join(CHRONO_DATA_DIR, 'vehicle', ''))
-
-class solo_off_road(ChronoBaseEnv):
+class off_road(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        setDataDirectory()
+
+        # Set Chrono data directories
+        SetChronoDataDirectories()
+
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
@@ -73,11 +41,11 @@ class solo_off_road(ChronoBaseEnv):
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
 
-        # ---------------------------------------------------------------------
-        #
-        #  Create the simulation system and add items
-        #
-        self.timeend = 30
+        # -------------------------------
+        # Initialize simulation settings
+        # -------------------------------
+
+        self.timeend = 40
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
@@ -249,23 +217,7 @@ class solo_off_road(ChronoBaseEnv):
         self.gps.SetName("GPS Sensor")
         self.gps.FilterList().append(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
-        # vis_camera = sens.ChCameraSensor(
-        #     self.chassis_body,  # body camera is attached to
-        #     30,  # scanning rate in Hz
-        #     chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
-        #     # offset pose
-        #     1280,  # number of horizontal samples
-        #     720,  # number of vertical channels
-        #     chrono.CH_C_PI / 3,  # horizontal field of view
-        #     (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
-        # )
-        # vis_camera.SetName("Follow Camera Sensor")
-        # # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-        # # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-        # if True:
-        #     vis_camera.FilterList().append(sens.ChFilterSave())
-        # self.manager.AddSensor(vis_camera)
-        #
+
         self.old_dist = (self.goal - self.initLoc).Length()
         self.cur_coord = self.origin
 
@@ -297,25 +249,18 @@ class solo_off_road(ChronoBaseEnv):
             else:
                 braking = np.clip(abs(self.ac[2,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
                 throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-            # print(steering, self.ac[0,])
+
             self.driver.SetSteering(steering)
             self.driver.SetThrottle(throttle)
             self.driver.SetBraking(braking)
-            # self.driver.SetSteering(0.05)
-            # self.driver.SetThrottle(0.5)
-            # self.driver.SetBraking(0)
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
-            self.system.DoStepDynamics(self.timestep)
             self.manager.Update()
 
-            # for cones in self.cones:
-            #     self.c_f += cones.GetContactForce().Length()
 
-        # print(' Time :: ', time)
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
@@ -339,13 +284,14 @@ class solo_off_road(ChronoBaseEnv):
 
         goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
-        # print(cur_gps_data, goal_gps_data)
+        gps_data = np.concatenate([cur_gps_data, goal_gps_data]) * 1000
 
         return (rgb, np.concatenate([cur_gps_data, goal_gps_data]))
 
     def calc_rew(self):
-        progress_coeff = 10
-        time_cost = 0# -.5
+        progress_coeff = 5
+        vel_coeff = 1
+        time_cost = 0
         progress = self.calc_progress()
         rew = progress_coeff*progress + time_cost*self.system.GetChTime()
         return rew
@@ -358,17 +304,17 @@ class solo_off_road(ChronoBaseEnv):
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
         elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width / 2 or pos.z < self.min_terrain_height:
-            # print(abs(pos.x), self.terrain_length / 2.0)
-            # print(abs(pos.y), self.terrain_width / 2.0)
-            # print(abs(pos.z), self.min_terrain_height)
-            # self.rew -= 200
+            self.rew -= 200
             self.isdone = True
         elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
             self.rew += 2500
             self.isdone = True
-        # elif self.chassis_body.GetPos().x > self.Xtarg :
-        #     self.rew += 1000
-        #     self.isdone = True
+
+    def calc_progress(self):
+        dist = (self.chassis_body.GetPos() - self.goal).Length()
+        progress = self.old_dist - dist
+        self.old_dist = dist
+        return progress
 
     def render(self, mode='human'):
         if not (self.play_mode==True):
@@ -422,13 +368,6 @@ class solo_off_road(ChronoBaseEnv):
 
         if (mode == 'rgb_array'):
             return self.get_ob()
-
-    def calc_progress(self):
-        dist = (self.chassis_body.GetPos() - self.goal).Length()
-        progress = self.old_dist - dist
-        self.old_dist = dist
-        # print('Progress :: ', progress)
-        return progress
 
     def close(self):
         del self

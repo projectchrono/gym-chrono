@@ -8,48 +8,18 @@ import numpy as np
 import math
 import os
 from random import randint
-#import cv2
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from control_utilities.track import RandomTrack
-from control_utilities.driver import Driver
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose
 
 # openai-gym imports
 import gym
 from gym import spaces
 
-# ----------------------------------------------------------------------------------------------------
-# Set data directory
-#
-# This is useful so data directory paths don't need to be changed everytime
-# you pull from or push to github. To make this useful, make sure you perform
-# step 2, as defined for your operating system.
-#
-# For Linux or Mac users:
-#   Replace bashrc with the shell your using. Could be .zshrc.
-#   1. echo 'export CHRONO_DATA_DIR=<chrono's data directory>' >> ~/.bashrc
-#       Ex. echo 'export CHRONO_DATA_DIR=/home/user/chrono/data/' >> ~/.zshrc
-#   2. source ~/.zshrc
-#
-# For Windows users:
-#   Link as reference: https://helpdeskgeek.com/how-to/create-custom-environment-variables-in-windows/
-#   1. Open the System Properties dialog, click on Advanced and then Environment Variables
-#   2. Under User variables, click New... and create a variable as described below
-#       Variable name: CHRONO_DATA_DIR
-#       Variable value: <chrono's data directory>
-#           Ex. Variable value: C:\Users\user\chrono\data\
-# ----------------------------------------------------------------------------------------------------
-def SetDataPath():
-    try:
-        chrono.SetChronoDataPath(os.environ['CHRONO_DATA_DIR'])
-        veh.SetDataPath(os.path.join(os.environ['CHRONO_DATA_DIR'], 'vehicle', ''))
-    except:
-        raise Exception('Cannot find CHRONO_DATA_DIR environmental variable. Explanation located in chrono_sim.py file')
-
-def checkFile(file):
-    if not os.path.exists(file):
-        raise Exception('Cannot find {}. Explanation located in chrono_sim.py file'.format(file))
+# control_utilities imports
+from control_utilities.driver import Driver
+from control_utilities.track import RandomTrack
 
 def GetInitPose(p1, p2, z=0.1, reversed=0):
     initLoc = p1
@@ -63,12 +33,19 @@ def GetInitPose(p1, p2, z=0.1, reversed=0):
 
     return initLoc, initRot
 
+<<<<<<< Updated upstream:gym_chrono/envs/camera_barrier_track.py
 class camera_cone_track(ChronoBaseEnv):
+=======
+class barrier_track(ChronoBaseEnv):
+>>>>>>> Stashed changes:gym_chrono/envs/barrier_track.py
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        SetDataPath()
+
+        # Set Chrono data directories
+        SetChronoDataDirectories()
+
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
@@ -79,19 +56,17 @@ class camera_cone_track(ChronoBaseEnv):
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 1e-3
-        # ---------------------------------------------------------------------
-        #
-        #  Create the simulation system and add items
-        #
-        self.timeend = 50
+
+        # -------------------------------
+        # Initialize simulation settings
+        # -------------------------------
+
+        self.timeend = 40
         self.control_frequency = 10
 
-        self.initLoc = chrono.ChVectorD(0, 0, .1)
-        self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
-        self.terrainLength = 300.0  # size in X direction
-        self.terrainWidth = 300.0  # size in Y direction
+        self.terrainLength = 200.0  # size in X direction
+        self.terrainWidth = 200.0  # size in Y direction
 
         self.target_speed = 5.0 # Target speed of the throttle controller
 
@@ -103,12 +78,16 @@ class camera_cone_track(ChronoBaseEnv):
         self.render_setup = False
         self.play_mode = False
 
-    def generate_track(self):
+    def generate_track(self, z=.15, starting_index=1):
+        # Generate track
         reversed = randint(0,1)
         self.track = RandomTrack(x_max=self.track_x_max, y_max=self.track_y_max, width=self.track_width)
-        self.track.generateTrack(seed=randint(0, 100), reversed=reversed)
-        self.initLoc, self.initRot = GetInitPose(self.track.center.getPoint(0), self.track.center.getPoint(1), reversed=reversed)
-        self.initLoc.z = 0.4
+        self.track.generateTrack(reversed=reversed)
+
+        # Calculate initial pose
+        self.initLoc, self.initRot = CalcInitialPose(self.track.center.getPoint(starting_index), self.track.center.getPoint(starting_index+1))
+        self.track.center.last_index = starting_index
+        self.initLoc.z = z
 
     def DrawBarriers(self, points, n=5, height=2, width=1):
         points = points[::n]
@@ -158,8 +137,9 @@ class camera_cone_track(ChronoBaseEnv):
 
     def reset(self):
         self.generate_track()
-        self.vehicle = veh.RCCar()
-        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)
+
+        self.vehicle = veh.Sedan()
+        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
 
         self.vehicle.SetChassisFixed(False)
@@ -173,6 +153,14 @@ class camera_cone_track(ChronoBaseEnv):
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.system = self.vehicle.GetSystem()
+        self.chassis_body = self.vehicle.GetChassisBody()
+
+        # Create contact model
+        self.chassis_body.GetCollisionModel().ClearModel()
+        size = chrono.ChVectorD(3,2,0.2)
+        self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
+        self.chassis_body.GetCollisionModel().BuildModel()
 
         # Driver
         self.driver = Driver(self.vehicle.GetVehicle())
@@ -223,9 +211,10 @@ class camera_cone_track(ChronoBaseEnv):
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-        # ------------------------------------------------
+
+        # -----------------------------------------------------
         # Create a self.camera and add it to the sensor manager
-        # ------------------------------------------------
+        # -----------------------------------------------------
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
             50,  # scanning rate in Hz
@@ -237,13 +226,9 @@ class camera_cone_track(ChronoBaseEnv):
             (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
+        self.camera.FilterList().append(sens.ChFilterRGBA8Access())
         self.manager.AddSensor(self.camera)
 
-        # -----------------------------------------------------------------
-        # Create a filter graph for post-processing the data from the lidar
-        # -----------------------------------------------------------------
-
-        self.camera.FilterList().append(sens.ChFilterRGBA8Access())
         self.old_dist = self.track.center.calcDistance(self.chassis_body.GetPos())
 
         self.step_number = 0
@@ -275,7 +260,6 @@ class camera_cone_track(ChronoBaseEnv):
             self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
-            self.system.DoStepDynamics(self.timestep)
             self.manager.Update()
 
             self.c_f += self.chassis_body.GetContactForce().Length()
@@ -305,6 +289,7 @@ class camera_cone_track(ChronoBaseEnv):
         return rew
 
     def is_done(self):
+
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True

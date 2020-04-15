@@ -43,32 +43,32 @@ register(
 )
 
 register(
-    id='camera_rccar_hallway-v0',
-    entry_point='gym_chrono.envs:camera_rccar_hallway'
+    id='rccar_hallway-v0',
+    entry_point='gym_chrono.envs:rccar_hallway'
     #timestep_limit=1000,
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
 
 register(
-    id='camera_cone_track-v0',
-    entry_point='gym_chrono.envs:camera_cone_track'
+    id='rccar_cone_track-v0',
+    entry_point='gym_chrono.envs:rccar_cone_track'
     #timestep_limit=1000,
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
 
 register(
-    id='camera_barrier_track-v0',
-    entry_point='gym_chrono.envs:camera_barrier_track'
+    id='barrier_track-v0',
+    entry_point='gym_chrono.envs:barrier_track'
     #timestep_limit=1000,
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
 
 register(
-    id='solo_off_road-v0',
-    entry_point='gym_chrono.envs:solo_off_road'
+    id='off_road-v0',
+    entry_point='gym_chrono.envs:off_road'
     #timestep_limit=1000,
     #reward_threshold=10.0,
     #nondeterministic = True,
