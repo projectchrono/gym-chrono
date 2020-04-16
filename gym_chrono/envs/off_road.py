@@ -300,12 +300,12 @@ class off_road(ChronoBaseEnv):
         return (rgb, goal_gps_data)
 
     def calc_rew(self):
-        progress_coeff = 5
-        vel_coeff = .01
+        progress_coeff = 20
+        #vel_coeff = .01
         time_cost = 0
         progress = self.calc_progress()
-        vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        rew = progress_coeff*progress + vel_coeff*vel + time_cost*self.system.GetChTime()
+        #vel = self.vehicle.GetVehicle().GetVehicleSpeed()
+        rew = progress_coeff*progress# + vel_coeff*vel + time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
