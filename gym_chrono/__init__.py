@@ -73,3 +73,11 @@ register(
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
+
+register(
+    id='off_road-v1',
+    entry_point='gym_chrono.envs:off_road_v1'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
+)

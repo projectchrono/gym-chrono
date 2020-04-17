@@ -18,7 +18,7 @@ from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitia
 import gym
 from gym import spaces
 
-class off_road(ChronoBaseEnv):
+class off_road_v1(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
     def __init__(self):
@@ -34,9 +34,7 @@ class off_road(ChronoBaseEnv):
         self.camera_height = 45*2
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Tuple((
-                spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))                                        # goal gps
+        self.observation_space = spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -127,8 +125,8 @@ class off_road(ChronoBaseEnv):
             patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                         self.bitmap_file,        # heightmap file (.bmp)
                                         "test",                  # mesh name
-                                        self.terrain_length*1.5,     # sizeX
-                                        self.terrain_width*1.5,      # sizeY
+                                        self.terrain_length,     # sizeX
+                                        self.terrain_width,      # sizeY
                                         self.min_terrain_height, # hMin
                                         self.max_terrain_height) # hMax
         except Exception:
@@ -136,8 +134,8 @@ class off_road(ChronoBaseEnv):
             patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                         self.bitmap_file_backup,        # heightmap file (.bmp)
                                         "test",                  # mesh name
-                                        self.terrain_length*1.5,     # sizeX
-                                        self.terrain_width*1.5,      # sizeY
+                                        self.terrain_length,     # sizeX
+                                        self.terrain_width,      # sizeY
                                         self.min_terrain_height, # hMin
                                         self.max_terrain_height) # hMax
 
@@ -272,26 +270,27 @@ class off_road(ChronoBaseEnv):
 
 
     def get_ob(self):
-        camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
-        if camera_buffer_RGBA8.HasData():
-            rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
-        else:
-            rgb = np.zeros((self.camera_height,self.camera_width,3))
+        # camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
+        # if camera_buffer_RGBA8.HasData():
+        #     rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
+        # else:
+        #     rgb = np.zeros((self.camera_height,self.camera_width,3))
             #print('NO DATA \n')
 
-        gps_buffer = self.gps.GetMostRecentGPSBuffer()
-        if gps_buffer.HasData():
-            cur_gps_data = gps_buffer.GetGPSData()[0:3]
-            self.cur_coord = chrono.ChVectorD(cur_gps_data[0], cur_gps_data[1], cur_gps_data[2])
-        else:
-            cur_gps_data = np.array([self.origin.x, self.origin.y, self.origin.z])
+        # gps_buffer = self.gps.GetMostRecentGPSBuffer()
+        # if gps_buffer.HasData():
+        #     cur_gps_data = gps_buffer.GetGPSData()[0:3]
+        #     self.cur_coord = chrono.ChVectorD(cur_gps_data[0], cur_gps_data[1], cur_gps_data[2])
+        # else:
+        #     cur_gps_data = np.array([self.origin.x, self.origin.y, self.origin.z])
 
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
         err = self.goal - self.chassis_body.GetPos()
         goal_gps_data = np.array([err.x, err.y])
+        # print(goal_gps_data)
 
-        return (rgb, goal_gps_data)
+        return goal_gps_data
 
     def calc_rew(self):
         progress_coeff = 20
