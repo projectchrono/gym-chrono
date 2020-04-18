@@ -134,16 +134,16 @@ class GVSETS_env(ChronoBaseEnv):
         # Example when using discrete actions:
         self.camera_width = 210
         self.camera_height = 160
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3),
-                                            dtype=np.uint8)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+                                                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 35
+        self.timeend = 40
         self.opt_dist = 8
         self.control_frequency = 10
         # time needed by the leader to get to the end of the path
@@ -152,8 +152,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
-        self.obst_paths = ['sensor/offroad/rock1.obj']#, 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      #'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+        self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
+                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]
@@ -395,7 +395,7 @@ class GVSETS_env(ChronoBaseEnv):
             self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>5000:
+        elif collision or self.dist>50:
             self.rew += - 2000
             self.isdone = True
 
