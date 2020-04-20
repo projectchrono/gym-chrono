@@ -74,7 +74,7 @@ class off_road_v1(ChronoBaseEnv):
         EARTH_RADIUS = 6378.1e3 # [m]
 
         # x is East, y is North
-        x = EARTH_RADIUS * (lat_rad - self.long_rad) 
+        x = EARTH_RADIUS * (lat_rad - self.long_rad)
         y = EARTH_RADIUS * (long_rad - self.lat_rad) * self.lat_cos
         z = coord.z - self.origin.z
 
@@ -172,7 +172,7 @@ class off_road_v1(ChronoBaseEnv):
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
             self.system.Add(self.goal_sphere)
-            
+
         # create obstacles
 
 
@@ -324,7 +324,7 @@ class off_road_v1(ChronoBaseEnv):
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
-            dist = (self.chassis_body.GetPos() - self.goal).Length()
+            dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
             self.rew -= 250
@@ -333,7 +333,7 @@ class off_road_v1(ChronoBaseEnv):
             print('Fell off terrain!! Distance from goal :: ', dist)
             self.rew -= 250
             self.isdone = True
-        elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
+        elif (pos - self.goal).Length() < 5:
             self.rew += 2500
             print('Success!!')
             self.successes += 1

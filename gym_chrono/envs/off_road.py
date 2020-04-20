@@ -62,7 +62,6 @@ class off_road(ChronoBaseEnv):
         self.long_rad = math.radians(self.origin.y)
         self.lat_cos = math.cos(self.origin.x)
 
-
         self.render_setup = False
         self.play_mode = False
 
@@ -74,7 +73,7 @@ class off_road(ChronoBaseEnv):
         EARTH_RADIUS = 6378.1e3 # [m]
 
         # x is East, y is North
-        x = EARTH_RADIUS * (lat_rad - self.long_rad) 
+        x = EARTH_RADIUS * (lat_rad - self.long_rad)
         y = EARTH_RADIUS * (long_rad - self.lat_rad) * self.lat_cos
         z = coord.z - self.origin.z
 
@@ -141,7 +140,7 @@ class off_road(ChronoBaseEnv):
                                         self.min_terrain_height, # hMin
                                         self.max_terrain_height) # hMax
 
-        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
+        patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 16, 16)
 
         patch.SetContactFrictionCoefficient(0.9)
         patch.SetContactRestitutionCoefficient(0.01)
@@ -154,7 +153,7 @@ class off_road(ChronoBaseEnv):
         visual_asset = chrono.CastToChVisualization(ground_asset)
         visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
         visual_asset.material_list.append(vis_mat)
 
         # create goal
@@ -310,13 +309,19 @@ class off_road(ChronoBaseEnv):
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
+            dist = (pos - self.goal).Length()
+            print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 1000
+            self.rew -= 250
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
-            self.rew -= 200
+            dist = (self.chassis_body.GetPos() - self.goal).Length()
+            print('Fell off terrain!! Distance from goal :: ', dist)
+            self.rew -= 250
             self.isdone = True
-        elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
+        elif (pos - self.goal).Length() < 5:
             self.rew += 2500
+            print('Success!!')
+            self.successes += 1
             self.isdone = True
 
     def calc_progress(self):
