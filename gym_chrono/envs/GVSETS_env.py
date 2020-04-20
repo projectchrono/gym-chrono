@@ -45,6 +45,16 @@ from gym import spaces
 #       Variable value: <chrono's data directory>
 #           Ex. Variable value: C:\Users\user\chrono\data\
 # ----------------------------------------------------------------------------------------------------
+def areColliding(body1, body2, box1, box2):
+    pos1, rot1, pos2,rot2 = body1.GetPos(), body1.GetRot(), body2.GetPos(), body2.GetRot()
+    for i in range(4):
+        s = i%2 , m.floor(i/2)
+        a, b = box2[0]*s[0], box2[1]*s[1]
+        p = pos2 + rot2.Rotate(chrono.ChVectorD(a,b,pos2.z))
+        d = rot1.RotateBack(p-pos1)
+        if abs(d.x)<box1[0] and abs(d.y)<box1[1]:
+            return True
+        return False
 
 class ghostLeaders(object):
     def __init__(self, numlead, interval = 0.05):
@@ -132,28 +142,30 @@ class GVSETS_env(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width = 210
-        self.camera_height = 160
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3),
-                                            dtype=np.uint8)
+        #self.camera_width = 210
+        self.camera_width = 80
+        #self.camera_height = 160
+        self.camera_height = 45
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+                                                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 35
+        self.timeend = 40
         self.opt_dist = 8
-        self.control_frequency = 10
+        self.control_frequency = 5
         # time needed by the leader to get to the end of the path
         self.leader_totalsteps = self.timeend / self.timestep
         self.terrain_model = veh.RigidTerrain.PatchType_BOX
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
-        self.obst_paths = ['sensor/offroad/rock1.obj']#, 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      #'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+        self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
+                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]
@@ -379,24 +391,29 @@ class GVSETS_env(ChronoBaseEnv):
         return rgb, gps
 
     def calc_rew(self):
+        dist_coeff = 20
+        eps = 1e-1
         target = self.leaders[0].GetPos()
         pos = self.chassis_body.GetPos()
         self.dist = np.linalg.norm( [target.x - pos.x, target.y - pos.y])
+        rew = dist_coeff /( abs(self.dist-self.opt_dist) + eps)
+        """
         if self.dist > self.opt_dist:
             rew = -0.15*pow(self.dist-10,2)
         else:
             rew =  -pow(self.dist-10,2)
+        """
         return rew
 
     def is_done(self):
         collision = not (self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             print("Over self.timeend")
-            self.rew += 2000
+            #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>5000:
-            self.rew += - 2000
+        elif collision or self.dist>50 or areColliding(self.chassis_body, self.leaders[0], self.leader_box, self.leader_box):
+            #self.rew += - 2000
             self.isdone = True
 
     def render(self, mode='human'):
@@ -404,7 +421,7 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if True:
+            if False:
                 vis_camera = sens.ChCameraSensor(
                     self.groundBody,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -423,7 +440,7 @@ class GVSETS_env(ChronoBaseEnv):
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
-            if False:
+            if True:
                 vis_camera = sens.ChCameraSensor(
                     self.leaders[0],  # body camera is attached to
                     30,  # scanning rate in Hz

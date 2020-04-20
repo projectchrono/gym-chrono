@@ -34,7 +34,7 @@ class off_road_v1(ChronoBaseEnv):
         self.camera_height = 45*2
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)
+        self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -43,7 +43,7 @@ class off_road_v1(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 40
+        self.timeend = 20
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
@@ -52,7 +52,8 @@ class off_road_v1(ChronoBaseEnv):
         self.terrain_width = 100.0  # size in Y direction
 
         self.initLoc = chrono.ChVectorD(-self.terrain_length / 2.25, -self.terrain_width / 2.25, self.max_terrain_height + 1)
-        self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+        # self.initRot = chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0,0,1))
+        self.initRot = chrono.ChQuaternionD(1,0,0,0)
 
         self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0) # Origin being somewhere in Madison WI
         # used for converting to cartesian coordinates
@@ -63,6 +64,7 @@ class off_road_v1(ChronoBaseEnv):
 
         self.render_setup = False
         self.play_mode = False
+        self.successes = 0
 
     def toCartesian(self, coord):
         """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
@@ -125,8 +127,8 @@ class off_road_v1(ChronoBaseEnv):
             patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                         self.bitmap_file,        # heightmap file (.bmp)
                                         "test",                  # mesh name
-                                        self.terrain_length,     # sizeX
-                                        self.terrain_width,      # sizeY
+                                        self.terrain_length*1.5,     # sizeX
+                                        self.terrain_width*1.5,      # sizeY
                                         self.min_terrain_height, # hMin
                                         self.max_terrain_height) # hMax
         except Exception:
@@ -134,8 +136,8 @@ class off_road_v1(ChronoBaseEnv):
             patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                         self.bitmap_file_backup,        # heightmap file (.bmp)
                                         "test",                  # mesh name
-                                        self.terrain_length,     # sizeX
-                                        self.terrain_width,      # sizeY
+                                        self.terrain_length*1.5,     # sizeX
+                                        self.terrain_width*1.5,      # sizeY
                                         self.min_terrain_height, # hMin
                                         self.max_terrain_height) # hMax
 
@@ -159,6 +161,9 @@ class off_road_v1(ChronoBaseEnv):
         gx = random.random() * self.terrain_length - self.terrain_length / 2
         gy = random.random() * self.terrain_width - self.terrain_width / 2
         self.goal = chrono.ChVectorD(gx, gy, self.max_terrain_height + 1)
+        self.A = self.goal.y - self.initLoc.y
+        self.B = self.initLoc.x - self.goal.x
+        self.C = self.A * self.initLoc.x + self.B * self.initLoc.y
         self.goal_coord = self.toGPSCoordinate(self.goal)
 
         self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, False, True)
@@ -167,7 +172,7 @@ class off_road_v1(ChronoBaseEnv):
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
             self.system.Add(self.goal_sphere)
-
+            
         # create obstacles
 
 
@@ -221,6 +226,8 @@ class off_road_v1(ChronoBaseEnv):
 
         self.old_dist = (self.goal - self.initLoc).Length()
         self.cur_coord = self.origin
+
+        self.successes = 0
 
         self.step_number = 0
         self.c_f = 0
@@ -287,19 +294,29 @@ class off_road_v1(ChronoBaseEnv):
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
         err = self.goal - self.chassis_body.GetPos()
-        goal_gps_data = np.array([err.x, err.y])
+        pos = self.chassis_body.GetPos()
+        vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
         # print(goal_gps_data)
 
         return goal_gps_data
 
     def calc_rew(self):
         progress_coeff = 20
-        #vel_coeff = .01
+        vel_coeff = 0
+        dev_coeff = 0
         time_cost = 0
         progress = self.calc_progress()
-        #vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        rew = progress_coeff*progress# + vel_coeff*vel + time_cost*self.system.GetChTime()
+        vel = self.vehicle.GetVehicle().GetVehicleSpeed()
+        dev = self.calc_dev()
+        # print(dev)
+        rew = progress_coeff*progress + vel_coeff*vel + dev_coeff*dev + time_cost*self.system.GetChTime()
         return rew
+
+    def calc_dev(self):
+        pos = self.chassis_body.GetPos()
+        x, y = pos.x, pos.y
+        return abs(self.A * x + self.B * y + self.C) / math.sqrt(self.A**2 + self.B**2)
 
     def is_done(self):
 
@@ -307,12 +324,19 @@ class off_road_v1(ChronoBaseEnv):
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
+            dist = (self.chassis_body.GetPos() - self.goal).Length()
+            print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-        elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width / 2 or pos.z < self.min_terrain_height:
-            self.rew -= 200
+            self.rew -= 250
+        elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
+            dist = (self.chassis_body.GetPos() - self.goal).Length()
+            print('Fell off terrain!! Distance from goal :: ', dist)
+            self.rew -= 250
             self.isdone = True
         elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
             self.rew += 2500
+            print('Success!!')
+            self.successes += 1
             self.isdone = True
 
     def calc_progress(self):
@@ -320,6 +344,7 @@ class off_road_v1(ChronoBaseEnv):
         progress = self.old_dist - dist
         # print(dist, self.old_dist)
         self.old_dist = dist
+        # progress = 1.0 / float((self.chassis_body.GetPos() - self.goal).Length())
         return progress
 
     def render(self, mode='human'):

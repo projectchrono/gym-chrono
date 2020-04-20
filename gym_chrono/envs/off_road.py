@@ -36,7 +36,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -289,7 +289,9 @@ class off_road(ChronoBaseEnv):
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
         err = self.goal - self.chassis_body.GetPos()
-        goal_gps_data = np.array([err.x, err.y])
+        pos = self.chassis_body.GetPos()
+        vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
 
         return (rgb, goal_gps_data)
 
@@ -309,7 +311,8 @@ class off_road(ChronoBaseEnv):
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
             self.isdone = True
-        elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width / 2 or pos.z < self.min_terrain_height:
+            self.rew -= 1000
+        elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             self.rew -= 200
             self.isdone = True
         elif (self.chassis_body.GetPos() - self.goal).Length() < 5:
