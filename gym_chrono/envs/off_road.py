@@ -18,6 +18,124 @@ from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitia
 import gym
 from gym import spaces
 
+class AssetMesh():
+    def __init__(self, filename, bounding_box=None):
+        self.filename = filename
+
+        # If bounding box is not passed in, calculate it
+        if bounding_box = None:
+            self.bounding_box = CalcBoundingBox()
+        else:
+            self.bounding_box = bounding_box
+
+        self.mesh = chrono.ChTriangleMeshConnected()
+        self.mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(filename), False, True)
+        self.shape = chrono.ChTriangleMeshShape()
+        self.shape.SetMesh(self.mesh)
+        self.shape.SetStatic(True)
+        self.body = chrono.ChBody()
+        self.body.AddAsset(self.shape)
+        self.body.SetCollide(True)
+
+    def UpdateCollisionModel(self, scale, z=2):
+        size = self.bounding_box * scale / 2
+        self.body.GetCollisionModel().ClearModel()
+        self.body.GetCollisionModel().AddBox(size.x, size.y, z)
+        self.body.GetCollisionModel().BuildModel()
+
+    def CalcBoundingBox(self):
+        """ Calculate approximate minimum boundary box of a mesh """
+        vertices = self.mesh.m_vertices
+        minimum = chrono.ChVectorD(min(vertices, key=lambda x: x.x).x, min(vertices, key=lambda x: x.y).y, 0)
+        maximum = chrono.ChVectorD(max(vertices, key=lambda x: x.x).x, max(vertices, key=lambda x: x.y).y, 0)
+        self.bounding_box = chrono.ChVectorD(maximum - minimum)
+
+class Asset():
+    def __init__(self, mesh, min_scale, max_scale):
+        self.mesh = mesh
+        self.min_scale = min_scale
+        self.max_scale = max_scale
+
+    def Transform(self, pos, scale=1, rot=0):
+        mesh.body.SetPos(pos)
+        mesh.mesh.Transform(chrono.ChVectorD(0,0,0), chrono.ChMatrix33D(scale))
+        mesh.body.SetRot(chrono.Q_from_AngAxis(ang, chrono.ChVectorD(0, 0, 1)))
+
+class AssetList():
+    def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
+        self.assets = []
+        for _ in range(b1):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5))
+        for _ in range(b2):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5))
+        for _ in range(r1):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/rock1.obj", chrono.ChVectorD(3.18344, 3.62827, 0)), 0.1, 1))
+        for _ in range(r2):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/rock2.obj", chrono.ChVectorD(4.01152, 2.64947, 0)), 0.1, .75))
+        for _ in range(r3):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/rock3.obj", chrono.ChVectorD(2.53149, 2.48862, 0)), 0.1, .75))
+        for _ in range(r4):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/rock4.obj", chrono.ChVectorD(2.4181, 4.47276, 0)), 0.1, .75))
+        for _ in range(r5):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/rock5.obj", chrono.ChVectorD(3.80205, 2.56996, 0)), 0.1, .75))
+        for _ in range(t1):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/tree1.obj", chrono.ChVectorD(2.39271, 2.36872, 0)), 0.5, 2))
+        for _ in range(t2):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/tree2.obj", chrono.ChVectorD(9.13849, 8.7707, 0)), 0.15, .5))
+        for _ in range(t3):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/tree3.obj", chrono.ChVectorD(4.7282, 4.67921, 0)), 5, 5))
+        for _ in range(c):
+            self.assets.append(Asset(AssetMesh("sensor/offroad/cottage.obj", chrono.ChVectorD(33.9308, 20.7355, 0)), 1, 1))
+
+        self.positions = []
+
+    def Clear(self):
+        self.positions = []
+
+    def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width):
+        for asset in self.assets:
+            # Calculate random transformation values
+            pos = CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
+            scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+            ang = random.random()*chrono.CH_C_PI
+
+            # Transform the mesh
+            asset.Transform(pos, scale, ang)
+
+            # Check if position is too close to another asset, vehicle or goal
+            while True:
+                if len(self.positions) == 0:
+                    continue
+                min_pos = min(self.positions, key=lambda x: (x.pos - pos).Length())
+                if (pos - vehicle_pos).Length() > threshold:
+                    break
+                elif (pos - min_pos).Length() < threshold:
+                    break
+                else:
+                    pos = CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
+                    scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+                    ang = random.random()*chrono.CH_C_PI
+                    asset.Transform(pos, scale, ang)
+
+            self.positions.append(pos)
+
+            system.Add(asset.mesh.body)
+
+    def map(self, value, min, max):
+        """ Scale a random value to be within a range """
+        return min + (value * (max - min))
+
+    def CalcRandomPose(self, terrain, length, width, offset=0):
+        """
+        Calculates random position within the terrain boundaries
+
+        TODO: generate some rotation (quaternion) to have mesh lay flush with the terrain
+        """
+        x = random.randint(-length/2, length/2)
+        y = random.randint(-width/2, width/2)
+        z = terrain.GetHeight(x, y) + offset
+        return chrono.ChVectorD(x,y,z)
+
 class off_road(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
@@ -61,6 +179,19 @@ class off_road(ChronoBaseEnv):
         self.lat_rad = math.radians(self.origin.x)
         self.long_rad = math.radians(self.origin.y)
         self.lat_cos = math.cos(self.origin.x)
+
+        b1 = 0
+        b2 = 0
+        r1 = 0
+        r2 = 0
+        r3 = 0
+        r4 = 0
+        r5 = 0
+        t1 = 0
+        t2 = 0
+        t3 = 0
+        c = 0
+        self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
 
         self.render_setup = False
         self.play_mode = False
@@ -169,9 +300,6 @@ class off_road(ChronoBaseEnv):
         if self.play_mode:
             self.system.Add(self.goal_sphere)
 
-        # create obstacles
-
-
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
         steering_time = 0.75
@@ -219,6 +347,13 @@ class off_road(ChronoBaseEnv):
         self.gps.SetName("GPS Sensor")
         self.gps.FilterList().append(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
+
+        # create obstacles
+        self.assets.Clear()
+        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5)
+
+        # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
+        self.manager.ReconstructScenes()
 
         self.old_dist = (self.goal - self.initLoc).Length()
         self.cur_coord = self.origin
