@@ -12,7 +12,7 @@ import random
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
-from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 
 # openai-gym imports
 import gym
@@ -36,10 +36,11 @@ class AssetMesh():
         self.shape.SetStatic(True)
         self.body = chrono.ChBody()
         self.body.AddAsset(self.shape)
-        self.body.SetCollide(True)
+        self.body.SetCollide(False)
         self.body.SetBodyFixed(True)
 
     def UpdateCollisionModel(self, scale, z=5):
+        self.body.SetCollide(True)
         size = self.bounding_box * scale / 2
         self.body.GetCollisionModel().ClearModel()
         self.body.GetCollisionModel().AddBox(size.x, size.y, z)
@@ -66,6 +67,7 @@ class Asset():
         self.pos = pos
         self.scale = scale
         self.ang = ang
+        self.rot = chrono.Q_from_AngAxis(ang, chrono.ChVectorD(0, 0, 1))
 
     def GetContactForceLength(self):
         return self.mesh.body.GetContactForce().Length()
@@ -133,7 +135,7 @@ class AssetList():
             self.positions.append(pos)
 
             # Update the collision model
-            asset.mesh.UpdateCollisionModel(scale)
+            # asset.mesh.UpdateCollisionModel(scale)
 
             system.Add(asset.mesh.body)
 
@@ -152,11 +154,13 @@ class AssetList():
         z = terrain.GetHeight(x, y) + offset
         return chrono.ChVectorD(x,y,z)
 
-    def CalcContactForces(self):
-        force = 0
+    def CalcContactForces(self, chassis_body, collision_box):
         for asset in self.assets:
-            force += asset.GetContactForceLength()
-        return force
+            box1 = np.array([asset.mesh.bounding_box.x, asset.mesh.bounding_box.y])
+            box2 = np.array([collision_box.x, collision_box.y])
+            if areColliding(asset.mesh.body, chassis_body, box1, box2):
+                return 1
+        return 0
 
     def GetNum(self):
         return len(self.assets)
@@ -179,7 +183,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -192,7 +196,7 @@ class off_road(ChronoBaseEnv):
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
-        self.max_terrain_height = 25 # max terrain height
+        self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
 
@@ -207,11 +211,11 @@ class off_road(ChronoBaseEnv):
 
         b1 = 0
         b2 = 0
-        r1 = 15
-        r2 = 15
-        r3 = 15
-        r4 = 15
-        r5 = 15
+        r1 = 0
+        r2 = 0
+        r3 = 0
+        r4 = 0
+        r5 = 0
         t1 = 0
         t2 = 0
         t3 = 0
@@ -320,10 +324,11 @@ class off_road(ChronoBaseEnv):
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.chassis_body = self.vehicle.GetChassisBody()
-        self.chassis_body.GetCollisionModel().ClearModel()
-        size = chrono.ChVectorD(3,2,0.2)
-        self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
-        self.chassis_body.GetCollisionModel().BuildModel()
+        # self.chassis_body.GetCollisionModel().ClearModel()
+        # size = chrono.ChVectorD(3,2,0.2)
+        # self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
+        # self.chassis_body.GetCollisionModel().BuildModel()
+        self.chassis_collision_box = chrono.ChVectorD(3,2,0.2)
 
         # Driver
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
@@ -432,6 +437,7 @@ class off_road(ChronoBaseEnv):
         # Collect output data from modules (for inter-module communication)
 
         for i in range(round(1/(self.control_frequency*self.timestep))):
+            # start = t.time()
             self.driver_inputs = self.driver.GetInputs()
             # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
@@ -456,9 +462,15 @@ class off_road(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
+            # chrono_time = t.time() - start
+            # sens_start = t.time()
             self.manager.Update()
+            # sensor_time = t.time() - sens_start
+            # if sensor_time > 1e-4:
+                # print('Chrono :: ', chrono_time)
+                # print('Sensor :: ', sensor_time)
 
-            self.c_f += self.assets.CalcContactForces()
+            self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
             if self.c_f:
                 break
         
@@ -484,11 +496,11 @@ class off_road(ChronoBaseEnv):
 
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
-        # err = self.goal - self.chassis_body.GetPos()
-        # pos = self.chassis_body.GetPos()
-        # vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
-        # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        gps_data = np.array([cur_gps_data[0], cur_gps_data[1], self.goal_coord.x, self.goal_coord.y])
+        err = self.goal - self.chassis_body.GetPos()
+        pos = self.chassis_body.GetPos()
+        vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
+        # gps_data = np.array([cur_gps_data[0], cur_gps_data[1], self.goal_coord.x, self.goal_coord.y])
         # print(gps_data)
 
         return (rgb, gps_data)

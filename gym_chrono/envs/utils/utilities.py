@@ -6,6 +6,7 @@ import pychrono.sensor as sens
 from control_utilities.track import Track
 
 import math
+import numpy as np
 
 def SetChronoDataDirectories():
     """
@@ -112,3 +113,14 @@ def GenerateHallwayTrack(z=.15, width=1.1):
     track = Track(points, width=width, z=z)
     track.generateTrack(z=z)
     return track
+
+def areColliding(body1, body2, box1, box2):
+    pos1, rot1, pos2, rot2 = body1.GetPos(), body1.GetRot(), body2.GetPos(), body2.GetRot()
+    for i in range(4):
+        s = i%2 , math.floor(i/2)
+        a, b = box2[0]*s[0], box2[1]*s[1]
+        p = pos2 + rot2.Rotate(chrono.ChVectorD(a,b,pos2.z))
+        d = rot1.RotateBack(p-pos1)
+        if abs(d.x)<box1[0] and abs(d.y)<box1[1]:
+            return True
+    return False
