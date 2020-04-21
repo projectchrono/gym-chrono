@@ -321,7 +321,7 @@ class off_road(ChronoBaseEnv):
         elif (pos - self.goal).Length() < 5:
             self.rew += 2500
             print('Success!!')
-            self.successes += 1
+            # self.successes += 1
             self.isdone = True
 
     def calc_progress(self):
