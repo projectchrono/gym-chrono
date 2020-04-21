@@ -1,9 +1,10 @@
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 
 # ------------------------- Perlin Noise Functions ------------------------- #
 def generate_perlin_noise_2d(shape, res):
-    """ https://github.com/pvigier/perlin-numpy """
+    """ http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf """
     def f(t):
         return 6*t**5 - 15*t**4 + 10*t**3
 
@@ -28,17 +29,6 @@ def generate_perlin_noise_2d(shape, res):
     n1 = n01*(1-t[:,:,0]) + t[:,:,0]*n11
     return np.sqrt(2)*((1-t[:,:,1])*n0 + t[:,:,1]*n1)
 
-def generate_fractal_noise_2d(shape, res, octaves=1, persistence=0.5):
-    """ https://github.com/pvigier/perlin-numpy """
-    noise = np.zeros(shape)
-    frequency = 1
-    amplitude = 1
-    for _ in range(octaves):
-        noise += amplitude * generate_perlin_noise_2d(shape, (frequency*res[0], frequency*res[1]))
-        frequency *= 2
-        amplitude *= persistence
-    return noise
-
 # -------------------------------------------------------------------------- #
 
 def map(arr, from_range, to_range):
@@ -46,38 +36,65 @@ def map(arr, from_range, to_range):
 
     return to_range[0] + (arr - from_range[0]) / float(np.diff(from_range)) * float(np.diff(to_range))
 
-def generate_random_bitmap(file_name="height_map.bmp"):
-    noise = generate_perlin_noise_2d(shape=(256, 256), res=(8, 8))
-    noise = map(noise, np.array([-1,1]), np.array([0,255]))
+def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1,1)], img_size=(100, 100), file_name="height_map.bmp", save=True, return_noise=False):
+    """ Generates a random bitmap (.bmp) file for use as a terrain
+
+    Inputs:
+        shape: Generated noise grid shape
+            tuple(width, height)
+        resolutions: list of resolutions to be used in perlin noise generation
+            [tuple(res1, res1), tuple(res2, res2)...]
+        mappings: list of mappings to be used to adjust the impact of certain noise generations
+            [tuple(map1, map1), tuple(map2, map2)...]
+        img_size: Image size
+            tuple(width, height)
+        file_name: File to save .bmp file to, only relevant if save=True
+        save: Save the generated .bmp file
+        return_grid: return the generated noise grid
+    """
+
+    if len(resolutions) != len(mappings):
+        raise Exception('generate_random_bitmap :: Length of shapes list and resolutions list must be the same size! Exiting...')
+    elif any(s % 2 for s in shape):
+        raise Exception('generate_random_bitmap :: Shape must be even! Exiting...')
+
+    length = len(resolutions)
+
+    noise = None
+    for res, mapping in zip(resolutions, mappings):
+        # generate perlin noise with specified shape and resolution
+        gen_noise = generate_perlin_noise_2d(shape=shape, res=res)
+
+        # map values to a specific range
+        mapped_noise = map(gen_noise, np.array([-1, 1]), np.array(mapping))
+
+        # Add noises togethers
+        if noise is None:
+            noise = mapped_noise
+        else:
+            noise += mapped_noise
+
+    # Map to image pixel range
+    noise = map(noise, np.array([-length,length]), np.array([0,255]))
+
+    # Create and save image
     img = Image.fromarray(np.uint8(noise))
-    width, height = img.size
-    img = img.resize((int(width/2), int(height/2)))
-    img.save(file_name)
+    img = img.resize(img_size)
+    if save:
+        img.save(file_name)
+
+    if return_noise:
+        return noise
 
 if __name__ == '__main__':
-    show = False
+    show = True
+    save = True
 
-    np.random.seed(0)
-    noise = generate_perlin_noise_2d((256, 256), (8, 8))
-    if show:
-        import matplotlib.pyplot as plt
-        plt.imshow(noise, cmap='gray', interpolation='lanczos')
-        plt.show()
-
-    noise -= np.amin(noise)
-    noise /= 2.0
-    noise *= 255.0
-    noise += 1
-
-    img = Image.fromarray(np.uint8(noise))
-
-    try:
-         #Relative Path
-        width, height = img.size
-        print(width/2, height/2)
-        img = img.resize((int(width/2), int(height/2)))
-
-        #Saved in the same relative location
-        img.save("resized_picture.bmp")
-    except IOError:
-        print('Fail')
+    for _ in range(3):
+        shape = (252, 252)
+        noise = generate_random_bitmap(shape=shape, resolutions=[(12, 12), (2, 2)], mappings=[(-.25,.25), (-2,2)], return_noise=True)
+        print(noise.shape)
+        if show:
+            image = plt.imread("height_map.bmp")
+            plt.imshow(image, cmap='gray', interpolation='lanczos')
+            plt.show()
