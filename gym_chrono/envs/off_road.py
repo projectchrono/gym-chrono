@@ -17,13 +17,14 @@ from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitia
 # openai-gym imports
 import gym
 from gym import spaces
+import time as t
 
 class AssetMesh():
     def __init__(self, filename, bounding_box=None):
         self.filename = filename
 
         # If bounding box is not passed in, calculate it
-        if bounding_box = None:
+        if bounding_box == None:
             self.bounding_box = CalcBoundingBox()
         else:
             self.bounding_box = bounding_box
@@ -36,8 +37,9 @@ class AssetMesh():
         self.body = chrono.ChBody()
         self.body.AddAsset(self.shape)
         self.body.SetCollide(True)
+        self.body.SetBodyFixed(True)
 
-    def UpdateCollisionModel(self, scale, z=2):
+    def UpdateCollisionModel(self, scale, z=5):
         size = self.bounding_box * scale / 2
         self.body.GetCollisionModel().ClearModel()
         self.body.GetCollisionModel().AddBox(size.x, size.y, z)
@@ -56,10 +58,13 @@ class Asset():
         self.min_scale = min_scale
         self.max_scale = max_scale
 
-    def Transform(self, pos, scale=1, rot=0):
-        mesh.body.SetPos(pos)
-        mesh.mesh.Transform(chrono.ChVectorD(0,0,0), chrono.ChMatrix33D(scale))
-        mesh.body.SetRot(chrono.Q_from_AngAxis(ang, chrono.ChVectorD(0, 0, 1)))
+    def Transform(self, pos, scale=1, ang=0):
+        self.mesh.body.SetPos(pos)
+        self.mesh.mesh.Transform(chrono.ChVectorD(0,0,0), chrono.ChMatrix33D(scale))
+        self.mesh.body.SetRot(chrono.Q_from_AngAxis(ang, chrono.ChVectorD(0, 0, 1)))
+
+    def GetContactForceLength(self):
+        return self.mesh.body.GetContactForce().Length()
 
 class AssetList():
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
@@ -95,7 +100,7 @@ class AssetList():
     def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width):
         for asset in self.assets:
             # Calculate random transformation values
-            pos = CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
+            pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
             scale = self.map(random.random(), asset.min_scale, asset.max_scale)
             ang = random.random()*chrono.CH_C_PI
 
@@ -103,13 +108,14 @@ class AssetList():
             asset.Transform(pos, scale, ang)
 
             # Check if position is too close to another asset, vehicle or goal
+            threshold = asset.mesh.bounding_box.Length() / 2
             while True:
                 if len(self.positions) == 0:
-                    continue
-                min_pos = min(self.positions, key=lambda x: (x.pos - pos).Length())
+                    break
+                min_pos = min(self.positions, key=lambda x: (x - pos).Length())
                 if (pos - vehicle_pos).Length() > threshold:
                     break
-                elif (pos - min_pos).Length() < threshold:
+                elif (pos - min_pos).Length() > threshold:
                     break
                 else:
                     pos = CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
@@ -118,6 +124,9 @@ class AssetList():
                     asset.Transform(pos, scale, ang)
 
             self.positions.append(pos)
+
+            # Update the collision model
+            asset.mesh.UpdateCollisionModel(scale)
 
             system.Add(asset.mesh.body)
 
@@ -135,6 +144,15 @@ class AssetList():
         y = random.randint(-width/2, width/2)
         z = terrain.GetHeight(x, y) + offset
         return chrono.ChVectorD(x,y,z)
+
+    def CalcContactForces(self):
+        force = 0
+        for asset in self.assets:
+            force += asset.GetContactForceLength()
+        return force
+
+    def GetNum(self):
+        return len(self.assets)
 
 class off_road(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
@@ -223,29 +241,12 @@ class off_road(ChronoBaseEnv):
         return chrono.ChVectorD(lat, long, alt)
 
     def reset(self):
-        self.vehicle = veh.HMMWV_Reduced()
-        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.SMC)
-        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
-        self.vehicle.SetChassisFixed(False)
-        self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
-        self.vehicle.SetTireType(veh.TireModelType_RIGID)
-        self.vehicle.SetTireStepSize(self.timestep)
-        self.vehicle.Initialize()
-
-        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
-        self.system = self.vehicle.GetSystem()
-        self.chassis_body = self.vehicle.GetChassisBody()
-        # self.chassis_body.GetCollisionModel().ClearModel()
-        # size = chrono.ChVectorD(3,2,0.2)
-        # self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
-        # self.chassis_body.GetCollisionModel().BuildModel()
-
-        # Driver
-        self.driver = veh.ChDriver(self.vehicle.GetVehicle())
+        # Create systems
+        self.system = chrono.ChSystemNSC()
+        self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+        self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+        self.system.SetSolverMaxIterations(150)
+        self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         # Create the terrain
         self.bitmap_file =  os.getcwd() + "/height_map.bmp"
@@ -286,6 +287,31 @@ class off_road(ChronoBaseEnv):
         vis_mat = chrono.ChVisualMaterial()
         vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
         visual_asset.material_list.append(vis_mat)
+
+        self.initLoc.z = self.terrain.GetHeight(self.initLoc.x, self.initLoc.y) + 1.5
+
+        self.vehicle = veh.HMMWV_Reduced(self.system)
+        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
+        self.vehicle.SetChassisFixed(False)
+        self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
+        self.vehicle.SetTireType(veh.TireModelType_RIGID)
+        self.vehicle.SetTireStepSize(self.timestep)
+        self.vehicle.Initialize()
+
+        self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.vehicle.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+        self.chassis_body = self.vehicle.GetChassisBody()
+        self.chassis_body.GetCollisionModel().ClearModel()
+        size = chrono.ChVectorD(3,2,0.2)
+        self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
+        self.chassis_body.GetCollisionModel().BuildModel()
+
+        # Driver
+        self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # create goal
         gx = random.random() * self.terrain_length - self.terrain_length / 2
@@ -349,11 +375,17 @@ class off_road(ChronoBaseEnv):
         self.manager.AddSensor(self.gps)
 
         # create obstacles
+        # start = t.time()
         self.assets.Clear()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5)
+        # print('Time to position assets :: ', t.time() - start)
 
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
-        self.manager.ReconstructScenes()
+        # start2 = t.time()
+        if self.assets.GetNum() > 0:
+            self.manager.ReconstructScenes()
+        # print('Time to reconstruct scene :: ', t.time() - start2)
+        # print('Total time :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
         self.cur_coord = self.origin
@@ -396,14 +428,17 @@ class off_road(ChronoBaseEnv):
             self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
+            self.system.DoStepDynamics(self.timestep)
             self.manager.Update()
 
-
+            self.c_f += self.assets.CalcContactForces()
+            if self.c_f:
+                break
+        
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
         return self.obs, self.rew, self.isdone, self.info
-
 
     def get_ob(self):
         camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
@@ -443,6 +478,7 @@ class off_road(ChronoBaseEnv):
         pos = self.chassis_body.GetPos()
 
         collision = not(self.c_f == 0)
+        failed = True
         if self.system.GetChTime() > self.timeend:
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
@@ -453,11 +489,24 @@ class off_road(ChronoBaseEnv):
             print('Fell off terrain!! Distance from goal :: ', dist)
             self.rew -= 250
             self.isdone = True
+        elif collision:
+            self.rew -= 250
+            print('Hit object!!')
+            self.isdone = True
         elif (pos - self.goal).Length() < 5:
             self.rew += 2500
             print('Success!!')
             # self.successes += 1
             self.isdone = True
+            failed = False
+
+        if self.isdone:
+            goal = np.array([self.goal.x, self.goal.y])
+            from csv import writer
+            with open('./Monitor/log.csv', 'a+', newline='') as write_obj:
+                goal = [failed, goal[0], goal[1]]
+                csv_writer = writer(write_obj)
+                csv_writer.writerow(goal)
 
     def calc_progress(self):
         dist = (self.chassis_body.GetPos() - self.goal).Length()
@@ -490,15 +539,17 @@ class off_road(ChronoBaseEnv):
                 self.manager.AddSensor(vis_camera)
 
             if True:
+                width = 600
+                height = 400
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
-                    1280,  # number of horizontal samples
-                    720,  # number of vertical channels
+                    width,  # number of horizontal samples
+                    height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
+                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
