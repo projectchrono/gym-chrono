@@ -155,6 +155,7 @@ class GVSETS_env(ChronoBaseEnv):
         #
         self.timeend = 40
         self.opt_dist = 8
+        self.dist_rad = 4
         self.control_frequency = 5
         # time needed by the leader to get to the end of the path
         self.leader_totalsteps = self.timeend / self.timestep
@@ -390,11 +391,13 @@ class GVSETS_env(ChronoBaseEnv):
 
     def calc_rew(self):
         dist_coeff = 20
-        eps = 1e-1
-        target = self.leaders[0].GetPos()
+        eps = 5e-2
+        # the target is BEHIND the last leader
+        target = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-self.opt_dist, 0, 0))
         pos = self.chassis_body.GetPos()
         self.dist = np.linalg.norm( [target.x - pos.x, target.y - pos.y])
-        rew = dist_coeff /( abs(self.dist-self.opt_dist) + eps)
+        # extend optimal area by the radius
+        rew = dist_coeff /( max(self.dist-self.dist_rad,0) + eps)
         """
         if self.dist > self.opt_dist:
             rew = -0.15*pow(self.dist-10,2)
