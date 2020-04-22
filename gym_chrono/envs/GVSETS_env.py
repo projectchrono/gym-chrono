@@ -1,6 +1,4 @@
 # TODO list:
-# GPS
-# full observation (RGB & scaled GPS)
 # domain randomization (speed  and leader interval correlation)
 
 # PyChrono imports
@@ -49,12 +47,12 @@ def areColliding(body1, body2, box1, box2):
     pos1, rot1, pos2,rot2 = body1.GetPos(), body1.GetRot(), body2.GetPos(), body2.GetRot()
     for i in range(4):
         s = i%2 , m.floor(i/2)
-        a, b = box2[0]*s[0], box2[1]*s[1]
+        a, b = box2[0]*s[0]/2, box2[1]*s[1]/2
         p = pos2 + rot2.Rotate(chrono.ChVectorD(a,b,pos2.z))
         d = rot1.RotateBack(p-pos1)
-        if abs(d.x)<box1[0] and abs(d.y)<box1[1]:
+        if abs(d.x)<box1[0]/2 and abs(d.y)<box1[1]/2:
             return True
-        return False
+    return False
 
 class ghostLeaders(object):
     def __init__(self, numlead, interval = 0.05):
@@ -364,7 +362,7 @@ class GVSETS_env(ChronoBaseEnv):
             self.step_number += 1
             for obs in self.obstacles:
                 self.c_f += obs.GetContactForce().Length()
-
+        self.leaderColl = any(areColliding(self.chassis_body, leader, self.leader_box, self.leader_box) for leader in self.leaders)
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
@@ -412,7 +410,7 @@ class GVSETS_env(ChronoBaseEnv):
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>50 or areColliding(self.chassis_body, self.leaders[0], self.leader_box, self.leader_box):
+        elif collision or self.dist>50 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 
@@ -421,7 +419,7 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if False:
+            if True:
                 vis_camera = sens.ChCameraSensor(
                     self.groundBody,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -440,7 +438,7 @@ class GVSETS_env(ChronoBaseEnv):
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
-            if True:
+            if False:
                 vis_camera = sens.ChCameraSensor(
                     self.leaders[0],  # body camera is attached to
                     30,  # scanning rate in Hz
