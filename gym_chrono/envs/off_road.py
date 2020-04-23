@@ -13,6 +13,7 @@ import random
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
+from gym_chrono.envs.utils.gps_utilities import *
 
 # openai-gym imports
 import gym
@@ -208,26 +209,20 @@ class off_road(ChronoBaseEnv):
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
-        self.max_terrain_height = 25 # max terrain height
+        self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
 
         self.initLoc = chrono.ChVectorD(-self.terrain_length / 2.25, -self.terrain_width / 2.25, self.max_terrain_height + 1)
         self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
-        self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0) # Origin being somewhere in Madison WI
-        # used for converting to cartesian coordinates
-        self.lat_rad = math.radians(self.origin.x)
-        self.long_rad = math.radians(self.origin.y)
-        self.lat_cos = math.cos(self.origin.x)
-
         b1 = 0
         b2 = 0
-        r1 = 15
-        r2 = 15
-        r3 = 15
-        r4 = 15
-        r5 = 15
+        r1 = 0
+        r2 = 0
+        r3 = 0
+        r4 = 0
+        r5 = 0
         t1 = 0
         t2 = 0
         t3 = 0
@@ -236,32 +231,6 @@ class off_road(ChronoBaseEnv):
 
         self.render_setup = False
         self.play_mode = False
-
-    def toCartesian(self, coord):
-        """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
-
-        lat_rad = math.radians(coord.x)
-        long_rad = math.radians(coord.y)
-        EARTH_RADIUS = 6378.1e3 # [m]
-
-        # x is East, y is North
-        x = EARTH_RADIUS * (lat_rad - self.long_rad)
-        y = EARTH_RADIUS * (long_rad - self.lat_rad) * self.lat_cos
-        z = coord.z - self.origin.z
-
-        return chrono.ChVectorD(x, y, z)
-
-    def toGPSCoordinate(self, pos):
-        """ Approximation: Converts x,y,z to GPS Coordinate provided some origin """
-
-        EARTH_RADIUS = 6378.1e3 # [m]
-
-        # x is East, y is North
-        lat = math.degrees(pos.x / EARTH_RADIUS / self.lat_cos + self.long_rad)
-        long = math.degrees(pos.y / EARTH_RADIUS + self.lat_rad)
-        alt = pos.z + self.origin.z
-
-        return chrono.ChVectorD(lat, long, alt)
 
     def reset(self):
         # Create systems
@@ -272,8 +241,8 @@ class off_road(ChronoBaseEnv):
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         # Create the terrain
-        self.bitmap_file =  os.getcwd() + "/height_map.bmp"
-        self.bitmap_file_backup = os.getcwd() + "/height_map_backup.bmp"
+        self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
+        self.bitmap_file_backup =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
         shape = (252, 252)
         generate_random_bitmap(shape=shape, resolutions=[(18, 18), (12, 12), (2, 2)], mappings=[(-.1, -.1), (-.25,.25), (-1.5,1.5)], file_name=self.bitmap_file)
         self.terrain = veh.RigidTerrain(self.system)
@@ -358,7 +327,8 @@ class off_road(ChronoBaseEnv):
                 print('Break')
                 break
             i += 1
-        self.goal_coord = self.toGPSCoordinate(self.goal)
+        self.goal_coord = toGPSCoordinate(self.goal)
+        self.origin = GPSCoord(43.073268, -89.400636, 260.0)
 
         self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, False, True)
         self.goal_sphere.SetBodyFixed(True)
@@ -419,24 +389,23 @@ class off_road(ChronoBaseEnv):
             self.chassis_body,
             100,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-            self.origin,
+            origin,
             gps_noise_none
         )
         self.gps.SetName("GPS Sensor")
         self.gps.FilterList().append(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
 
-
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
         # start = t.time()
         if self.assets.GetNum() > 0:
             # self.assets.TransformAgain()
+            # start = t.time()
             # self.manager.ReconstructScenes()
             self.manager.Update()
-        # print('Reconstruction :: ', t.time() - start)
+            # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
-        self.cur_coord = self.origin
 
         self.step_number = 0
         self.c_f = 0
@@ -506,9 +475,9 @@ class off_road(ChronoBaseEnv):
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
         if gps_buffer.HasData():
             cur_gps_data = gps_buffer.GetGPSData()[0:3]
-            self.cur_coord = chrono.ChVectorD(cur_gps_data[0], cur_gps_data[1], cur_gps_data[2])
+            cur_gps_data = GPSCoord(cur_gps_data[1], cur_gps_data[0], cur_gps_data[2])
         else:
-            cur_gps_data = np.array([self.origin.y, self.origin.x, self.origin.z])
+            cur_gps_data = origin
 
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
@@ -516,17 +485,17 @@ class off_road(ChronoBaseEnv):
         # pos = self.chassis_body.GetPos()
         # vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        gps_data = np.array([cur_gps_data[0], cur_gps_data[1], self.goal_coord.x, self.goal_coord.y])
-        # print(gps_data)
-
+        gps_data = (self.goal_coord - cur_gps_data)
+        # print(self.goal_coord, cur_gps_data)
+        gps_data = np.array([self.goal_coord.x, self.goal_coord.y, cur_gps_data.x, gps_data.y]) * 100000
         return (rgb, gps_data)
 
     def calc_rew(self):
         progress_coeff = 20
-        #vel_coeff = .01
+        vel_coeff = 0
         time_cost = 0
         progress = self.calc_progress()
-        #vel = self.vehicle.GetVehicle().GetVehicleSpeed()
+        # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
         rew = progress_coeff*progress# + vel_coeff*vel + time_cost*self.system.GetChTime()
         return rew
 

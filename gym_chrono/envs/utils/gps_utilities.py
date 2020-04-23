@@ -1,4 +1,8 @@
-from pychrono import ChVectorD
+from pychrono import ChVectorD, CH_C_DEG_TO_RAD
+import math
+from decimal import getcontext
+getcontext().prec = 32
+
 # GPScoord is a wrapper class around ChVector
 # Stores GPS points as (lat, long, alt)
 # All coordinates are in degrees
@@ -22,19 +26,19 @@ class GPSCoord(ChVectorD):
     # Access to components with conversions
     @property
     def lat_rad(self):
-        return math.radians(self.lat)
+        return self.lat * CH_C_DEG_TO_RAD
     @property
     def long_rad(self):
-        return math.radians(self.long)
+        return self.long * CH_C_DEG_TO_RAD
     @property
     def lat_cos(self):
-        return math.cos(self.lat)
+        return math.cos(self.lat_rad)
 
 # Radius of the earth
 EARTH_RADIUS = 6378.1e3  # [m]
 
 # Origin being somewhere in Madison WI
-origin = GPSCoord(43.070, -89.400, 260.0)
+origin = GPSCoord(43.073268, -89.400636, 260.0)
 
 def toCartesian(coord):
     """ Approximation: Converts GPS coordinate to x,y,z provided some origin """
@@ -44,17 +48,15 @@ def toCartesian(coord):
     y = EARTH_RADIUS * (coord.lat_rad - origin.lat_rad)
     z = coord.alt - origin.alt
 
-    return chrono.ChVectorD(x, y, z)
+    return ChVectorD(x, y, z)
 
 
 def toGPSCoordinate(pos):
     """ Approximation: Converts x,y,z to GPS Coordinate provided some origin """
-
-    EARTH_RADIUS = 6378.1e3  # [m]
 
     # x is East, y is North
     long = math.degrees(pos.x / EARTH_RADIUS / origin.lat_cos + origin.long_rad)
     lat = math.degrees(pos.y / EARTH_RADIUS + origin.lat_rad)
     alt = pos.z + origin.alt
 
-    return chrono.ChVectorD(lat, long, alt)
+    return GPSCoord(lat, long, alt)
