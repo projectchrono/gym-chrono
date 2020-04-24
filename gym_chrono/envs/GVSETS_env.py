@@ -373,7 +373,7 @@ class GVSETS_env(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             #self.system.DoStepDynamics(self.timestep)
-            self.path.Advance(1 / self.leader_totalsteps)
+            self.path.Advance((1 / self.leader_totalsteps)*((2*self.step_number)/self.leader_totalsteps))
             self.leaders.Update()
             self.manager.Update()
             self.step_number += 1
