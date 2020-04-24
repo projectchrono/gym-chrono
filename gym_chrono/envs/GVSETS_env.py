@@ -92,14 +92,29 @@ class ghostLeaders(object):
             leader.SetRot(leaderRot)
 
 class BezierPath(chrono.ChBezierCurve):
-    def __init__(self, beginPos, endPos, z):
+    def __init__(self, x_half, y_half, z):
         # making 4 turns to get to the end point
-        deltaX = (endPos[0] - beginPos[0])/3
-        deltaY = (endPos[1] - beginPos[1])/2
+        q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
+        flip = pow(-1, randint(0, 1))
+        route = randint(0, 1)
         points = chrono.vector_ChVectorD()
-        for i in range(6):
-            point = chrono.ChVectorD(beginPos[0] + deltaX*m.floor((i+1)/2) , beginPos[1] + deltaY*m.floor(i/2), z)
-            points.append(point)
+        if route == 0:
+            beginPos = [-x_half, -y_half * flip]
+            endPos = [x_half, y_half * flip]
+            deltaX = (endPos[0] - beginPos[0])/3
+            deltaY = (endPos[1] - beginPos[1])/2
+            for i in range(6):
+                point = chrono.ChVectorD(beginPos[0] + deltaX*m.floor((i+1)/2) , beginPos[1] + deltaY*m.floor(i/2), z)
+                point = q.Rotate(point)
+                points.append(point)
+        if route == 1:
+            xs = np.asarray([-1, 0, 1/3, 1/3, 0, -1])
+            ys = np.asarray([1, 4/5, 1/2, -1/2, -4/5, -1])*flip
+            for x, y in zip(xs, ys):
+                point = chrono.ChVectorD(x*x_half, y*y_half, z)
+                point = q.Rotate(point)
+                points.append(point)
+
         super(BezierPath, self).__init__(points)
         self.current_t = 0
 
@@ -206,19 +221,19 @@ class GVSETS_env(ChronoBaseEnv):
             obst.SetCollide(True)
             p0, q = self.path.getPosRot( (i+1)/(numob+1) )
             dist = np.max([x,y]) + self.leader_box[1]
-            pos = p0 + q.RotateBack(chrono.VECT_Y) * (dist* pow(-1,side)) -chrono.ChVectorD(0,0,p0.z)
+            pos = p0 + q.Rotate(chrono.VECT_Y) * (dist* pow(-1,side)) - chrono.ChVectorD(0,0,p0.z)
             obst.SetPos(pos)
             obst.SetBodyFixed(True)
             self.obstacles.append(obst)
             self.system.Add(obst)
 
     def reset(self):
-        flip = pow(-1, randint(0,1))
-        leader_initloc = [-90, -40*flip]
-        leader_endloc = [90, 40*flip]
-        self.initLoc = chrono.ChVectorD(leader_initloc[0] - 5, leader_initloc[1] - 5, 1)
-        self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-        self.path = BezierPath(leader_initloc, leader_endloc, 0.5)
+        x_half_length = 90
+        y_half_length = 40
+        self.path = BezierPath(x_half_length, y_half_length, 0.5)
+        self.initLoc = chrono.ChVectorD(self.path.getPoint(0).x - 5, self.path.getPoint(0).y - 5, 1)
+        self.initRot = chrono.ChQuaternionD(self.path.getPosRot(0)[1])
+
         self.vehicle = veh.HMMWV_Reduced()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
         self.surf_material = chrono.ChMaterialSurfaceNSC()
@@ -235,6 +250,7 @@ class GVSETS_env(ChronoBaseEnv):
         if self.play_mode == True:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+            self.vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
         else:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
@@ -454,14 +470,33 @@ class GVSETS_env(ChronoBaseEnv):
                     chrono.CH_C_PI / 3,  # horizontal field of view
                     (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
-                vis_camera.SetName("Follow Camera Sensor")
+                vis_camera.SetName("Follow Leader Camera Sensor")
                 self.camera.FilterList().append(
                     sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
                 vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if False:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
-
+            if False:
+                vis_camera = sens.ChCameraSensor(
+                    self.chassis_body,  # body camera is attached to
+                    5,  # scanning rate in Hz
+                    chrono.ChFrameD(chrono.ChVectorD(-6, 0, 1.5),
+                                    chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 1, 0))),
+                    # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
+                    # offset pose
+                    1280,  # number of horizontal samples
+                    720,  # number of vertical channels
+                    chrono.CH_C_PI / 3,  # horizontal field of view
+                    (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
+                )
+                vis_camera.SetName("Follow Agent Camera Sensor")
+                self.camera.FilterList().append(
+                    sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if False:
+                    vis_camera.FilterList().append(sens.ChFilterSave())
+                self.manager.AddSensor(vis_camera)
             # -----------------------------------------------------------------
             # Create a filter graph for post-processing the data from the lidar
             # -----------------------------------------------------------------
