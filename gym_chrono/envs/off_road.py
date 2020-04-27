@@ -42,6 +42,10 @@ class AssetMesh():
 
         self.scaled = False
 
+        self.pos = chrono.ChVectorD()
+        self.scale = 1
+        self.ang = 0
+
     def UpdateCollisionModel(self, scale, z=5):
         self.body.SetCollide(True)
         size = self.bounding_box * scale / 2
@@ -62,10 +66,18 @@ class AssetMesh():
             self.bounding_box *= scale
 
 class Asset():
-    def __init__(self, mesh, min_scale, max_scale):
+    def __init__(self, mesh, min_scale, max_scale, num=0):
         self.mesh = mesh
         self.min_scale = min_scale
         self.max_scale = max_scale
+        self.num = num
+
+        self.pos = chrono.ChVectorD()
+        self.scale = 1
+        self.ang = 0
+
+        self.frames = sens.vector_ChFrameD()
+        self.frames_list = []
 
     def Transform(self, pos, scale=1, ang=0):
         self.mesh.body.SetPos(pos)
@@ -82,72 +94,83 @@ class Asset():
     def GetContactForceLength(self):
         return self.mesh.body.GetContactForce().Length()
 
+    def Clear(self):
+        self.frames = sens.vector_ChFrameD()
+        self.frame_list = []
+
 class AssetList():
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
         self.assets = []
-        for _ in range(b1):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5))
-        for _ in range(b2):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5))
-        for _ in range(r1):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/rock1.obj", chrono.ChVectorD(3.18344, 3.62827, 0)), 0.25, 1))
-        for _ in range(r2):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/rock2.obj", chrono.ChVectorD(4.01152, 2.64947, 0)), 0.25, .75))
-        for _ in range(r3):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/rock3.obj", chrono.ChVectorD(2.53149, 2.48862, 0)), 0.25, .75))
-        for _ in range(r4):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/rock4.obj", chrono.ChVectorD(2.4181, 4.47276, 0)), 0.25, .75))
-        for _ in range(r5):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/rock5.obj", chrono.ChVectorD(3.80205, 2.56996, 0)), 0.25, .75))
-        for _ in range(t1):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/tree1.obj", chrono.ChVectorD(2.39271, 2.36872, 0)), 0.5, 2))
-        for _ in range(t2):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/tree2.obj", chrono.ChVectorD(9.13849, 8.7707, 0)), 0.15, .5))
-        for _ in range(t3):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/tree3.obj", chrono.ChVectorD(4.7282, 4.67921, 0)), 5, 5))
-        for _ in range(c):
-            self.assets.append(Asset(AssetMesh("sensor/offroad/cottage.obj", chrono.ChVectorD(33.9308, 20.7355, 0)), 1, 1))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5, b2))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/rock1.obj", chrono.ChVectorD(3.18344, 3.62827, 0)), 0.25, 1, r1))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/rock2.obj", chrono.ChVectorD(4.01152, 2.64947, 0)), 0.25, .75, r2))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/rock3.obj", chrono.ChVectorD(2.53149, 2.48862, 0)), 0.25, .75, r3))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/rock4.obj", chrono.ChVectorD(2.4181, 4.47276, 0)), 0.25, .75, r4))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/rock5.obj", chrono.ChVectorD(3.80205, 2.56996, 0)), 0.25, .75, r5))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/tree1.obj", chrono.ChVectorD(2.39271, 2.36872, 0)), 0.5, 2, t1))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/tree2.obj", chrono.ChVectorD(9.13849, 8.7707, 0)), 0.15, .5, t2))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/tree3.obj", chrono.ChVectorD(4.7282, 4.67921, 0)), 5, 5, t3))
+        self.assets.append(Asset(AssetMesh("sensor/offroad/cottage.obj", chrono.ChVectorD(33.9308, 20.7355, 0)), 1, 1, c))
 
         self.positions = []
 
     def Clear(self):
         self.positions = []
+        for asset in self.assets:
+            asset.Clear()
 
     def TransformAgain(self):
         """ Transform underlying mesh again since a sensor manager was created (Ask Asher) """
         for asset in self.assets:
             asset.Transform(asset.pos, asset.scale, asset.ang)
 
+    def GenerateFrame(self, pos, ang, scale):
+        # Calculate quaternion
+        rot = chrono.Q_from_AngAxis(ang, chrono.ChVectorD(0, 0, 1))
+
+        # Generate ChFrame which will then be scaled
+        frame = chrono.ChFrameD(pos, rot)
+
+        # Scale frame
+        mat = frame.GetA().GetMatr()
+        mat = [[x*scale for x in z] for z in mat]
+        frame.GetA().SetMatr(mat)
+
+        return frame
+
     def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width):
         for asset in self.assets:
-            # Calculate random transformation values
-            pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
-            scale = self.map(random.random(), asset.min_scale, asset.max_scale)
-            ang = random.random()*chrono.CH_C_PI
-
-            # Transform the mesh
-            asset.Transform(pos, scale, ang)
-
-            # Check if position is too close to another asset, vehicle or goal
-            threshold = asset.mesh.bounding_box.Length() / 2
-            while True:
-                if len(self.positions) == 0:
-                    break
-                min_pos = min(self.positions, key=lambda x: (x - pos).Length())
-                if (pos - vehicle_pos).Length() > 15 and (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
-                    break
-                else:
+            for _ in range(asset.num):
+                # Check if position is too close to another asset, vehicle or goal
+                while True:
+                    # Calculate random transformation values
                     pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
                     scale = self.map(random.random(), asset.min_scale, asset.max_scale)
-                    ang = random.random()*chrono.CH_C_PI
-                    asset.Transform(pos, scale, ang)
+                    threshold = asset.mesh.bounding_box.Length() * scale / 2
+                    if len(self.positions) == 0:
+                        break
+                    min_pos = min(self.positions, key=lambda x: (x - pos).Length())
+                    if (pos - vehicle_pos).Length() > 15 and (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
+                        break
 
-            self.positions.append(pos)
+                # Calculate other random values
+                ang = random.random()*chrono.CH_C_PI
+                frame = self.GenerateFrame(pos, ang, scale)
+                # scale = 10
+                # asset.Transform(pos, scale, ang)
 
-            # Update the collision model
-            # asset.mesh.UpdateCollisionModel(scale)
+                self.positions.append(pos)
+                asset.frames.append(frame)
 
-            system.Add(asset.mesh.body)
+                asset.mesh.pos = pos
+                asset.mesh.ang = ang
+                asset.mesh.scale = scale
+
+                # Update the collision model
+                # asset.mesh.UpdateCollisionModel(scale)
+
+                # system.Add(asset.mesh.body)
 
     def map(self, value, min, max):
         """ Scale a random value to be within a range """
@@ -166,12 +189,12 @@ class AssetList():
 
     def CalcContactForces(self, chassis_body, collision_box):
         pos = chassis_body.GetPos()
-        for asset in self.assets:
+        for asset_pos in self.positions:
             # box1 = np.array([collision_box.x, collision_box.y])
             # box2 = np.array([asset.mesh.bounding_box.x, asset.mesh.bounding_box.y])
             # if areColliding(chassis_body, asset.mesh.body, box1, box2):
             #     return 1
-            if (pos - asset.pos).Length() < 5:
+            if (pos - asset_pos).Length() < 4:
                 return 1
         return 0
 
@@ -196,7 +219,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -218,11 +241,11 @@ class off_road(ChronoBaseEnv):
 
         b1 = 0
         b2 = 0
-        r1 = 0
-        r2 = 0
-        r3 = 0
-        r4 = 0
-        r5 = 0
+        r1 = 5
+        r2 = 5
+        r3 = 5
+        r4 = 5
+        r5 = 5
         t1 = 0
         t2 = 0
         t3 = 0
@@ -401,8 +424,12 @@ class off_road(ChronoBaseEnv):
         if self.assets.GetNum() > 0:
             # self.assets.TransformAgain()
             # start = t.time()
+            for asset in self.assets.assets:
+                if len(asset.frames) > 0:
+                    self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
             # self.manager.ReconstructScenes()
-            self.manager.Update()
+            # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
+            # self.manager.Update()
             # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
@@ -470,24 +497,28 @@ class off_road(ChronoBaseEnv):
             rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
-            #print('NO DATA \n')
+            # print('NO DATA \n')
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
         if gps_buffer.HasData():
             cur_gps_data = gps_buffer.GetGPSData()[0:3]
             cur_gps_data = GPSCoord(cur_gps_data[1], cur_gps_data[0], cur_gps_data[2])
         else:
-            cur_gps_data = origin
+            cur_gps_data = GPSCoord(origin.lat, origin.long)
 
         # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
 
         # err = self.goal - self.chassis_body.GetPos()
-        # pos = self.chassis_body.GetPos()
-        # vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        pos = self.chassis_body.GetPos()
+        vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
         gps_data = (self.goal_coord - cur_gps_data)
-        # print(self.goal_coord, cur_gps_data)
-        gps_data = np.array([self.goal_coord.x, self.goal_coord.y, cur_gps_data.x, gps_data.y]) * 100000
+        gps_data = np.array([gps_data.x, gps_data.y]) * 100000
+        # gps_data = np.array([gps_data[0], gps_data[1], vel.x, vel.y])
+        # print(cur_gps_data, self.origin)
+        sens.GPS2Cartesian(cur_gps_data, self.origin)
+        # print(pos, cur_gps_data)
+        # pos_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
         return (rgb, gps_data)
 
     def calc_rew(self):
@@ -568,8 +599,8 @@ class off_road(ChronoBaseEnv):
                 self.manager.AddSensor(vis_camera)
 
             if True:
-                width = 400
-                height = 300
+                width = 600
+                height = 400
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -584,8 +615,8 @@ class off_road(ChronoBaseEnv):
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
                 # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if True:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
-                    # self.camera.FilterList().append(sens.ChFilterSave())
+                    # vis_camera.FilterList().append(sens.ChFilterSave())
+                    self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
