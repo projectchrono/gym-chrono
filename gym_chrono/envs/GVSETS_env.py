@@ -96,7 +96,7 @@ class BezierPath(chrono.ChBezierCurve):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
-        route = 1#randint(0, 1)
+        route = randint(0, 1)
         points = chrono.vector_ChVectorD()
         if route == 0:
             beginPos = [-x_half, -y_half * flip]
@@ -168,9 +168,9 @@ class GVSETS_env(ChronoBaseEnv):
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 40
-        self.opt_dist = 8
-        self.dist_rad = 4
+        self.timeend = 60
+        self.opt_dist = 10
+        self.dist_rad = 3
         self.control_frequency = 5
         # time needed by the leader to get to the end of the path
         self.leader_totalsteps = self.timeend / self.timestep
@@ -407,7 +407,7 @@ class GVSETS_env(ChronoBaseEnv):
 
     def calc_rew(self):
         dist_coeff = 20
-        eps = 5e-2
+        eps = 1e-1
         # the target is BEHIND the last leader
         target = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-self.opt_dist, 0, 0))
         pos = self.chassis_body.GetPos()
