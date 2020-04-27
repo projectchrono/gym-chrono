@@ -96,7 +96,7 @@ class BezierPath(chrono.ChBezierCurve):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
-        route = randint(0, 1)
+        route = 1#randint(0, 1)
         points = chrono.vector_ChVectorD()
         if route == 0:
             beginPos = [-x_half, -y_half * flip]
@@ -263,8 +263,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.chassis_body.GetCollisionModel().BuildModel()
         self.system = self.vehicle.GetVehicle().GetSystem()
         self.manager = sens.ChSensorManager(self.system)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         # Driver
         self.driver = Driver(self.vehicle.GetVehicle())
 
