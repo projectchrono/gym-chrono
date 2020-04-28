@@ -219,7 +219,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -513,13 +513,14 @@ class off_road(ChronoBaseEnv):
         vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
         gps_data = (self.goal_coord - cur_gps_data)
-        gps_data = np.array([gps_data.x, gps_data.y]) * 100000
+        gps_data = np.array([gps_data.x, gps_data.y]) * 10000
         # gps_data = np.array([gps_data[0], gps_data[1], vel.x, vel.y])
         # print(cur_gps_data, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
         # print(pos, cur_gps_data)
         # pos_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        return (rgb, gps_data)
+        orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
+        return (rgb, np.concatenate([gps_data,orientation]))
 
     def calc_rew(self):
         progress_coeff = 20
