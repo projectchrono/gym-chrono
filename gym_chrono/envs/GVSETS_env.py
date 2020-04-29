@@ -161,7 +161,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
@@ -403,7 +403,8 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
         gps = (targ_gps_data - agent_gps_data)*100000
-        return rgb, gps
+        orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
+        return rgb, np.concatenate([gps, orientation])
 
     def calc_rew(self):
         dist_coeff = 20
