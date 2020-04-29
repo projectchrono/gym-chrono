@@ -219,7 +219,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -519,8 +519,8 @@ class off_road(ChronoBaseEnv):
         sens.GPS2Cartesian(cur_gps_data, self.origin)
         # print(pos, cur_gps_data)
         # pos_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
-        return (rgb, np.concatenate([gps_data,orientation]))
+        vec_obs = np.asarray([self.goal.x, self.goal.y, pos.x, pos.y,self.chassis_body.GetRot().Q_to_Euler123().z])
+        return (rgb, vec_obs)
 
     def calc_rew(self):
         progress_coeff = 20
@@ -614,8 +614,8 @@ class off_road(ChronoBaseEnv):
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if True:
                     # vis_camera.FilterList().append(sens.ChFilterSave())
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
