@@ -545,16 +545,16 @@ class off_road(ChronoBaseEnv):
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            self.rew -= 250
+            #self.rew -= 250
             self.isdone = True
             failed = 1
         elif collision:
-            self.rew -= 250
+            #self.rew -= 250
             print('Hit object!!')
             self.isdone = True
             failed = 2
         elif (pos - self.goal).Length() < 5:
-            self.rew += 2500
+            self.rew += 5000
             print('Success!!')
             # self.successes += 1
             self.isdone = True
@@ -614,8 +614,8 @@ class off_road(ChronoBaseEnv):
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if True:
+                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                if False:
                     # vis_camera.FilterList().append(sens.ChFilterSave())
                     self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
