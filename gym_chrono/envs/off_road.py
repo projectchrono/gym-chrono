@@ -236,7 +236,7 @@ class off_road(ChronoBaseEnv):
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
         init_conf = [[1,1,np.pi],[-1,-1,0],[1,-1,np.pi/2],[-1,1,-np.pi/2]]
-        conf = random.randint(0,4)
+        conf = random.randint(0,3)
         self.initLoc = chrono.ChVectorD(init_conf[conf][0]*self.terrain_length / 2.25, init_conf[conf][1]*self.terrain_width / 2.25, self.max_terrain_height + 1)
         self.initRot = chrono.Q_from_AngZ(init_conf[conf][2])
 
