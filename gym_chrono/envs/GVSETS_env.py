@@ -55,7 +55,7 @@ def areColliding(body1, body2, box1, box2):
     return False
 
 class ghostLeaders(object):
-    def __init__(self, numlead, interval = 0.05):
+    def __init__(self, numlead, interval):
         self.interval = interval
         self.numlead = numlead
         self.leaders = []
@@ -92,7 +92,7 @@ class ghostLeaders(object):
             leader.SetRot(leaderRot)
 
 class BezierPath(chrono.ChBezierCurve):
-    def __init__(self, x_half, y_half, z):
+    def __init__(self, x_half, y_half, z, t0):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
@@ -116,7 +116,7 @@ class BezierPath(chrono.ChBezierCurve):
                 points.append(point)
 
         super(BezierPath, self).__init__(points)
-        self.current_t = 0
+        self.current_t = t0
 
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
@@ -170,7 +170,9 @@ class GVSETS_env(ChronoBaseEnv):
         #
         self.timeend = 60
         self.opt_dist = 10
-        self.dist_rad = 3
+        self.dist_rad = .5
+        # distance between vehicles along the Bezier parameter
+        self.interval = 0.05
         self.control_frequency = 5
         # time needed by the leader to get to the end of the path
         self.leader_totalsteps = self.timeend / self.timestep
@@ -190,7 +192,7 @@ class GVSETS_env(ChronoBaseEnv):
             trimesh_shape.SetName("mesh_name")
             trimesh_shape.SetStatic(True)
             self.trimeshes.append(trimesh_shape)
-        self.leaders = ghostLeaders(3)
+        self.leaders = ghostLeaders(3, self.interval)
         self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0)  # Origin being somewhere in Madison WI
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -230,9 +232,10 @@ class GVSETS_env(ChronoBaseEnv):
     def reset(self):
         x_half_length = 90
         y_half_length = 40
-        self.path = BezierPath(x_half_length, y_half_length, 0.5)
-        self.initLoc = chrono.ChVectorD(self.path.getPoint(0).x - 5, self.path.getPoint(0).y - 5, 1)
-        self.initRot = chrono.ChQuaternionD(self.path.getPosRot(0)[1])
+        self.path = BezierPath(x_half_length, y_half_length, 0.5, self.interval)
+        pos, rot = self.path.getPosRot(0)
+        self.initLoc = chrono.ChVectorD(pos)
+        self.initRot = chrono.ChQuaternionD(rot)
 
         self.vehicle = veh.HMMWV_Reduced()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
@@ -409,18 +412,12 @@ class GVSETS_env(ChronoBaseEnv):
     def calc_rew(self):
         dist_coeff = 20
         eps = 1e-1
-        # the target is BEHIND the last leader
-        target = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-self.opt_dist, 0, 0))
+        # the target is BEHIND the last leader, on the path, one interval behind in the parameter
+        target = self.path.getPosRot(self.path.current_t-self.interval)[0]
         pos = self.chassis_body.GetPos()
         self.dist = np.linalg.norm( [target.x - pos.x, target.y - pos.y])
         # extend optimal area by the radius
         rew = dist_coeff /( max(self.dist-self.dist_rad,0) + eps)
-        """
-        if self.dist > self.opt_dist:
-            rew = -0.15*pow(self.dist-10,2)
-        else:
-            rew =  -pow(self.dist-10,2)
-        """
         return rew
 
     def is_done(self):
@@ -430,7 +427,7 @@ class GVSETS_env(ChronoBaseEnv):
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>50 or self.leaderColl:
+        elif collision or self.dist>30 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 
