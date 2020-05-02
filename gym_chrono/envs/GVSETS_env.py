@@ -169,8 +169,8 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 10
-        self.dist_rad = .5
+        self.opt_dist = 8
+        self.dist_rad = 2
         # distance between vehicles along the Bezier parameter
         self.interval = 0.05
         self.control_frequency = 5
@@ -417,11 +417,13 @@ class GVSETS_env(ChronoBaseEnv):
         dist_coeff = 20
         eps = 1e-1
         # the target is BEHIND the last leader, on the path, one interval behind in the parameter
-        target = self.path.getPosRot(self.path.current_t-self.interval)[0]
-        pos = self.chassis_body.GetPos()
-        self.dist = np.linalg.norm( [target.x - pos.x, target.y - pos.y])
-        # extend optimal area by the radius
-        rew = dist_coeff /( max(self.dist-self.dist_rad,0) + eps)
+        dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
+        self.dist = dist_l.Length()
+        alpha = np.arctan2(dist_l.y, dist_l.x)
+        if -0.25*np.pi < alpha < 0.25*np.pi:
+            rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
+        else:
+            rew = 0
         return rew
 
     def is_done(self):
@@ -431,7 +433,7 @@ class GVSETS_env(ChronoBaseEnv):
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>30 or self.leaderColl:
+        elif collision or self.dist>300 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 
