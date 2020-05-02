@@ -161,7 +161,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
@@ -336,6 +336,7 @@ class GVSETS_env(ChronoBaseEnv):
 
 
         self.step_number = 0
+        self.leader_advance = 0
         self.c_f = 0
         self.isdone = False
         self.render_setup = False
@@ -376,10 +377,11 @@ class GVSETS_env(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             #self.system.DoStepDynamics(self.timestep)
-            self.path.Advance((1 / self.leader_totalsteps)*((2*self.step_number)/self.leader_totalsteps))
+            self.path.Advance(self.leader_advance)
             self.leaders.Update()
             self.manager.Update()
             self.step_number += 1
+            self.leader_advance = (1 / self.leader_totalsteps) * ((2 * self.step_number) / self.leader_totalsteps)
             for obs in self.obstacles:
                 self.c_f += obs.GetContactForce().Length()
         self.leaderColl = any(areColliding(self.chassis_body, leader, self.leader_box, self.leader_box) for leader in self.leaders)
@@ -407,7 +409,9 @@ class GVSETS_env(ChronoBaseEnv):
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
         gps = (targ_gps_data - agent_gps_data)*100000
         orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
-        return rgb, np.concatenate([gps, orientation])
+        lead_speed = [(self.path.getPosRot(self.path.current_t)[0] - self.path.getPosRot(self.path.current_t-self.leader_advance)[0]).Length()/self.timestep]
+        own_speed = [self.chassis_body.GetPos_dt().Length()]
+        return rgb, np.concatenate([gps, orientation, lead_speed, own_speed])
 
     def calc_rew(self):
         dist_coeff = 20
@@ -427,7 +431,7 @@ class GVSETS_env(ChronoBaseEnv):
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>30 or self.leaderColl:
+        elif collision or self.dist>300 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 
