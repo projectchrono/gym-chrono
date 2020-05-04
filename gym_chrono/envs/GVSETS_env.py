@@ -96,7 +96,7 @@ class BezierPath(chrono.ChBezierCurve):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
-        route = randint(0, 1)
+        route = 0#randint(0, 1)
         points = chrono.vector_ChVectorD()
         if route == 0:
             beginPos = [-x_half, -y_half * flip]
@@ -169,8 +169,8 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 8
-        self.dist_rad = 2
+        self.opt_dist = 12
+        self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
         self.interval = 0.05
         self.control_frequency = 5
@@ -180,8 +180,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
-        self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+        self.obst_paths = ['sensor/offroad/rock1.obj']#, 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
+                      #'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]
@@ -415,7 +415,7 @@ class GVSETS_env(ChronoBaseEnv):
 
     def calc_rew(self):
         dist_coeff = 20
-        eps = 1e-1
+        eps = 2e-1
         # the target is BEHIND the last leader, on the path, one interval behind in the parameter
         dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
         self.dist = dist_l.Length()
@@ -433,7 +433,7 @@ class GVSETS_env(ChronoBaseEnv):
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>300 or self.leaderColl:
+        elif collision or self.dist>30 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 
