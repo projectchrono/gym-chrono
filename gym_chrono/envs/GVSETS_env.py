@@ -116,7 +116,7 @@ class BezierPath(chrono.ChBezierCurve):
                 points.append(point)
 
         super(BezierPath, self).__init__(points)
-        self.current_t = t0
+        self.current_t = np.random.rand(1)[0]*0.5
 
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
@@ -233,7 +233,7 @@ class GVSETS_env(ChronoBaseEnv):
         x_half_length = 90
         y_half_length = 40
         self.path = BezierPath(x_half_length, y_half_length, 0.5, self.interval)
-        pos, rot = self.path.getPosRot(0)
+        pos, rot = self.path.getPosRot(self.path.current_t - self.interval)
         self.initLoc = chrono.ChVectorD(pos)
         self.initRot = chrono.ChQuaternionD(rot)
 
@@ -428,7 +428,7 @@ class GVSETS_env(ChronoBaseEnv):
 
     def is_done(self):
         collision = not (self.c_f == 0)
-        if self.system.GetChTime() > self.timeend:
+        if self.system.GetChTime() > self.timeend or self.path.current_t>0.999:
             print("Over self.timeend")
             #self.rew += 2000
             self.isdone = True
