@@ -368,7 +368,6 @@ class GVSETS_env(ChronoBaseEnv):
                 self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
                                    self.m_inputs.m_throttle + self.ThrottleDelta)
             #self.driver.Synchronize(time)
-            print(str(self.m_inputs.m_steering))
             self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
             self.terrain.Synchronize(time)
 
@@ -379,7 +378,6 @@ class GVSETS_env(ChronoBaseEnv):
             #self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
-            self.system.DoStepDynamics(self.timestep)
             self.path.Advance((1 / self.leader_totalsteps)*((2*self.step_number)/self.leader_totalsteps))
             self.leaders.Update()
             self.manager.Update()
