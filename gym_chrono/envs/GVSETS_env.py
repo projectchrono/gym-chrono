@@ -15,7 +15,6 @@ from random import randint
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from control_utilities.chrono_utilities import setDataDirectory
-from control_utilities.driver import Driver
 from control_utilities.obstacle import getObstacleBoundaryDim
 
 # openai-gym imports
@@ -264,12 +263,13 @@ class GVSETS_env(ChronoBaseEnv):
         size = chrono.ChVectorD(3, 2, 0.2)
         self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
         self.chassis_body.GetCollisionModel().BuildModel()
+        self.m_inputs = veh.Inputs()
         self.system = self.vehicle.GetVehicle().GetSystem()
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         # Driver
-        self.driver = Driver(self.vehicle.GetVehicle())
+        #self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         self.terrain = veh.RigidTerrain(self.system)
         patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
@@ -351,32 +351,35 @@ class GVSETS_env(ChronoBaseEnv):
         # Collect output data from modules (for inter-module communication)
 
         for i in range(round(1 / (self.control_frequency * self.timestep))):
-            self.driver_inputs = self.driver.GetInputs()
+            #self.driver_inputs = self.driver.GetInputs()
             # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
-            self.driver.Synchronize(time)
-            self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
-            self.terrain.Synchronize(time)
-            steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta,
-                               self.driver.GetSteering() + self.SteeringDelta)
+
+            self.m_inputs.m_steering = np.clip(self.ac[0,], self.m_inputs.m_steering - self.SteeringDelta,
+                               self.m_inputs.m_steering + self.SteeringDelta)
             if self.ac[1,] > 0:
-                throttle = np.clip(abs(self.ac[1,]), self.driver.GetThrottle() - self.ThrottleDelta,
-                                   self.driver.GetThrottle() + self.ThrottleDelta)
-                braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta,
-                                  self.driver.GetBraking() + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(abs(self.ac[1,]), self.m_inputs.m_throttle - self.ThrottleDelta,
+                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+                self.m_inputs.m_braking = np.clip(0, self.m_inputs.m_braking - self.BrakingDelta,
+                                  self.m_inputs.m_braking + self.BrakingDelta)
             else:
-                braking = np.clip(abs(self.ac[1,]), self.driver.GetBraking() - self.BrakingDelta,
-                                  self.driver.GetBraking() + self.BrakingDelta)
-                throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta,
-                                   self.driver.GetThrottle() + self.ThrottleDelta)
-            self.driver.SetSteering(steering)
-            self.driver.SetThrottle(throttle)
-            self.driver.SetBraking(braking)
+                self.m_inputs.m_braking = np.clip(abs(self.ac[1,]), self.m_inputs.m_braking - self.BrakingDelta,
+                                  self.m_inputs.m_braking + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
+                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+            #self.driver.Synchronize(time)
+            print(str(self.m_inputs.m_steering))
+            self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
+            self.terrain.Synchronize(time)
+
+            #self.driver.SetSteering(0.5)
+            #self.driver.SetThrottle(throttle)
+            #self.driver.SetBraking(braking)
             # Advance simulation for one timestep for all modules
-            self.driver.Advance(self.timestep)
+            #self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
-            #self.system.DoStepDynamics(self.timestep)
+            self.system.DoStepDynamics(self.timestep)
             self.path.Advance((1 / self.leader_totalsteps)*((2*self.step_number)/self.leader_totalsteps))
             self.leaders.Update()
             self.manager.Update()
