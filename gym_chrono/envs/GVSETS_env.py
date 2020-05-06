@@ -15,7 +15,6 @@ from random import randint
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from control_utilities.chrono_utilities import setDataDirectory
-from control_utilities.driver import Driver
 from control_utilities.obstacle import getObstacleBoundaryDim
 
 # openai-gym imports
@@ -55,7 +54,7 @@ def areColliding(body1, body2, box1, box2):
     return False
 
 class ghostLeaders(object):
-    def __init__(self, numlead, interval = 0.05):
+    def __init__(self, numlead, interval):
         self.interval = interval
         self.numlead = numlead
         self.leaders = []
@@ -92,11 +91,11 @@ class ghostLeaders(object):
             leader.SetRot(leaderRot)
 
 class BezierPath(chrono.ChBezierCurve):
-    def __init__(self, x_half, y_half, z):
+    def __init__(self, x_half, y_half, z, t0):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
-        route = randint(0, 1)
+        route = 0#randint(0, 1)
         points = chrono.vector_ChVectorD()
         if route == 0:
             beginPos = [-x_half, -y_half * flip]
@@ -116,7 +115,7 @@ class BezierPath(chrono.ChBezierCurve):
                 points.append(point)
 
         super(BezierPath, self).__init__(points)
-        self.current_t = 0
+        self.current_t = np.random.rand(1)[0]*0.5
 
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
@@ -161,7 +160,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
@@ -169,8 +168,10 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 10
-        self.dist_rad = 3
+        self.opt_dist = 12
+        self.dist_rad = 4
+        # distance between vehicles along the Bezier parameter
+        self.interval = 0.05
         self.control_frequency = 5
         # time needed by the leader to get to the end of the path
         self.leader_totalsteps = self.timeend / self.timestep
@@ -178,8 +179,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
-        self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+        self.obst_paths = ['sensor/offroad/rock1.obj']#, 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
+                      #'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]
@@ -190,7 +191,7 @@ class GVSETS_env(ChronoBaseEnv):
             trimesh_shape.SetName("mesh_name")
             trimesh_shape.SetStatic(True)
             self.trimeshes.append(trimesh_shape)
-        self.leaders = ghostLeaders(3)
+        self.leaders = ghostLeaders(3, self.interval)
         self.origin = chrono.ChVectorD(-89.400, 43.070, 260.0)  # Origin being somewhere in Madison WI
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -230,9 +231,10 @@ class GVSETS_env(ChronoBaseEnv):
     def reset(self):
         x_half_length = 90
         y_half_length = 40
-        self.path = BezierPath(x_half_length, y_half_length, 0.5)
-        self.initLoc = chrono.ChVectorD(self.path.getPoint(0).x - 5, self.path.getPoint(0).y - 5, 1)
-        self.initRot = chrono.ChQuaternionD(self.path.getPosRot(0)[1])
+        self.path = BezierPath(x_half_length, y_half_length, 0.5, self.interval)
+        pos, rot = self.path.getPosRot(self.path.current_t - self.interval)
+        self.initLoc = chrono.ChVectorD(pos)
+        self.initRot = chrono.ChQuaternionD(rot)
 
         self.vehicle = veh.HMMWV_Reduced()
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
@@ -261,12 +263,13 @@ class GVSETS_env(ChronoBaseEnv):
         size = chrono.ChVectorD(3, 2, 0.2)
         self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
         self.chassis_body.GetCollisionModel().BuildModel()
+        self.m_inputs = veh.Inputs()
         self.system = self.vehicle.GetVehicle().GetSystem()
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         # Driver
-        self.driver = Driver(self.vehicle.GetVehicle())
+        #self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         self.terrain = veh.RigidTerrain(self.system)
         patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
@@ -285,6 +288,7 @@ class GVSETS_env(ChronoBaseEnv):
         visual_asset.material_list.append(vis_mat)
         self.leaders.addLeaders(self.system, self.path)
         self.leader_box = self.leaders.getBBox()
+        self.lead_dist = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
         # Add obstacles:
         self.obstacles = []
         self.placeObstacle(8)
@@ -347,32 +351,33 @@ class GVSETS_env(ChronoBaseEnv):
         # Collect output data from modules (for inter-module communication)
 
         for i in range(round(1 / (self.control_frequency * self.timestep))):
-            self.driver_inputs = self.driver.GetInputs()
+            #self.driver_inputs = self.driver.GetInputs()
             # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
-            self.driver.Synchronize(time)
-            self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
-            self.terrain.Synchronize(time)
-            steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta,
-                               self.driver.GetSteering() + self.SteeringDelta)
+
+            self.m_inputs.m_steering = np.clip(self.ac[0,], self.m_inputs.m_steering - self.SteeringDelta,
+                               self.m_inputs.m_steering + self.SteeringDelta)
             if self.ac[1,] > 0:
-                throttle = np.clip(abs(self.ac[1,]), self.driver.GetThrottle() - self.ThrottleDelta,
-                                   self.driver.GetThrottle() + self.ThrottleDelta)
-                braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta,
-                                  self.driver.GetBraking() + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(abs(self.ac[1,]), self.m_inputs.m_throttle - self.ThrottleDelta,
+                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+                self.m_inputs.m_braking = np.clip(0, self.m_inputs.m_braking - self.BrakingDelta,
+                                  self.m_inputs.m_braking + self.BrakingDelta)
             else:
-                braking = np.clip(abs(self.ac[1,]), self.driver.GetBraking() - self.BrakingDelta,
-                                  self.driver.GetBraking() + self.BrakingDelta)
-                throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta,
-                                   self.driver.GetThrottle() + self.ThrottleDelta)
-            self.driver.SetSteering(steering)
-            self.driver.SetThrottle(throttle)
-            self.driver.SetBraking(braking)
+                self.m_inputs.m_braking = np.clip(abs(self.ac[1,]), self.m_inputs.m_braking - self.BrakingDelta,
+                                  self.m_inputs.m_braking + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
+                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+            #self.driver.Synchronize(time)
+            self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
+            self.terrain.Synchronize(time)
+
+            #self.driver.SetSteering(0.5)
+            #self.driver.SetThrottle(throttle)
+            #self.driver.SetBraking(braking)
             # Advance simulation for one timestep for all modules
-            self.driver.Advance(self.timestep)
+            #self.driver.Advance(self.timestep)
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
-            #self.system.DoStepDynamics(self.timestep)
             self.path.Advance((1 / self.leader_totalsteps)*((2*self.step_number)/self.leader_totalsteps))
             self.leaders.Update()
             self.manager.Update()
@@ -403,33 +408,33 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
         gps = (targ_gps_data - agent_gps_data)*100000
-        return rgb, gps
+        orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
+        new_lead_dist = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
+        appr_speed = [(self.lead_dist - new_lead_dist)*self.control_frequency]
+        self.lead_dist = new_lead_dist
+        return rgb, np.concatenate([gps, orientation,appr_speed])
 
     def calc_rew(self):
         dist_coeff = 20
-        eps = 1e-1
-        # the target is BEHIND the last leader
-        target = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-self.opt_dist, 0, 0))
-        pos = self.chassis_body.GetPos()
-        self.dist = np.linalg.norm( [target.x - pos.x, target.y - pos.y])
-        # extend optimal area by the radius
-        rew = dist_coeff /( max(self.dist-self.dist_rad,0) + eps)
-        """
-        if self.dist > self.opt_dist:
-            rew = -0.15*pow(self.dist-10,2)
+        eps = 2e-1
+        # the target is BEHIND the last leader, on the path, one interval behind in the parameter
+        dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
+        self.dist = dist_l.Length()
+        alpha = np.arctan2(dist_l.y, dist_l.x)
+        if -0.25*np.pi < alpha < 0.25*np.pi:
+            rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
         else:
-            rew =  -pow(self.dist-10,2)
-        """
+            rew = 0
         return rew
 
     def is_done(self):
         collision = not (self.c_f == 0)
-        if self.system.GetChTime() > self.timeend:
+        if self.system.GetChTime() > self.timeend or self.path.current_t>0.999:
             print("Over self.timeend")
             #self.rew += 2000
             self.isdone = True
 
-        elif collision or self.dist>50 or self.leaderColl:
+        elif collision or self.dist>30 or self.leaderColl:
             #self.rew += - 2000
             self.isdone = True
 

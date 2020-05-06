@@ -219,7 +219,7 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(2,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -235,9 +235,10 @@ class off_road(ChronoBaseEnv):
         self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
-
-        self.initLoc = chrono.ChVectorD(-self.terrain_length / 2.25, -self.terrain_width / 2.25, self.max_terrain_height + 1)
-        self.initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+        init_conf = [[1,1,np.pi],[-1,-1,0],[1,-1,np.pi/2],[-1,1,-np.pi/2]]
+        conf = random.randint(0,3)
+        self.initLoc = chrono.ChVectorD(init_conf[conf][0]*self.terrain_length / 2.25, init_conf[conf][1]*self.terrain_width / 2.25, self.max_terrain_height + 1)
+        self.initRot = chrono.Q_from_AngZ(init_conf[conf][2])
 
         b1 = 0
         b2 = 0
@@ -342,6 +343,7 @@ class off_road(ChronoBaseEnv):
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(gx, gy) + 1)
 
         i = 0
+        """
         while (self.goal - self.initLoc).Length() < 15:
             gx = random.random() * self.terrain_length - self.terrain_length / 2
             gy = random.random() * self.terrain_width - self.terrain_width / 2
@@ -350,6 +352,7 @@ class off_road(ChronoBaseEnv):
                 print('Break')
                 break
             i += 1
+        """
         self.goal_coord = toGPSCoordinate(self.goal)
         self.origin = GPSCoord(43.073268, -89.400636, 260.0)
 
@@ -382,11 +385,13 @@ class off_road(ChronoBaseEnv):
         intensity = 0.75
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(intensity, intensity, intensity), 5000.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(intensity, intensity, intensity), 5000.0)
-
+        # Let's not, for the moment, give a different scenario during test
+        """
         if self.play_mode:
             self.manager.scene.GetBackground().has_texture = True;
             self.manager.scene.GetBackground().env_tex = "sensor/textures/qwantani_8k.hdr"
             self.manager.scene.GetBackground().has_changed = True;
+        """
         # -----------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # -----------------------------------------------------
@@ -513,13 +518,14 @@ class off_road(ChronoBaseEnv):
         vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
         gps_data = (self.goal_coord - cur_gps_data)
-        gps_data = np.array([gps_data.x, gps_data.y]) * 100000
+        gps_data = np.array([gps_data.x, gps_data.y]) * 10000
         # gps_data = np.array([gps_data[0], gps_data[1], vel.x, vel.y])
         # print(cur_gps_data, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
         # print(pos, cur_gps_data)
         # pos_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        return (rgb, gps_data)
+        vec_obs = np.asarray([self.goal.x, self.goal.y, pos.x, pos.y,self.chassis_body.GetRot().Q_to_Euler123().z])
+        return (rgb, vec_obs)
 
     def calc_rew(self):
         progress_coeff = 20
@@ -544,19 +550,19 @@ class off_road(ChronoBaseEnv):
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            self.rew -= 250
+            #self.rew -= 250
             self.isdone = True
             failed = 1
         elif collision:
-            self.rew -= 250
+            #self.rew -= 250
             print('Hit object!!')
             self.isdone = True
             failed = 2
         elif (pos - self.goal).Length() < 5:
-            self.rew += 2500
+            self.rew += 10000
             print('Success!!')
             # self.successes += 1
-            self.isdone = True
+            # self.isdone = True
             failed = 3
 
         if self.isdone:
@@ -612,8 +618,8 @@ class off_road(ChronoBaseEnv):
                     (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                #self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                #vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if True:
                     # vis_camera.FilterList().append(sens.ChFilterSave())
                     self.camera.FilterList().append(sens.ChFilterSave())
