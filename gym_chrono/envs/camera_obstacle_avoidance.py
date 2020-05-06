@@ -188,8 +188,8 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.BrakingDelta  =(self.timestep / braking_time)
         
         self.manager = sens.ChSensorManager(self.system)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 4000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 4000.0)
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # ------------------------------------------------
@@ -278,13 +278,19 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
 
         collision = not(self.c_f == 0)
         if self.system.GetChTime() > self.timeend:
+            print('Time out')
             self.isdone = True
-        elif self.chassis_body.GetPos().z < -1 or collision or abs(self.chassis_body.GetPos().y) + 1.2 > self.terrainWidth/2 :
+        if collision:
+            print('Collision')
+            self.isdone = True
+        elif self.chassis_body.GetPos().z < -1 or abs(self.chassis_body.GetPos().y) + 1.2 > self.terrainWidth/2 :
             #self.rew += -500
+            print('Fell of terrain')
             self.isdone = True
 
         elif self.chassis_body.GetPos().x > self.Xtarg :
             self.rew += 3000
+            print('Success')
             self.isdone = True
 
 
