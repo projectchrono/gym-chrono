@@ -89,6 +89,10 @@ class ghostLeaders(object):
             leaderPos, leaderRot = self.path.getPosRot(t + i*self.interval)
             leader.SetPos(leaderPos)
             leader.SetRot(leaderRot)
+    
+    def GetPos(self):
+        for leader in self.leaders:
+            print(leader.GetPos())
 
 class BezierPath(chrono.ChBezierCurve):
     def __init__(self, x_half, y_half, z, t0):
@@ -204,6 +208,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.SteeringDelta = (self.timestep / steering_time)
         self.ThrottleDelta = (self.timestep / throttle_time)
         self.BrakingDelta = (self.timestep / braking_time)
+
         self.render_setup = False
         self.play_mode = False
         self.step_number = 0
@@ -292,6 +297,7 @@ class GVSETS_env(ChronoBaseEnv):
         # Add obstacles:
         self.obstacles = []
         self.placeObstacle(8)
+        # for leader in self.leaders:
 
         # ------------------------------------------------
         # Create a self.camera and add it to the sensor manager
@@ -346,6 +352,7 @@ class GVSETS_env(ChronoBaseEnv):
         return self.get_ob()
 
     def step(self, ac):
+        # print('Action :: ', ac)
 
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
@@ -384,6 +391,8 @@ class GVSETS_env(ChronoBaseEnv):
             self.step_number += 1
             for obs in self.obstacles:
                 self.c_f += obs.GetContactForce().Length()
+
+            # print(steering, throttle, braking)
         self.leaderColl = any(areColliding(self.chassis_body, leader, self.leader_box, self.leader_box) for leader in self.leaders)
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
@@ -443,7 +452,7 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if True:
+            if False:
                 vis_camera = sens.ChCameraSensor(
                     self.groundBody,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -455,50 +464,33 @@ class GVSETS_env(ChronoBaseEnv):
                     (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
-                self.camera.FilterList().append(
-                    sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
-                    self.camera.FilterList().append(sens.ChFilterSave())
-                self.manager.AddSensor(vis_camera)
-
-            if False:
-                vis_camera = sens.ChCameraSensor(
-                    self.leaders[0],  # body camera is attached to
-                    30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-6, 0, 1.5),
-                                    chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 1, 0))),
-                    # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
-                    # offset pose
-                    1280,  # number of horizontal samples
-                    720,  # number of vertical channels
-                    chrono.CH_C_PI / 3,  # horizontal field of view
-                    (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
-                )
-                vis_camera.SetName("Follow Leader Camera Sensor")
-                self.camera.FilterList().append(
-                    sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                # self.camera.FilterList().append(
+                    # sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if False:
                     vis_camera.FilterList().append(sens.ChFilterSave())
+                    # self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
-            if False:
+
+            if 1:
+                width = 600
+                height = 400
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
-                    5,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-6, 0, 1.5),
-                                    chrono.Q_from_AngAxis(chrono.CH_C_PI / 10, chrono.ChVectorD(0, 1, 0))),
+                    30,  # scanning rate in Hz
+                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3),
+                                    chrono.Q_from_AngAxis(0.2, chrono.ChVectorD(0, 1, 0))),
                     # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
                     # offset pose
-                    1280,  # number of horizontal samples
-                    720,  # number of vertical channels
+                    width,  # number of horizontal samples
+                    height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
+                    (width / height) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
-                vis_camera.SetName("Follow Agent Camera Sensor")
+                vis_camera.SetName("Follow Camera Sensor")
                 self.camera.FilterList().append(
                     sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
+                vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if False:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)

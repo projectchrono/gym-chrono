@@ -182,8 +182,8 @@ class AssetList():
 
         TODO: generate some rotation (quaternion) to have mesh lay flush with the terrain
         """
-        x = random.randint(-length/2, length/2)
-        y = random.randint(-width/2, width/2)
+        x = random.randint(int(-length/2), int(length/2))
+        y = random.randint(int(-width/2), int(width/2))
         z = terrain.GetHeight(x, y) + offset
         return chrono.ChVectorD(x,y,z)
 
@@ -194,7 +194,7 @@ class AssetList():
             # box2 = np.array([asset.mesh.bounding_box.x, asset.mesh.bounding_box.y])
             # if areColliding(chassis_body, asset.mesh.body, box1, box2):
             #     return 1
-            if (pos - asset_pos).Length() < 4:
+            if (pos - asset_pos).Length() < 3:
                 return 1
         return 0
 
@@ -219,7 +219,9 @@ class off_road(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
+        # self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+        #         spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -240,13 +242,16 @@ class off_road(ChronoBaseEnv):
         self.initLoc = chrono.ChVectorD(init_conf[conf][0]*self.terrain_length / 2.25, init_conf[conf][1]*self.terrain_width / 2.25, self.max_terrain_height + 1)
         self.initRot = chrono.Q_from_AngZ(init_conf[conf][2])
 
+        # self.initLoc = chrono.ChVectorD(0,0,1)
+
+        n = 0
         b1 = 0
         b2 = 0
-        r1 = 5
-        r2 = 5
-        r3 = 5
-        r4 = 5
-        r5 = 5
+        r1 = n
+        r2 = n
+        r3 = n
+        r4 = n
+        r5 = n
         t1 = 0
         t2 = 0
         t3 = 0
@@ -353,6 +358,7 @@ class off_road(ChronoBaseEnv):
                 break
             i += 1
         """
+        # self.goal = chrono.ChVectorD(75, 0, 0)
         self.goal_coord = toGPSCoordinate(self.goal)
         self.origin = GPSCoord(43.073268, -89.400636, 260.0)
 
@@ -368,6 +374,24 @@ class off_road(ChronoBaseEnv):
         self.assets.Clear()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5)
         # print('Assets Add :: ', t.time() - start)
+        # create obstacles
+        # self.boxes = []
+        # for i in range(3):
+        #     box = chrono.ChBodyEasyBox(2, 2, 10, 1000, True, True)
+        #     box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10 , 5.05))
+        #     box.SetBodyFixed(True)
+        #     box_asset = box.GetAssets()[0]
+        #     visual_asset = chrono.CastToChVisualization(box_asset)
+        #
+        #     vis_mat = chrono.ChVisualMaterial()
+        #     vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
+        #     vis_mat.SetDiffuseColor(chrono.ChVectorF(.2, .2, .9))
+        #     vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
+        #
+        #     visual_asset.material_list.append(vis_mat)
+        #     visual_asset.SetStatic(True)
+        #     self.boxes.append(box)
+        #     self.system.Add(box)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -415,7 +439,7 @@ class off_road(ChronoBaseEnv):
         gps_noise_none = sens.ChGPSNoiseNone()
         self.gps = sens.ChGPSSensor(
             self.chassis_body,
-            100,
+            5,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             origin,
             gps_noise_none
@@ -469,10 +493,15 @@ class off_road(ChronoBaseEnv):
             else:
                 braking = np.clip(abs(self.ac[1,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
                 throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-
             self.driver.SetSteering(steering)
             self.driver.SetThrottle(throttle)
             self.driver.SetBraking(braking)
+            # trot = np.clip( (self.ac[0,]+1)/2 , self.driver.GetThrottle()-self.ThrottleDelta, self.driver.GetThrottle()+self.ThrottleDelta)
+            # self.driver.SetThrottle(trot)
+            # steer = np.clip(self.ac[1,], self.driver.GetSteering() - self.SteeringDelta,  self.driver.GetSteering() + self.SteeringDelta)
+            # self.driver.SetSteering(steer)
+            # self.driver.SetBraking(0)
+
 
             # Advance simulation for one timestep for all modules
             self.driver.Advance(self.timestep)
@@ -490,6 +519,8 @@ class off_road(ChronoBaseEnv):
             self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
             if self.c_f:
                 break
+            # for box in self.boxes:
+            #     self.c_f += box.GetContactForce().Length()
         
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
@@ -503,6 +534,7 @@ class off_road(ChronoBaseEnv):
         else:
             rgb = np.zeros((self.camera_height,self.camera_width,3))
             # print('NO DATA \n')
+        # rgb = np.zeros((self.camera_height,self.camera_width,3))
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
         if gps_buffer.HasData():
@@ -516,16 +548,18 @@ class off_road(ChronoBaseEnv):
         # err = self.goal - self.chassis_body.GetPos()
         pos = self.chassis_body.GetPos()
         vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        gps_data = (self.goal_coord - cur_gps_data)
-        gps_data = np.array([gps_data.x, gps_data.y]) * 10000
-        # gps_data = np.array([gps_data[0], gps_data[1], vel.x, vel.y])
+        # gps_data = (self.goal_coord - cur_gps_data)
+        # gps_data = np.array([gps_data.x, gps_data.y]) * 100000
+        # gps_data = np.array([gps_data[0], gps_data[1], head])
         # print(cur_gps_data, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
         # print(pos, cur_gps_data)
-        # pos_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        vec_obs = np.asarray([self.goal.x, self.goal.y, pos.x, pos.y,self.chassis_body.GetRot().Q_to_Euler123().z])
-        return (rgb, vec_obs)
+        # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
+        gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
+        # return np.concatenate([rgb.flatten(), gps_data])
+        return (rgb, gps_data)
 
     def calc_rew(self):
         progress_coeff = 20
@@ -545,39 +579,44 @@ class off_road(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 250
+            self.rew -= 2000
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            #self.rew -= 250
+            self.rew -= 2000
             self.isdone = True
             failed = 1
         elif collision:
-            #self.rew -= 250
+            self.rew -= 2000
             print('Hit object!!')
             self.isdone = True
             failed = 2
-        elif (pos - self.goal).Length() < 5:
-            self.rew += 10000
+        elif (pos - self.goal).Length() < 10:
+            self.rew += 2500
             print('Success!!')
             # self.successes += 1
             # self.isdone = True
             failed = 3
 
-        if self.isdone:
-            goal = np.array([self.goal.x, self.goal.y])
-            from csv import writer
-            with open('./Monitor/log.csv', 'a+', newline='') as write_obj:
-                # Timeout = 0, fell off = 1, obstacle = 2, success = 3
-                goal = [failed, goal[0], goal[1]]
-                csv_writer = writer(write_obj)
-                csv_writer.writerow(goal)
+        # if self.isdone:
+        #     goal = np.array([self.goal.x, self.goal.y])
+        #     from csv import writer
+        #     with open('./Monitor/log.csv', 'a+', newline='') as write_obj:
+        #         # Timeout = 0, fell off = 1, obstacle = 2, success = 3
+        #         goal = [failed, goal[0], goal[1]]
+        #         csv_writer = writer(write_obj)
+        #         csv_writer.writerow(goal)
 
     def calc_progress(self):
+        # dist = (self.goal - self.chassis_body.GetPos()).GetNormalized() ^ self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        # progress = dist
+        # print((self.goal - self.chassis_body.GetPos()).GetNormalized(), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt(), dist)
+        # print((self.chassis_body.GetPos() - self.goal), (self.chassis_body.GetPos() - self.goal).GetNormalized())
+        # print((self.chassis_body.GetPos() - self.goal), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt())
+        # print(dist, self.old_dist)
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
-        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
@@ -621,8 +660,8 @@ class off_road(ChronoBaseEnv):
                 #self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
                 #vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
                 if True:
-                    # vis_camera.FilterList().append(sens.ChFilterSave())
-                    self.camera.FilterList().append(sens.ChFilterSave())
+                    vis_camera.FilterList().append(sens.ChFilterSave())
+                    # self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
