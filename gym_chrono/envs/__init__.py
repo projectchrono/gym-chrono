@@ -11,4 +11,5 @@ from gym_chrono.envs.rccar_cone_track import rccar_cone_track
 from gym_chrono.envs.barrier_track import barrier_track
 from gym_chrono.envs.off_road import off_road
 from gym_chrono.envs.off_road_v1 import off_road_v1
+from gym_chrono.envs.off_road_v2 import off_road_v2
 from gym_chrono.envs.GVSETS_env import GVSETS_env
