@@ -139,14 +139,17 @@ class AssetList():
 
         return frame
 
-    def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width):
+    def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width, should_scale=True):
         for asset in self.assets:
             for _ in range(asset.num):
                 # Check if position is too close to another asset, vehicle or goal
                 while True:
                     # Calculate random transformation values
                     pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
-                    scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+                    if should_scale:
+                        scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+                    else:
+                        scale = 1
                     threshold = asset.mesh.bounding_box.Length() * scale / 2
                     if len(self.positions) == 0:
                         break
@@ -198,6 +201,14 @@ class AssetList():
                 return 1
         return 0
 
+    def GetClosestAssetDist(self, chassis_body, min_dist=200):
+        pos = chassis_body.GetPos()
+        for asset_pos in self.positions:
+            dist = (pos - asset_pos).Length()
+            if dist < min_dist:
+                min_dist = dist
+        return min_dist
+
     def GetNum(self):
         return len(self.assets)
 
@@ -237,14 +248,10 @@ class off_road(ChronoBaseEnv):
         self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 100.0 # size in X direction
         self.terrain_width = 100.0  # size in Y direction
-        init_conf = [[1,1,np.pi],[-1,-1,0],[1,-1,np.pi/2],[-1,1,-np.pi/2]]
-        conf = random.randint(0,3)
-        self.initLoc = chrono.ChVectorD(init_conf[conf][0]*self.terrain_length / 2.25, init_conf[conf][1]*self.terrain_width / 2.25, self.max_terrain_height + 1)
-        self.initRot = chrono.Q_from_AngZ(init_conf[conf][2])
 
         # self.initLoc = chrono.ChVectorD(0,0,1)
 
-        n = 0
+        n = 5
         b1 = 0
         b2 = 0
         r1 = n
@@ -270,28 +277,33 @@ class off_road(ChronoBaseEnv):
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         # Create the terrain
-        self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
-        self.bitmap_file_backup =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
-        shape = (252, 252)
-        generate_random_bitmap(shape=shape, resolutions=[(18, 18), (12, 12), (2, 2)], mappings=[(-.1, -.1), (-.25,.25), (-1.5,1.5)], file_name=self.bitmap_file)
+        rigid_terrain = False
         self.terrain = veh.RigidTerrain(self.system)
-        try:
-            patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
-                                        self.bitmap_file,        # heightmap file (.bmp)
-                                        "test",                  # mesh name
-                                        self.terrain_length*1.5,     # sizeX
-                                        self.terrain_width*1.5,      # sizeY
-                                        self.min_terrain_height, # hMin
-                                        self.max_terrain_height) # hMax
-        except Exception:
-            print('Corrupt Bitmap File')
-            patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
-                                        self.bitmap_file_backup,        # heightmap file (.bmp)
-                                        "test",                  # mesh name
-                                        self.terrain_length*1.5,     # sizeX
-                                        self.terrain_width*1.5,      # sizeY
-                                        self.min_terrain_height, # hMin
-                                        self.max_terrain_height) # hMax
+        if rigid_terrain:
+            patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
+                                     chrono.ChVectorD(self.terrain_length, self.terrain_width, 10))
+        else:
+            self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
+            self.bitmap_file_backup =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
+            shape = (252, 252)
+            generate_random_bitmap(shape=shape, resolutions=[(18, 18), (12, 12), (2, 2)], mappings=[(-.1, -.1), (-.25,.25), (-1.5,1.5)], file_name=self.bitmap_file)
+            try:
+                patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
+                                            self.bitmap_file,        # heightmap file (.bmp)
+                                            "test",                  # mesh name
+                                            self.terrain_length*1.5,     # sizeX
+                                            self.terrain_width*1.5,      # sizeY
+                                            self.min_terrain_height, # hMin
+                                            self.max_terrain_height) # hMax
+            except Exception:
+                print('Corrupt Bitmap File')
+                patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
+                                            self.bitmap_file_backup,        # heightmap file (.bmp)
+                                            "test",                  # mesh name
+                                            self.terrain_length*1.5,     # sizeX
+                                            self.terrain_width*1.5,      # sizeY
+                                            self.min_terrain_height, # hMin
+                                            self.max_terrain_height) # hMax
         patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 16, 16)
 
         patch.SetContactFrictionCoefficient(0.9)
@@ -311,7 +323,20 @@ class off_road(ChronoBaseEnv):
         vis_mat.SetFresnelMax(0.01)
         visual_asset.material_list.append(vis_mat)
 
-        self.initLoc.z = self.terrain.GetHeight(self.initLoc.x, self.initLoc.y) + 1.5
+
+        corner = random.randint(1,4)
+        corner = 1
+        x,y = self.terrain_length / 2.25, self.terrain_width / 2.25
+        x = x if corner == 2 or corner == 3 else -x
+        y = y if corner == 3 or corner == 4 else -y
+        z = self.terrain.GetHeight(x, y) + 0.5
+        ang = random.random() * chrono.CH_C_PI / 2
+        ang = 0
+        ang += (corner - 1) * chrono.CH_C_PI / 2
+        self.initLoc = chrono.ChVectorD(x, y, z)
+        self.initRot = chrono.Q_from_AngZ(ang)
+
+        # print(self.initLoc, ang)
 
         self.vehicle = veh.HMMWV_Reduced(self.system)
         self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
@@ -348,7 +373,6 @@ class off_road(ChronoBaseEnv):
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(gx, gy) + 1)
 
         i = 0
-        """
         while (self.goal - self.initLoc).Length() < 15:
             gx = random.random() * self.terrain_length - self.terrain_length / 2
             gy = random.random() * self.terrain_width - self.terrain_width / 2
@@ -357,7 +381,7 @@ class off_road(ChronoBaseEnv):
                 print('Break')
                 break
             i += 1
-        """
+
         # self.goal = chrono.ChVectorD(75, 0, 0)
         self.goal_coord = toGPSCoordinate(self.goal)
         self.origin = GPSCoord(43.073268, -89.400636, 260.0)
@@ -372,7 +396,7 @@ class off_road(ChronoBaseEnv):
         # create obstacles
         # start = t.time()
         self.assets.Clear()
-        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5)
+        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5, should_scale=False)
         # print('Assets Add :: ', t.time() - start)
         # create obstacles
         # self.boxes = []
@@ -407,8 +431,8 @@ class off_road(ChronoBaseEnv):
 
         self.manager = sens.ChSensorManager(self.system)
         intensity = 0.75
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(intensity, intensity, intensity), 5000.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(intensity, intensity, intensity), 5000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
         # Let's not, for the moment, give a different scenario during test
         """
         if self.play_mode:
@@ -501,6 +525,7 @@ class off_road(ChronoBaseEnv):
             # steer = np.clip(self.ac[1,], self.driver.GetSteering() - self.SteeringDelta,  self.driver.GetSteering() + self.SteeringDelta)
             # self.driver.SetSteering(steer)
             # self.driver.SetBraking(0)
+            # self.driver.SetThrottle(1)
 
 
             # Advance simulation for one timestep for all modules
@@ -565,9 +590,12 @@ class off_road(ChronoBaseEnv):
         progress_coeff = 20
         vel_coeff = 0
         time_cost = 0
+        dist_coeff = -20
         progress = self.calc_progress()
+        dist = float(self.assets.GetClosestAssetDist(self.chassis_body))
+        dist = 1.0 / dist
         # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        rew = progress_coeff*progress# + vel_coeff*vel + time_cost*self.system.GetChTime()
+        rew = progress_coeff*progress + dist_coeff*dist# + vel_coeff*vel + time_cost*self.system.GetChTime()
         return rew
 
     def is_done(self):
@@ -579,16 +607,16 @@ class off_road(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 2000
+            self.rew -= 4000
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            self.rew -= 2000
+            self.rew -= 4000
             self.isdone = True
             failed = 1
         elif collision:
-            self.rew -= 2000
+            self.rew -= 4000
             print('Hit object!!')
             self.isdone = True
             failed = 2
@@ -596,7 +624,7 @@ class off_road(ChronoBaseEnv):
             self.rew += 2500
             print('Success!!')
             # self.successes += 1
-            # self.isdone = True
+            self.isdone = True
             failed = 3
 
         # if self.isdone:
@@ -625,27 +653,35 @@ class off_road(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if False:
+            vis = False
+            save = True
+            birds_eye = False
+            third_person = True
+            width = 1280
+            height = 720
+            if birds_eye:
+                body = chrono.ChBodyAuxRef()
+                body.SetBodyFixed(True)
+                self.system.AddBody(body)
                 vis_camera = sens.ChCameraSensor(
-                    self.chassis_body,  # body camera is attached to
+                    body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 25), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
-                    1280,  # number of horizontal samples
-                    720,  # number of vertical channels
+                    width,  # number of horizontal samples
+                    height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (720/1280) * chrono.CH_C_PI / 3.  # vertical field of view
+                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
-                # self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
-                    self.camera.FilterList().append(sens.ChFilterSave())
+                if vis:
+                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                if save:
+                    vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
-            if True:
-                width = 600
-                height = 400
+            if third_person:
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
@@ -657,11 +693,11 @@ class off_road(ChronoBaseEnv):
                     (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
-                #self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                #vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if True:
+                if vis:
+                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                if save:
                     vis_camera.FilterList().append(sens.ChFilterSave())
-                    # self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
