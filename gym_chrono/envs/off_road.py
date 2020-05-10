@@ -422,7 +422,7 @@ class off_road(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # create goal
-        r = True
+        r = False
         if r:
             gx = random.random() * self.terrain_length - self.terrain_length / 2
             gy = random.random() * self.terrain_width - self.terrain_width / 2
@@ -778,8 +778,8 @@ class off_road(ChronoBaseEnv):
             save = 1
             birds_eye = 1
             third_person = not birds_eye
-            width = 400
-            height = 300
+            width = 800
+            height = 700
             if birds_eye:
                 body = chrono.ChBodyAuxRef()
                 body.SetBodyFixed(True)
@@ -787,7 +787,7 @@ class off_road(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 125), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
