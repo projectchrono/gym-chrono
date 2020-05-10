@@ -131,6 +131,14 @@ class BezierPath(chrono.ChBezierCurve):
             points.append(self.getPoint(i))
         return points
 
+    def calc_i(self, t):
+        par = np.clip(t, 0.0, 1.0)
+        numIntervals = self.getNumPoints() - 1
+        epar = par * numIntervals
+        i = m.floor(par * numIntervals)
+        i = np.clip(i, 0, numIntervals - 1)
+        return i
+
     # Param-only derivative
     def par_evalD(self, t):
         par = np.clip(t, 0.0, 1.0)
@@ -164,14 +172,14 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 60
+        self.timeend = 30
         self.opt_dist = 12
         self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
@@ -222,7 +230,7 @@ class GVSETS_env(ChronoBaseEnv):
             obst.AddAsset(self.trimeshes[path])
             x, y, z = self.obst_bound[path]
             obst.GetCollisionModel().ClearModel()
-            obst.GetCollisionModel().AddBox(x / 2, y / 2, z / 2)  # must set half sizes
+            obst.GetCollisionModel().AddBox(self.surf_material, x / 2, y / 2, z / 2)  # must set half sizes
             obst.GetCollisionModel().BuildModel()
             obst.SetCollide(True)
             p0, q = self.path.getPosRot( (i+1)/(numob+1) )
@@ -242,7 +250,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.initRot = chrono.ChQuaternionD(rot)
 
         self.vehicle = veh.HMMWV_Reduced()
-        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
         self.surf_material = chrono.ChMaterialSurfaceNSC()
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
 
@@ -266,7 +274,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.chassis_body = self.vehicle.GetChassisBody()
         self.chassis_body.GetCollisionModel().ClearModel()
         size = chrono.ChVectorD(3, 2, 0.2)
-        self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
+        self.chassis_body.GetCollisionModel().AddBox(self.surf_material, 0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
         self.chassis_body.GetCollisionModel().BuildModel()
         self.m_inputs = veh.Inputs()
         self.system = self.vehicle.GetVehicle().GetSystem()
@@ -277,11 +285,12 @@ class GVSETS_env(ChronoBaseEnv):
         #self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         self.terrain = veh.RigidTerrain(self.system)
-        patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
-                                      chrono.ChVectorD(self.terrainLength, self.terrainWidth, 10))
-        patch.SetContactFrictionCoefficient(0.9)
-        patch.SetContactRestitutionCoefficient(0.01)
-        patch.SetContactMaterialProperties(2e7, 0.3)
+        patch_mat = chrono.ChMaterialSurfaceNSC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+        patch = self.terrain.AddPatch(patch_mat, 
+                                 chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 
+                                 self.terrainLength*1.5, self.terrainWidth*1.5)
         patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
@@ -417,15 +426,24 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
         gps = (targ_gps_data - agent_gps_data)*100000
+        # pos = self.chassis_body.GetPos()
+        # target = chrono.ChVectorD(targ_gps_data[0], targ_gps_data[1], self.origin.z)
+        # sens.GPS2Cartesian(target, self.origin)
+        # gps = [target.x, target.y, pos.x, pos.y]
+        # vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
+        # orientation = [vel.x, vel.y]
         new_lead_dist = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
         appr_speed = [(self.lead_dist - new_lead_dist)*self.control_frequency]
         self.lead_dist = new_lead_dist
-        return rgb, np.concatenate([gps, orientation,appr_speed])
+        # ob = rgb, np.concatenate([gps, orientation])
+        ob = rgb, np.concatenate([gps, orientation,appr_speed])
+        return ob
 
     def calc_rew(self):
         dist_coeff = 20
         eps = 2e-1
+        err_coeff = -10
         # the target is BEHIND the last leader, on the path, one interval behind in the parameter
         dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
         self.dist = dist_l.Length()
@@ -438,65 +456,83 @@ class GVSETS_env(ChronoBaseEnv):
 
     def is_done(self):
         collision = not (self.c_f == 0)
-        if self.system.GetChTime() > self.timeend or self.path.current_t>0.999:
+        if self.system.GetChTime() > self.timeend:
             print("Over self.timeend")
             #self.rew += 2000
             self.isdone = True
-
-        elif collision or self.dist>30 or self.leaderColl:
-            #self.rew += - 2000
+        elif (self.path.current_t > 0.999):
+            print('Success')
+            self.rew += 2000
+            self.isdone = True
+        elif collision:
+            self.rew -= 200
+            print('Object Collision')
+            self.isdone = True
+        elif self.dist > 30:
+            self.rew -= 200
+            print('Distance')
+            self.isdone = True
+        elif self.leaderColl:
+            self.rew -= 200
+            print('Leader Collsion')
             self.isdone = True
 
     def render(self, mode='human'):
-        if not (self.play_mode == True):
+        if not (self.play_mode==True):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            if False:
+            vis = False
+            save = True
+            birds_eye = False
+            third_person = True
+            width = 600
+            height = 400
+            if birds_eye:
+                body = chrono.ChBodyAuxRef()
+                body.SetBodyFixed(True)
+                self.system.AddBody(body)
                 vis_camera = sens.ChCameraSensor(
-                    self.groundBody,  # body camera is attached to
+                    body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 285), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
-                    # offset pose
-                    1280,  # number of horizontal samples
-                    720,  # number of vertical channels
-                    chrono.CH_C_PI / 3,  # horizontal field of view
-                    (720 / 1280) * chrono.CH_C_PI / 3.  # vertical field of view
-                )
-                vis_camera.SetName("Birds Eye Camera Sensor")
-                # self.camera.FilterList().append(
-                    # sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                # vis_camera.FilterList().append(sens.ChFilterVisualize(1280, 720, "Visualization Camera"))
-                if False:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
-                    # self.camera.FilterList().append(sens.ChFilterSave())
-                self.manager.AddSensor(vis_camera)
-
-            if 1:
-                width = 600
-                height = 400
-                vis_camera = sens.ChCameraSensor(
-                    self.chassis_body,  # body camera is attached to
-                    30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3),
-                                    chrono.Q_from_AngAxis(0.2, chrono.ChVectorD(0, 1, 0))),
-                    # chrono.ChFrameD(chrono.ChVectorD(-2, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI, chrono.ChVectorD(0, 0, 1))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (width / height) * chrono.CH_C_PI / 3.  # vertical field of view
+                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
-                vis_camera.SetName("Follow Camera Sensor")
-                self.camera.FilterList().append(
-                    sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
-                if False:
+                vis_camera.SetName("Birds Eye Camera Sensor")
+                if vis:
+                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                if save:
                     vis_camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
+
+            if third_person:
+                vis_camera = sens.ChCameraSensor(
+                    self.chassis_body,  # body camera is attached to
+                    30,  # scanning rate in Hz
+                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    # offset pose
+                    width,  # number of horizontal samples
+                    height,  # number of vertical channels
+                    chrono.CH_C_PI / 3,  # horizontal field of view
+                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                )
+                vis_camera.SetName("Follow Camera Sensor")
+                if vis:
+                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                if save:
+                    vis_camera.FilterList().append(sens.ChFilterSave())
+                self.manager.AddSensor(vis_camera)
+
             # -----------------------------------------------------------------
             # Create a filter graph for post-processing the data from the lidar
             # -----------------------------------------------------------------
+
 
             # self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
             # vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
