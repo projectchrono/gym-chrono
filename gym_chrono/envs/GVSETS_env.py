@@ -172,14 +172,14 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
         #
         #  Create the simulation system and add items
         #
-        self.timeend = 30
+        self.timeend = 60
         self.opt_dist = 12
         self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
@@ -443,7 +443,6 @@ class GVSETS_env(ChronoBaseEnv):
     def calc_rew(self):
         dist_coeff = 20
         eps = 2e-1
-        err_coeff = -10
         # the target is BEHIND the last leader, on the path, one interval behind in the parameter
         dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
         self.dist = dist_l.Length()
@@ -456,26 +455,36 @@ class GVSETS_env(ChronoBaseEnv):
 
     def is_done(self):
         collision = not (self.c_f == 0)
-        if self.system.GetChTime() > self.timeend:
+
+        if self.system.GetChTime() > self.timeend or self.path.current_t>0.999:
             print("Over self.timeend")
             #self.rew += 2000
             self.isdone = True
-        elif (self.path.current_t > 0.999):
-            print('Success')
-            self.rew += 2000
+
+        elif collision or self.dist>30 or self.leaderColl:
+            #self.rew += - 2000
             self.isdone = True
-        elif collision:
-            self.rew -= 200
-            print('Object Collision')
-            self.isdone = True
-        elif self.dist > 30:
-            self.rew -= 200
-            print('Distance')
-            self.isdone = True
-        elif self.leaderColl:
-            self.rew -= 200
-            print('Leader Collsion')
-            self.isdone = True
+
+        # if self.system.GetChTime() > self.timeend:
+        #     print("Over self.timeend")
+        #     #self.rew += 2000
+        #     self.isdone = True
+        # elif (self.path.current_t > 0.999):
+        #     print('Success')
+        #     self.rew += 2000
+        #     self.isdone = True
+        # elif collision:
+        #     self.rew -= 200
+        #     print('Object Collision')
+        #     self.isdone = True
+        # elif self.dist > 30:
+        #     self.rew -= 200
+        #     print('Distance')
+        #     self.isdone = True
+        # elif self.leaderColl:
+        #     self.rew -= 200
+        #     print('Leader Collsion')
+        #     self.isdone = True
 
     def render(self, mode='human'):
         if not (self.play_mode==True):

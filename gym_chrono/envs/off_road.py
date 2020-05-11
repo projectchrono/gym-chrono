@@ -271,11 +271,11 @@ class off_road(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.use_camera = True
+        self.use_camera = False
         self.camera_width  = 80*2
         self.camera_height = 45*2
-        self.lidar_width = 80
-        self.lidar_height = 45
+        self.lidar_width = 80*2
+        self.lidar_height = 45*2
         self.lidar_vfov = chrono.CH_C_PI / 2.
         self.lidar_hfov = chrono.CH_C_PI / 12.
 
@@ -296,7 +296,7 @@ class off_road(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 30
+        self.timeend = 15
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
