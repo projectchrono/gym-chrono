@@ -241,7 +241,7 @@ class off_road_v2(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 20
+        self.timeend = 15
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
