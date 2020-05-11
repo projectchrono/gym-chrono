@@ -578,8 +578,9 @@ class off_road_v2(ChronoBaseEnv):
         # print(pos, cur_gps_data)
         # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
         dist = self.goal - self.chassis_body.GetPos()
-        # TODO: maybe using heading difference instead
+        #TODO: maybe using heading difference instead
         targ_head = np.arctan2(dist.y, dist.x)
+        self.head_diff = targ_head - head
         array_data = np.concatenate([gps_data, [head], [targ_head], [speed]])
         # return np.concatenate([rgb.flatten(), gps_data])
         return (rgb, array_data)
@@ -607,15 +608,20 @@ class off_road_v2(ChronoBaseEnv):
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            self.rew -= 10000
+            #self.rew -= 10000
             self.isdone = True
             failed = 1
         elif collision:
-            self.rew -= 10000
-            print('Hit object!!')
+            #self.rew -= 10000
+            print('Hit object')
             self.isdone = True
             failed = 2
-        elif (pos - self.goal).Length() < 5:
+        elif abs(self.head_diff)>np.pi/2 :
+            #self.rew -= 10000
+            print('Out of trajectory')
+            self.isdone = True
+            failed = 2
+        elif (pos - self.goal).Length() < 6:
             self.rew += 50000
             print('Success!!')
             # self.successes += 1
