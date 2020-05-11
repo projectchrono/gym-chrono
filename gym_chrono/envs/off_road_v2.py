@@ -187,7 +187,7 @@ class AssetList():
         """
         x = random.randint(int(-length/2), int(length/2))
         y = random.randint(int(-width/2), int(width/2))
-        z = terrain.GetHeight(x, y) + offset
+        z = terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + offset
         return chrono.ChVectorD(x,y,z)
 
     def CalcContactForces(self, chassis_body, collision_box):
@@ -230,7 +230,7 @@ class off_road_v2(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
         # self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
         #         spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
 
@@ -277,11 +277,15 @@ class off_road_v2(ChronoBaseEnv):
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         # Create the terrain
-        rigid_terrain = False
+        rigid_terrain = True
         self.terrain = veh.RigidTerrain(self.system)
         if rigid_terrain:
-            patch = self.terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, self.terrainHeight - 5), chrono.QUNIT),
-                                     chrono.ChVectorD(self.terrain_length, self.terrain_width, 10))
+            patch_mat = chrono.ChMaterialSurfaceNSC()
+            patch_mat.SetFriction(0.9)
+            patch_mat.SetRestitution(0.01)
+            patch = self.terrain.AddPatch(patch_mat,
+                                     chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
+                                     self.terrain_length*1.5, self.terrain_width*1.5)
         else:
             self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
             self.bitmap_file_backup =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
@@ -304,11 +308,8 @@ class off_road_v2(ChronoBaseEnv):
                                             self.terrain_width*1.5,      # sizeY
                                             self.min_terrain_height, # hMin
                                             self.max_terrain_height) # hMax
-        patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 16, 16)
+        patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 200, 200)
 
-        patch.SetContactFrictionCoefficient(0.9)
-        patch.SetContactRestitutionCoefficient(0.01)
-        patch.SetContactMaterialProperties(2e7, 0.3)
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
 
@@ -323,23 +324,15 @@ class off_road_v2(ChronoBaseEnv):
         vis_mat.SetFresnelMax(0.01)
         visual_asset.material_list.append(vis_mat)
 
-
-        corner = random.randint(1,4)
-        corner = 1
-        x,y = self.terrain_length / 2.25, self.terrain_width / 2.25
-        x = x if corner == 2 or corner == 3 else -x
-        y = y if corner == 3 or corner == 4 else -y
-        z = self.terrain.GetHeight(x, y) + 0.5
-        ang = random.random() * chrono.CH_C_PI / 2
-        ang = 0
-        ang += (corner - 1) * chrono.CH_C_PI / 2
+        theta = random.random()*2*np.pi
+        x,y = self.terrain_length*0.5*np.cos(theta) , self.terrain_width*0.5*np.sin(theta)
+        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.5
+        ang = np.pi + theta
         self.initLoc = chrono.ChVectorD(x, y, z)
         self.initRot = chrono.Q_from_AngZ(ang)
 
-        # print(self.initLoc, ang)
-
         self.vehicle = veh.HMMWV_Reduced(self.system)
-        self.vehicle.SetContactMethod(chrono.ChMaterialSurface.NSC)
+        self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
@@ -368,9 +361,10 @@ class off_road_v2(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # create goal
-        gx = random.random() * self.terrain_length - self.terrain_length / 2
-        gy = random.random() * self.terrain_width - self.terrain_width / 2
-        self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(gx, gy) + 1)
+        # pi/4 ang displ
+        delta_theta = 0#(random.random()-0.5) * 0.5 * np.pi
+        gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
+        self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
         i = 0
         while (self.goal - self.initLoc).Length() < 15:
@@ -386,7 +380,7 @@ class off_road_v2(ChronoBaseEnv):
         self.goal_coord = toGPSCoordinate(self.goal)
         self.origin = GPSCoord(43.073268, -89.400636, 260.0)
 
-        self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, False, True)
+        self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, True, False)
         self.goal_sphere.SetBodyFixed(True)
         self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
         self.goal_sphere.SetPos(self.goal)
@@ -583,18 +577,21 @@ class off_road_v2(ChronoBaseEnv):
         #sens.GPS2Cartesian(cur_gps_data, self.origin)
         # print(pos, cur_gps_data)
         # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        array_data = np.concatenate([gps_data, [head], [speed]])
+        dist = self.goal - self.chassis_body.GetPos()
+        # TODO: maybe using heading difference instead
+        targ_head = np.arctan2(dist.y, dist.x)
+        array_data = np.concatenate([gps_data, [head], [targ_head], [speed]])
         # return np.concatenate([rgb.flatten(), gps_data])
         return (rgb, array_data)
 
     def calc_rew(self):
 
-        dist_coeff = 20
-        progress = self.calc_progress()
-        dist = (self.chassis_body.GetPos() - self.goal).Length()
-
-        rew = dist_coeff/(dist+0.05)# + vel_coeff*vel + time_cost*self.system.GetChTime()
-        return rew
+        coeff = 1
+        # Reward projection of the velocity along the distance
+        vel = self.chassis_body.GetPos_dt()
+        dist = self.goal - self.chassis_body.GetPos()
+        proj = vel.x * dist.x + vel.y * dist.y
+        return coeff*proj
 
     def is_done(self):
 
@@ -605,7 +602,7 @@ class off_road_v2(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            #self.rew -= 4000
+            self.rew -= 4000
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
@@ -618,7 +615,7 @@ class off_road_v2(ChronoBaseEnv):
             print('Hit object!!')
             self.isdone = True
             failed = 2
-        elif (pos - self.goal).Length() < 1:
+        elif (pos - self.goal).Length() < 5:
             self.rew += 2500
             print('Success!!')
             # self.successes += 1
@@ -653,8 +650,8 @@ class off_road_v2(ChronoBaseEnv):
         if not self.render_setup:
             vis = True
             save = False
-            birds_eye = False
-            third_person = True
+            birds_eye = True
+            third_person = False
             width = 1280
             height = 720
             if birds_eye:
