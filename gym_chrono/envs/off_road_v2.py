@@ -602,21 +602,21 @@ class off_road_v2(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 4000
+            self.rew -= 40000
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            #self.rew -= 4000
+            self.rew -= 10000
             self.isdone = True
             failed = 1
         elif collision:
-            #self.rew -= 4000
+            self.rew -= 10000
             print('Hit object!!')
             self.isdone = True
             failed = 2
         elif (pos - self.goal).Length() < 5:
-            self.rew += 2500
+            self.rew += 50000
             print('Success!!')
             # self.successes += 1
             self.isdone = True
