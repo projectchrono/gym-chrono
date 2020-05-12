@@ -581,7 +581,7 @@ class off_road_v2(ChronoBaseEnv):
         #TODO: maybe using heading difference instead
         targ_head = np.arctan2(dist.y, dist.x)
         self.head_diff = targ_head - head
-        array_data = np.concatenate([gps_data, [head], [targ_head], [speed]])
+        array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
         # return np.concatenate([rgb.flatten(), gps_data])
         return (rgb, array_data)
 
@@ -592,7 +592,7 @@ class off_road_v2(ChronoBaseEnv):
         vel = self.chassis_body.GetPos_dt()
         dist = self.goal - self.chassis_body.GetPos()
         proj = vel.x * dist.x + vel.y * dist.y
-        return coeff*proj
+        return coeff*proj*pow(np.cos(self.head_diff),3)
 
     def is_done(self):
 
