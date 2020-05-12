@@ -251,7 +251,13 @@ class off_road_v2(ChronoBaseEnv):
 
         # self.initLoc = chrono.ChVectorD(0,0,1)
 
-        n = 5
+
+
+        self.render_setup = False
+        self.play_mode = False
+
+    def reset(self):
+        n = 2 * np.random.randint(0, 3)
         b1 = 0
         b2 = 0
         r1 = n
@@ -264,11 +270,6 @@ class off_road_v2(ChronoBaseEnv):
         t3 = 0
         c = 0
         self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
-
-        self.render_setup = False
-        self.play_mode = False
-
-    def reset(self):
         # Create systems
         self.system = chrono.ChSystemNSC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
@@ -592,7 +593,7 @@ class off_road_v2(ChronoBaseEnv):
         vel = self.chassis_body.GetPos_dt()
         dist = self.goal - self.chassis_body.GetPos()
         proj = vel.x * dist.x + vel.y * dist.y
-        return coeff*proj*pow(np.cos(self.head_diff),3)
+        return coeff*proj*pow(np.cos(self.head_diff),5)
 
     def is_done(self):
 
