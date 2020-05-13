@@ -363,7 +363,7 @@ class off_road_v2(ChronoBaseEnv):
 
         # create goal
         # pi/4 ang displ
-        delta_theta = 0#(random.random()-0.5) * 0.5 * np.pi
+        delta_theta = (random.random()-0.5) * 0.5 * np.pi
         gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
@@ -579,9 +579,10 @@ class off_road_v2(ChronoBaseEnv):
         # print(pos, cur_gps_data)
         # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
         dist = self.goal - self.chassis_body.GetPos()
-        #TODO: maybe using heading difference instead
         targ_head = np.arctan2(dist.y, dist.x)
-        self.head_diff = targ_head - head
+        heads = [targ_head - head, targ_head - head + 2*np.pi, targ_head - head - 2*np.pi]
+        ind = np.argmin(np.abs(heads))
+        self.head_diff = heads[ind]
         array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
         # return np.concatenate([rgb.flatten(), gps_data])
         return (rgb, array_data)
