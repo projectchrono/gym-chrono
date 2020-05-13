@@ -353,6 +353,7 @@ class GVSETS_env(ChronoBaseEnv):
 
         self.step_number = 0
         self.c_f = 0
+        self.old_ac = [0,0]
         self.isdone = False
         self.render_setup = False
         if self.play_mode:
@@ -451,6 +452,8 @@ class GVSETS_env(ChronoBaseEnv):
             rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
         else:
             rew = 0
+        rew += -20*np.linalg.norm(self.ac-self.old_ac)
+        self.old_ac = np.copy(self.ac)
         return rew
 
     def is_done(self):
@@ -491,8 +494,8 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = True
-            save = False
+            vis = False
+            save = True
             birds_eye = False
             third_person = True
             width = 600
