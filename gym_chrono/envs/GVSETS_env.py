@@ -100,7 +100,7 @@ class BezierPath(chrono.ChBezierCurve):
         # making 4 turns to get to the end point
         q = chrono.Q_from_AngZ(randint(0,3)*(-np.pi/2))
         flip = pow(-1, randint(0, 1))
-        route = 0#randint(0, 1)
+        route = randint(0, 1)
         points = chrono.vector_ChVectorD()
         if route == 0:
             beginPos = [-x_half, -y_half * flip]
@@ -192,8 +192,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.terrainHeight = 0  # terrain height (FLAT terrain only)
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
-        self.obst_paths = ['sensor/offroad/rock1.obj']#, 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      #'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+        self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
+                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]
@@ -356,6 +356,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.num_frames = 0
         self.num_updates = 0
         self.c_f = 0
+        self.old_ac = [0,0]
         self.isdone = False
         self.render_setup = False
         if self.play_mode:
@@ -469,6 +470,8 @@ class GVSETS_env(ChronoBaseEnv):
             rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
         else:
             rew = 0
+        rew += -20*np.linalg.norm(self.ac-self.old_ac)
+        self.old_ac = np.copy(self.ac)
         return rew
 
     def is_done(self):
