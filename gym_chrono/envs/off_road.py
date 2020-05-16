@@ -271,11 +271,11 @@ class off_road(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.use_camera = False
-        self.camera_width  = 80*2
-        self.camera_height = 45*2
-        self.lidar_width = 80*2
-        self.lidar_height = 45*2
+        self.use_camera = True
+        self.camera_width  = 80
+        self.camera_height = 45
+        self.lidar_width = 80
+        self.lidar_height = 45
         self.lidar_vfov = chrono.CH_C_PI / 2.
         self.lidar_hfov = chrono.CH_C_PI / 12.
 
@@ -741,7 +741,7 @@ class off_road(ChronoBaseEnv):
             print('Hit object!!')
             self.isdone = True
             failed = 2
-        elif (pos - self.goal).Length() < 5:
+        elif (pos - self.goal).Length() < 10:
             self.rew += 25000
             print('Success!!')
             # self.successes += 1
@@ -801,8 +801,8 @@ class off_road(ChronoBaseEnv):
                 if save:
                     # self.camera.FilterList().append(sens.ChFilterSave())
                     vis_camera.FilterList().append(sens.ChFilterSave())
-                    if not self.use_camera:
-                        self.lidar.FitlterList().append(sens.ChFilterSavePtCloud())
+                    # if not self.use_camera:
+                    #     self.lidar.FitlterList().append(sens.ChFilterSavePtCloud())
                 self.manager.AddSensor(vis_camera)
 
             if third_person:
@@ -822,8 +822,8 @@ class off_road(ChronoBaseEnv):
                     vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
                     vis_camera.FilterList().append(sens.ChFilterSave())
-                    if not self.use_camera:
-                        self.lidar.FilterList().append(sens.ChFilterSavePtCloud())
+                    # if not self.use_camera:
+                    #     self.lidar.FilterList().append(sens.ChFilterSavePtCloud())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------

@@ -11,6 +11,7 @@ import numpy as np
 import math as m
 import pathlib
 from random import randint
+import cv2 as cv
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
@@ -89,7 +90,7 @@ class ghostLeaders(object):
             leaderPos, leaderRot = self.path.getPosRot(t + i*self.interval)
             leader.SetPos(leaderPos)
             leader.SetRot(leaderRot)
-    
+
     def GetPos(self):
         for leader in self.leaders:
             print(leader.GetPos())
@@ -263,7 +264,8 @@ class GVSETS_env(ChronoBaseEnv):
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
         if self.play_mode == True:
-            self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+            # self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+            self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
             self.vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
         else:
@@ -319,7 +321,7 @@ class GVSETS_env(ChronoBaseEnv):
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 3,  # horizontal field of view
-            (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
+            # (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
         self.manager.AddSensor(self.camera)
@@ -350,8 +352,9 @@ class GVSETS_env(ChronoBaseEnv):
         self.TargetGPS.FilterList().append(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.TargetGPS)
 
-
         self.step_number = 0
+        self.num_frames = 0
+        self.num_updates = 0
         self.c_f = 0
         self.isdone = False
         self.render_setup = False
@@ -361,7 +364,8 @@ class GVSETS_env(ChronoBaseEnv):
         return self.get_ob()
 
     def step(self, ac):
-        # print('Action :: ', ac)
+        print('Action :: ', ac)
+        # exit(-1)
 
         self.ac = ac.reshape((-1,))
         # Collect output data from modules (for inter-module communication)
@@ -401,6 +405,10 @@ class GVSETS_env(ChronoBaseEnv):
             for obs in self.obstacles:
                 self.c_f += obs.GetContactForce().Length()
 
+            if (time - self.num_updates > 0):
+                print('Time :: ', time)
+                self.num_updates+=1
+
             # print(steering, throttle, braking)
         self.leaderColl = any(areColliding(self.chassis_body, leader, self.leader_box, self.leader_box) for leader in self.leaders)
         self.rew = self.calc_rew()
@@ -415,9 +423,12 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             rgb = np.zeros((self.camera_height, self.camera_width, 3))
 
+        rgb = rgb.flatten()
+
         agent_gps_buffer = self.AgentGPS.GetMostRecentGPSBuffer()
         if agent_gps_buffer.HasData():
             agent_gps_data = agent_gps_buffer.GetGPSData()[0:2]
+
         else:
             agent_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
         target_gps_buffer = self.TargetGPS.GetMostRecentGPSBuffer()
@@ -425,6 +436,8 @@ class GVSETS_env(ChronoBaseEnv):
             targ_gps_data = target_gps_buffer.GetGPSData()[0:2]
         else:
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
+        # print(targ_gps_data)
+        # print(agent_gps_data)
         gps = (targ_gps_data - agent_gps_data)*100000
         # pos = self.chassis_body.GetPos()
         # target = chrono.ChVectorD(targ_gps_data[0], targ_gps_data[1], self.origin.z)
@@ -437,7 +450,12 @@ class GVSETS_env(ChronoBaseEnv):
         appr_speed = [(self.lead_dist - new_lead_dist)*self.control_frequency]
         self.lead_dist = new_lead_dist
         # ob = rgb, np.concatenate([gps, orientation])
-        ob = rgb, np.concatenate([gps, orientation,appr_speed])
+        ob = (rgb, np.concatenate([gps, orientation, appr_speed]))
+        # ob = (rgb, self.data[self.num_frames])
+        # ob = (rgb, [0,0,0,0])
+        # print('Pos :: ', self.chassis_body.GetPos(), self.leaders[0].GetPos())
+        # print('Input :: ',gps, orientation, appr_speed)
+        # print(self.chassis_body.GetPos(), self.leaders[0].GetPos(), new_lead_dist)
         return ob
 
     def calc_rew(self):
@@ -509,7 +527,7 @@ class GVSETS_env(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    # (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
@@ -528,7 +546,7 @@ class GVSETS_env(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    # (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:
@@ -536,6 +554,7 @@ class GVSETS_env(ChronoBaseEnv):
                     vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
                     vis_camera.FilterList().append(sens.ChFilterSave())
+                    # self.camera.FilterList().append(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
