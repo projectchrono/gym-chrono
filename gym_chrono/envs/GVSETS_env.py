@@ -424,8 +424,6 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             rgb = np.zeros((self.camera_height, self.camera_width, 3))
 
-        rgb = rgb.flatten()
-
         agent_gps_buffer = self.AgentGPS.GetMostRecentGPSBuffer()
         if agent_gps_buffer.HasData():
             agent_gps_data = agent_gps_buffer.GetGPSData()[0:2]
