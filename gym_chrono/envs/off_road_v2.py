@@ -224,8 +224,8 @@ class off_road_v2(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.camera_width  = 80*2
-        self.camera_height = 45*2
+        self.camera_width  = 80
+        self.camera_height = 45
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
@@ -309,7 +309,7 @@ class off_road_v2(ChronoBaseEnv):
                                             self.terrain_width*1.5,      # sizeY
                                             self.min_terrain_height, # hMin
                                             self.max_terrain_height) # hMax
-        patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 200, 200)
+        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
@@ -319,10 +319,7 @@ class off_road_v2(ChronoBaseEnv):
         visual_asset = chrono.CastToChVisualization(ground_asset)
         visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
-        vis_mat.SetSpecularColor(chrono.ChVectorF(0.9, 0.9, 0.9))
-        vis_mat.SetFresnelMin(0)
-        vis_mat.SetFresnelMax(0.01)
+        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
         visual_asset.material_list.append(vis_mat)
 
         theta = random.random()*2*np.pi
@@ -425,9 +422,8 @@ class off_road_v2(ChronoBaseEnv):
         self.BrakingDelta = (self.timestep / braking_time)
 
         self.manager = sens.ChSensorManager(self.system)
-        intensity = 0.75
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         # Let's not, for the moment, give a different scenario during test
         """
         if self.play_mode:
@@ -446,7 +442,7 @@ class off_road_v2(ChronoBaseEnv):
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 2,  # horizontal field of view
-            (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
+            #(self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
         )
         self.camera.SetName("Camera Sensor")
         self.manager.AddSensor(self.camera)
@@ -591,10 +587,12 @@ class off_road_v2(ChronoBaseEnv):
 
         coeff = 1
         # Reward projection of the velocity along the distance
-        vel = self.chassis_body.GetPos_dt()
-        dist = self.goal - self.chassis_body.GetPos()
-        proj = vel.x * dist.x + vel.y * dist.y
-        return coeff*proj*pow(np.cos(self.head_diff),5)
+        vel = self.chassis_body.GetPos_dt().Length()
+        #dist = (self.goal - self.chassis_body.GetPos()).Length()
+        a = np.clip(vel, 0, 1)
+        b = pow(np.cos(self.head_diff),5)
+        #c = 10/(dist)
+        return a*b
 
     def is_done(self):
 
@@ -605,7 +603,7 @@ class off_road_v2(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 40000
+            self.rew -= 400
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
@@ -624,7 +622,7 @@ class off_road_v2(ChronoBaseEnv):
             self.isdone = True
             failed = 2
         elif (pos - self.goal).Length() < 6:
-            self.rew += 50000
+            self.rew += 1000
             print('Success!!')
             # self.successes += 1
             self.isdone = True
@@ -674,7 +672,7 @@ class off_road_v2(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    #(height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
@@ -693,7 +691,7 @@ class off_road_v2(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    #(height/width) * chrono.CH_C_PI / 3.  # vertical field of view
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:
