@@ -482,6 +482,7 @@ class off_road_v2(ChronoBaseEnv):
         self.c_f = 0
         self.isdone = False
         self.render_setup = False
+        self.dist0 = (self.goal - self.chassis_body.GetPos()).Length()
         if self.play_mode:
             self.render()
 
@@ -565,6 +566,7 @@ class off_road_v2(ChronoBaseEnv):
         #pos = self.chassis_body.GetPos()
         speed = self.chassis_body.GetPos_dt().Length()
         #vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        #vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
         head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
         gps_data = (self.goal_coord - cur_gps_data)
@@ -587,12 +589,10 @@ class off_road_v2(ChronoBaseEnv):
 
         coeff = 1
         # Reward projection of the velocity along the distance
-        vel = self.chassis_body.GetPos_dt().Length()
-        #dist = (self.goal - self.chassis_body.GetPos()).Length()
-        a = np.clip(vel, 0, 1)
-        b = pow(np.cos(self.head_diff),5)
-        #c = 10/(dist)
-        return a*b
+        #vel = self.chassis_body.GetPos_dt().Length()
+        dist = (self.goal - self.chassis_body.GetPos()).Length()
+        c = self.dist0 - dist
+        return c
 
     def is_done(self):
 

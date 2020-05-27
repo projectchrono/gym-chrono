@@ -120,7 +120,7 @@ class BezierPath(chrono.ChBezierCurve):
                 points.append(point)
 
         super(BezierPath, self).__init__(points)
-        self.current_t = np.random.rand(1)[0]*0.5
+        self.current_t = t0#np.random.rand(1)[0]*0.5
 
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
@@ -333,7 +333,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.AgentGPS = sens.ChGPSSensor(
             self.chassis_body,
             100,
-            chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             self.origin,
             gps_noise_none
         )
@@ -344,7 +344,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.TargetGPS = sens.ChGPSSensor(
             self.leaders[0],
             100,
-            chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(-2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             self.origin,
             gps_noise_none
         )
@@ -460,15 +460,17 @@ class GVSETS_env(ChronoBaseEnv):
     def calc_rew(self):
         dist_coeff = 20
         eps = 2e-1
-        # the target is BEHIND the last leader, on the path, one interval behind in the parameter
-        dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
+        # the target is BEHIND the last leader
+        self.front_bumper = self.chassis_body.GetPos() + self.chassis_body.GetRot().Rotate(chrono.ChVectorD(2,0,0))
+        self.targ = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-2,0,0))
+        dist_l = self.leaders[0].GetRot().RotateBack(self.targ - self.front_bumper)
         self.dist = dist_l.Length()
         alpha = np.arctan2(dist_l.y, dist_l.x)
         if -0.25*np.pi < alpha < 0.25*np.pi:
             rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
         else:
             rew = 0
-        rew += -20*np.linalg.norm(self.ac-self.old_ac)
+        rew += -2*np.linalg.norm(self.ac-self.old_ac)
         self.old_ac = np.copy(self.ac)
         return rew
 
