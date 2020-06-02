@@ -173,7 +173,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.camera_height = 45
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                                                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))
+                                                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))
         self.info = {"timeout": 10000.0}
         self.timestep = 5e-3
         # ---------------------------------------------------------------------
@@ -181,7 +181,7 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 12
+        self.opt_dist = 7
         self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
         self.interval = 0.05
@@ -304,7 +304,7 @@ class GVSETS_env(ChronoBaseEnv):
         visual_asset.material_list.append(vis_mat)
         self.leaders.addLeaders(self.system, self.path)
         self.leader_box = self.leaders.getBBox()
-        self.lead_dist = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
+        self.lead_pos = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
         # Add obstacles:
         self.obstacles = []
         self.placeObstacle(8)
@@ -412,8 +412,9 @@ class GVSETS_env(ChronoBaseEnv):
 
             # print(steering, throttle, braking)
         self.leaderColl = any(areColliding(self.chassis_body, leader, self.leader_box, self.leader_box) for leader in self.leaders)
-        self.rew = self.calc_rew()
+
         self.obs = self.get_ob()
+        self.rew = self.calc_rew()
         self.is_done()
         return self.obs, self.rew, self.isdone, self.info
 
@@ -435,26 +436,17 @@ class GVSETS_env(ChronoBaseEnv):
             targ_gps_data = target_gps_buffer.GetGPSData()[0:2]
         else:
             targ_gps_data = np.array([self.origin.x, self.origin.y])#, self.origin.z])
-        # print(targ_gps_data)
-        # print(agent_gps_data)
+
         gps = (targ_gps_data - agent_gps_data)*100000
-        # pos = self.chassis_body.GetPos()
-        # target = chrono.ChVectorD(targ_gps_data[0], targ_gps_data[1], self.origin.z)
-        # sens.GPS2Cartesian(target, self.origin)
-        # gps = [target.x, target.y, pos.x, pos.y]
-        # vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+
+        vel = [self.vehicle.GetChassisBody().GetPos_dt().Length()]
         orientation = [self.chassis_body.GetRot().Q_to_Euler123().z]
         # orientation = [vel.x, vel.y]
-        new_lead_dist = (self.chassis_body.GetPos() - self.leaders[0].GetPos()).Length()
-        appr_speed = [(self.lead_dist - new_lead_dist)*self.control_frequency]
-        self.lead_dist = new_lead_dist
+        new_lead_pos = self.leaders[0].GetPos().Length()
+        lead_speed = [(self.lead_pos - new_lead_pos)*self.control_frequency]
+        self.lead_pos = new_lead_pos
         # ob = rgb, np.concatenate([gps, orientation])
-        ob = (rgb, np.concatenate([gps, orientation, appr_speed]))
-        # ob = (rgb, self.data[self.num_frames])
-        # ob = (rgb, [0,0,0,0])
-        # print('Pos :: ', self.chassis_body.GetPos(), self.leaders[0].GetPos())
-        # print('Input :: ',gps, orientation, appr_speed)
-        # print(self.chassis_body.GetPos(), self.leaders[0].GetPos(), new_lead_dist)
+        ob = (rgb, np.concatenate([gps, orientation, vel, lead_speed]))
         return ob
 
     def calc_rew(self):
@@ -470,7 +462,8 @@ class GVSETS_env(ChronoBaseEnv):
             rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
         else:
             rew = 0
-        rew += -2*np.linalg.norm(self.ac-self.old_ac)
+        speed_reldiff = abs((self.obs[1][-1] - self.obs[1][-2]) / (self.obs[1][-2] + 0.05))
+        rew += -20*speed_reldiff
         self.old_ac = np.copy(self.ac)
         return rew
 
@@ -512,8 +505,8 @@ class GVSETS_env(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = False
-            save = True
+            vis = True
+            save = False
             birds_eye = False
             third_person = True
             width = 600
