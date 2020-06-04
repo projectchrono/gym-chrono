@@ -378,9 +378,20 @@ class off_road_v2(ChronoBaseEnv):
         self.goal_coord = toGPSCoordinate(self.goal)
         self.origin = GPSCoord(43.073268, -89.400636, 260.0)
 
-        self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, True, False)
+        self.goal_sphere = chrono.ChBodyEasySphere(.55, 1000, True, False)
         self.goal_sphere.SetBodyFixed(True)
-        self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
+
+        sphere_asset = self.goal_sphere.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(sphere_asset)
+
+        vis_mat = chrono.ChVisualMaterial()
+        vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
+        vis_mat.SetDiffuseColor(chrono.ChVectorF(.2, .2, .9))
+        vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
+
+        visual_asset.material_list.append(vis_mat)
+        visual_asset.SetStatic(True)
+
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
             self.system.Add(self.goal_sphere)
