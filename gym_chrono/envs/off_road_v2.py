@@ -246,8 +246,8 @@ class off_road_v2(ChronoBaseEnv):
 
         self.min_terrain_height = 0     # min terrain height
         self.max_terrain_height = 0 # max terrain height
-        self.terrain_length = 100.0 # size in X direction
-        self.terrain_width = 100.0  # size in Y direction
+        self.terrain_length = 70.0 # size in X direction
+        self.terrain_width = 70.0  # size in Y direction
 
         # self.initLoc = chrono.ChVectorD(0,0,1)
 
@@ -257,7 +257,7 @@ class off_road_v2(ChronoBaseEnv):
         self.play_mode = False
 
     def reset(self):
-        n = 2 * np.random.randint(0, 3)
+        n = 2 * np.random.randint(0, 2)
         b1 = 0
         b2 = 0
         r1 = n
@@ -360,7 +360,7 @@ class off_road_v2(ChronoBaseEnv):
 
         # create goal
         # pi/4 ang displ
-        delta_theta = (random.random()-0.5) * 0.5 * np.pi
+        delta_theta = (random.random()-0.5) * 0.75 * np.pi
         gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
@@ -400,25 +400,7 @@ class off_road_v2(ChronoBaseEnv):
         # start = t.time()
         self.assets.Clear()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5, should_scale=False)
-        # print('Assets Add :: ', t.time() - start)
-        # create obstacles
-        # self.boxes = []
-        # for i in range(3):
-        #     box = chrono.ChBodyEasyBox(2, 2, 10, 1000, True, True)
-        #     box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10 , 5.05))
-        #     box.SetBodyFixed(True)
-        #     box_asset = box.GetAssets()[0]
-        #     visual_asset = chrono.CastToChVisualization(box_asset)
-        #
-        #     vis_mat = chrono.ChVisualMaterial()
-        #     vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
-        #     vis_mat.SetDiffuseColor(chrono.ChVectorF(.2, .2, .9))
-        #     vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
-        #
-        #     visual_asset.material_list.append(vis_mat)
-        #     visual_asset.SetStatic(True)
-        #     self.boxes.append(box)
-        #     self.system.Add(box)
+
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -598,11 +580,10 @@ class off_road_v2(ChronoBaseEnv):
 
     def calc_rew(self):
 
-        coeff = 1
         # Reward projection of the velocity along the distance
         #vel = self.chassis_body.GetPos_dt().Length()
         dist = (self.goal - self.chassis_body.GetPos()).Length()
-        c = self.dist0 - dist
+        c = 10/dist
         return c
 
     def is_done(self):
@@ -627,12 +608,12 @@ class off_road_v2(ChronoBaseEnv):
             print('Hit object')
             self.isdone = True
             failed = 2
-        elif abs(self.head_diff)>np.pi/2 :
-            #self.rew -= 10000
-            print('Out of trajectory')
-            self.isdone = True
-            failed = 2
-        elif (pos - self.goal).Length() < 6:
+        #elif abs(self.head_diff)>np.pi/2 :
+        #    #self.rew -= 10000
+        #    print('Out of trajectory')
+        #    self.isdone = True
+        #    failed = 2
+        elif (pos - self.goal).Length() < 10:
             self.rew += 1000
             print('Success!!')
             # self.successes += 1
