@@ -246,8 +246,8 @@ class off_road_v2(ChronoBaseEnv):
 
         self.min_terrain_height = 0     # min terrain height
         self.max_terrain_height = 0 # max terrain height
-        self.terrain_length = 70.0 # size in X direction
-        self.terrain_width = 70.0  # size in Y direction
+        self.terrain_length = 80.0 # size in X direction
+        self.terrain_width = 80.0  # size in Y direction
 
         # self.initLoc = chrono.ChVectorD(0,0,1)
 
@@ -257,7 +257,7 @@ class off_road_v2(ChronoBaseEnv):
         self.play_mode = False
 
     def reset(self):
-        n = 2 * np.random.randint(0, 2)
+        n = 0#2 * np.random.randint(0, 2)
         b1 = 0
         b2 = 0
         r1 = n
@@ -429,17 +429,20 @@ class off_road_v2(ChronoBaseEnv):
         # -----------------------------------------------------
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
-            50,  # scanning rate in Hz
+            20,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 2,  # horizontal field of view
-            #(self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
+            0,
+            1/20
         )
         self.camera.SetName("Camera Sensor")
+        self.camera.PushFilter(sens.ChFilterRGBA8Access())
+        if self.play_mode:
+            self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
         self.manager.AddSensor(self.camera)
-        self.camera.FilterList().append(sens.ChFilterRGBA8Access())
 
         # -----------------------------------------------------
         # Create a self.gps and add it to the sensor manager
@@ -449,11 +452,13 @@ class off_road_v2(ChronoBaseEnv):
             self.chassis_body,
             5,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            0,
+            0,
             origin,
             gps_noise_none
         )
         self.gps.SetName("GPS Sensor")
-        self.gps.FilterList().append(sens.ChFilterGPSAccess())
+        self.gps.PushFilter(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
 
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
@@ -553,22 +558,15 @@ class off_road_v2(ChronoBaseEnv):
         else:
             cur_gps_data = GPSCoord(origin.lat, origin.long)
 
-        # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
-
-        # err = self.goal - self.chassis_body.GetPos()
         #pos = self.chassis_body.GetPos()
         speed = self.chassis_body.GetPos_dt().Length()
-        #vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
-        #vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+
         head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        gps_data = (self.goal_coord - cur_gps_data)
-        gps_data = np.array([gps_data.x, gps_data.y]) * 100000
-        # gps_data = np.array([gps_data[0], gps_data[1], head])
-        # print(cur_gps_data, self.origin)
-        #sens.GPS2Cartesian(cur_gps_data, self.origin)
-        # print(pos, cur_gps_data)
-        # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
+        #gps_data = (self.goal_coord - cur_gps_data)
+        #gps_data = np.array([gps_data.x, gps_data.y]) * 100000
+        gps_data = [(self.goal - self.chassis_body.GetPos()).x, (self.goal - self.chassis_body.GetPos()).y ]
+
         dist = self.goal - self.chassis_body.GetPos()
         targ_head = np.arctan2(dist.y, dist.x)
         heads = [targ_head - head, targ_head - head + 2*np.pi, targ_head - head - 2*np.pi]
@@ -658,39 +656,39 @@ class off_road_v2(ChronoBaseEnv):
                 self.system.AddBody(body)
                 vis_camera = sens.ChCameraSensor(
                     body,  # body camera is attached to
-                    30,  # scanning rate in Hz
+                    20,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    #(height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    0,
+                    1/20
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
+                    vis_camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             if third_person:
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
-                    30,  # scanning rate in Hz
+                    20,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    #(height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    0,
+                    1/20
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
+                    vis_camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
@@ -698,8 +696,8 @@ class off_road_v2(ChronoBaseEnv):
             # -----------------------------------------------------------------
 
 
-            # self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            # vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            # self.camera.PushFilter(sens.ChFilterVisualize("RGB Camera"))
+            # vis_camera.PushFilter(sens.ChFilterVisualize("Visualization Camera"))
             self.render_setup = True
 
         if (mode == 'rgb_array'):
