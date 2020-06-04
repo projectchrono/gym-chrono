@@ -181,7 +181,7 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 7
+        self.opt_dist = 9
         self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
         self.interval = 0.05
@@ -321,11 +321,12 @@ class GVSETS_env(ChronoBaseEnv):
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 3,  # horizontal field of view
-            # (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
+            0,
+            1/30
         )
         self.camera.SetName("Camera Sensor")
+        self.camera.PushFilter(sens.ChFilterRGBA8Access())
         self.manager.AddSensor(self.camera)
-        self.camera.FilterList().append(sens.ChFilterRGBA8Access())
         # -----------------------------------------------------
         # Create a self.gps and add it to the sensor manager
         # -----------------------------------------------------
@@ -334,22 +335,26 @@ class GVSETS_env(ChronoBaseEnv):
             self.chassis_body,
             100,
             chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            0,
+            0,
             self.origin,
             gps_noise_none
         )
         self.AgentGPS.SetName("AgentGPS Sensor")
-        self.AgentGPS.FilterList().append(sens.ChFilterGPSAccess())
+        self.AgentGPS.PushFilter(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.AgentGPS)
         ### Target GPS
         self.TargetGPS = sens.ChGPSSensor(
             self.leaders[0],
             100,
             chrono.ChFrameD(chrono.ChVectorD(-2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            0,
+            0,
             self.origin,
             gps_noise_none
         )
         self.TargetGPS.SetName("TargetGPS Sensor")
-        self.TargetGPS.FilterList().append(sens.ChFilterGPSAccess())
+        self.TargetGPS.PushFilter(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.TargetGPS)
 
         self.step_number = 0
@@ -523,15 +528,17 @@ class GVSETS_env(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    # (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    0,
+                    1/30
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
+                    vis_camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
+                self.manager.AddSensor(self.camera)
 
             if third_person:
                 vis_camera = sens.ChCameraSensor(
@@ -542,24 +549,26 @@ class GVSETS_env(ChronoBaseEnv):
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    # (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
+                    0,
+                    1/30
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
-                    # self.camera.FilterList().append(sens.ChFilterSave())
+                    vis_camera.PushFilter(sens.ChFilterSave())
+                    # self.camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
+                self.manager.AddSensor(self.camera)
 
             # -----------------------------------------------------------------
             # Create a filter graph for post-processing the data from the lidar
             # -----------------------------------------------------------------
 
 
-            # self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            # vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            # self.camera.PushFilter(sens.ChFilterVisualize("RGB Camera"))
+            # vis_camera.PushFilter(sens.ChFilterVisualize("Visualization Camera"))
             self.render_setup = True
 
         if (mode == 'rgb_array'):
