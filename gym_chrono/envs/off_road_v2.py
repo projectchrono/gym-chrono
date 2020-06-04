@@ -614,7 +614,7 @@ class off_road_v2(ChronoBaseEnv):
             dist = (pos - self.goal).Length()
             print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            self.rew -= 10000
+            self.rew -= 400
             failed = 0
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
@@ -629,12 +629,11 @@ class off_road_v2(ChronoBaseEnv):
             failed = 2
         elif abs(self.head_diff)>np.pi/2 :
             #self.rew -= 10000
-            dist = (pos - self.goal).Length()
-            print('Out of trajectory.  Distance from goal :: ', dist)
+            print('Out of trajectory')
             self.isdone = True
             failed = 2
-        elif (pos - self.goal).Length() < 15:
-            self.rew += 10000
+        elif (pos - self.goal).Length() < 6:
+            self.rew += 1000
             print('Success!!')
             # self.successes += 1
             self.isdone = True
