@@ -468,7 +468,7 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             rew = 0
         speed_reldiff = abs((self.obs[1][-1] - self.obs[1][-2]) / (self.obs[1][-2] + 0.05))
-        rew += -20*speed_reldiff
+        rew += -2*speed_reldiff
         self.old_ac = np.copy(self.ac)
         return rew
 
