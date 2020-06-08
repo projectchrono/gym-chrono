@@ -228,11 +228,10 @@ class off_road_v2(ChronoBaseEnv):
         self.camera_height = 45
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Tuple((
-                spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
-        # self.observation_space = spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-        #         spaces.Box(low=-100, high=100, shape=(3,), dtype=np.float)))                                        # goal gps
+        #self.observation_space = spaces.Tuple((
+        #        spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+        #        spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
+        self.observation_space = spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -248,10 +247,6 @@ class off_road_v2(ChronoBaseEnv):
         self.max_terrain_height = 0 # max terrain height
         self.terrain_length = 80.0 # size in X direction
         self.terrain_width = 80.0  # size in Y direction
-
-        # self.initLoc = chrono.ChVectorD(0,0,1)
-
-
 
         self.render_setup = False
         self.play_mode = False
@@ -333,6 +328,7 @@ class off_road_v2(ChronoBaseEnv):
         self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
+        self.m_inputs = veh.Inputs()
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
         self.vehicle.SetTireType(veh.TireModelType_RIGID)
         self.vehicle.SetTireStepSize(self.timestep)
@@ -440,8 +436,8 @@ class off_road_v2(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
-        if self.play_mode:
-            self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        #if self.play_mode:
+        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
         self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
@@ -493,29 +489,23 @@ class off_road_v2(ChronoBaseEnv):
 
         for i in range(round(1/(self.control_frequency*self.timestep))):
             # start = t.time()
-            self.driver_inputs = self.driver.GetInputs()
-            # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
-            self.driver.Synchronize(time)
-            self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
-            self.terrain.Synchronize(time)
 
-            steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta, self.driver.GetSteering() + self.SteeringDelta)
+            self.m_inputs.m_steering = np.clip(self.ac[0,], self.m_inputs.m_steering - self.SteeringDelta,
+                                               self.m_inputs.m_steering + self.SteeringDelta)
             if self.ac[1,] > 0:
-                throttle = np.clip(abs(self.ac[1,]), self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-                braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(abs(self.ac[1,]), self.m_inputs.m_throttle - self.ThrottleDelta,
+                                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+                self.m_inputs.m_braking = np.clip(0, self.m_inputs.m_braking - self.BrakingDelta,
+                                                  self.m_inputs.m_braking + self.BrakingDelta)
             else:
-                braking = np.clip(abs(self.ac[1,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
-                throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-            self.driver.SetSteering(steering)
-            self.driver.SetThrottle(throttle)
-            self.driver.SetBraking(braking)
-            # trot = np.clip( (self.ac[0,]+1)/2 , self.driver.GetThrottle()-self.ThrottleDelta, self.driver.GetThrottle()+self.ThrottleDelta)
-            # self.driver.SetThrottle(trot)
-            # steer = np.clip(self.ac[1,], self.driver.GetSteering() - self.SteeringDelta,  self.driver.GetSteering() + self.SteeringDelta)
-            # self.driver.SetSteering(steer)
-            # self.driver.SetBraking(0)
-            # self.driver.SetThrottle(1)
+                self.m_inputs.m_braking = np.clip(abs(self.ac[1,]), self.m_inputs.m_braking - self.BrakingDelta,
+                                                  self.m_inputs.m_braking + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
+                                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+            # self.driver.Synchronize(time)
+            self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
+            self.terrain.Synchronize(time)
 
 
             # Advance simulation for one timestep for all modules
@@ -574,7 +564,8 @@ class off_road_v2(ChronoBaseEnv):
         self.head_diff = heads[ind]
         array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
         # return np.concatenate([rgb.flatten(), gps_data])
-        return (rgb, array_data)
+        #return (rgb, array_data)
+        return  array_data
 
     def calc_rew(self):
 
