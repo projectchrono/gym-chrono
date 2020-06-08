@@ -181,7 +181,7 @@ class GVSETS_env(ChronoBaseEnv):
         #  Create the simulation system and add items
         #
         self.timeend = 60
-        self.opt_dist = 9
+        self.opt_dist = 12
         self.dist_rad = 4
         # distance between vehicles along the Bezier parameter
         self.interval = 0.05
@@ -290,8 +290,8 @@ class GVSETS_env(ChronoBaseEnv):
         patch_mat = chrono.ChMaterialSurfaceNSC()
         patch_mat.SetFriction(0.9)
         patch_mat.SetRestitution(0.01)
-        patch = self.terrain.AddPatch(patch_mat, 
-                                 chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 
+        patch = self.terrain.AddPatch(patch_mat,
+                                 chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
                                  self.terrainLength*1.5, self.terrainWidth*1.5)
         patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -334,7 +334,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.AgentGPS = sens.ChGPSSensor(
             self.chassis_body,
             100,
-            chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             0,
             0,
             self.origin,
@@ -347,7 +347,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.TargetGPS = sens.ChGPSSensor(
             self.leaders[0],
             100,
-            chrono.ChFrameD(chrono.ChVectorD(-2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             0,
             0,
             self.origin,
@@ -457,10 +457,10 @@ class GVSETS_env(ChronoBaseEnv):
     def calc_rew(self):
         dist_coeff = 20
         eps = 2e-1
-        # the target is BEHIND the last leader
-        self.front_bumper = self.chassis_body.GetPos() + self.chassis_body.GetRot().Rotate(chrono.ChVectorD(2,0,0))
-        self.targ = self.leaders[0].GetPos() + self.leaders[0].GetRot().Rotate(chrono.ChVectorD(-2,0,0))
-        dist_l = self.leaders[0].GetRot().RotateBack(self.targ - self.front_bumper)
+        # the target is BEHIND the last leader, on the path, one interval behind in the parameter
+        dist_l = self.leaders[0].GetRot().RotateBack(self.leaders[0].GetPos() - self.chassis_body.GetPos())
+        self.dist = dist_l.Length()
+        alpha = np.arctan2(dist_l.y, dist_l.x)
         self.dist = dist_l.Length()
         alpha = np.arctan2(dist_l.y, dist_l.x)
         if -0.25*np.pi < alpha < 0.25*np.pi:
@@ -468,7 +468,7 @@ class GVSETS_env(ChronoBaseEnv):
         else:
             rew = 0
         speed_reldiff = abs((self.obs[1][-1] - self.obs[1][-2]) / (self.obs[1][-2] + 0.05))
-        rew += -2*speed_reldiff
+        rew += -5*speed_reldiff
         self.old_ac = np.copy(self.ac)
         return rew
 
