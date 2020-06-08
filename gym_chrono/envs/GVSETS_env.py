@@ -120,7 +120,7 @@ class BezierPath(chrono.ChBezierCurve):
                 points.append(point)
 
         super(BezierPath, self).__init__(points)
-        self.current_t = t0#np.random.rand(1)[0]*0.5
+        self.current_t = np.random.rand(1)[0]*0.5
 
     # Update the progress on the path of the leader
     def Advance(self, delta_t):
