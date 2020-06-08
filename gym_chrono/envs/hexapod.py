@@ -16,7 +16,7 @@ body_0= chrono.ChBodyAuxRef()
 body_0.SetName('ground')
 body_0.SetBodyFixed(True)
 exported_items.append(body_0)
-
+mymat = chrono.ChMaterialSurfaceNSC()
 # Rigid body part
 body_1= chrono.ChBodyAuxRef()
 body_1.SetName('Tibia-1')
@@ -159,7 +159,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_1.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111287),mr)
+body_1.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111287),mr)
 body_1.GetCollisionModel().BuildModel()
 body_1.SetCollide(True)
 
@@ -742,37 +742,37 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=1; mr[1,0]=0; mr[2,0]=0 
 mr[0,1]=0; mr[1,1]=0; mr[2,1]=1 
 mr[0,2]=0; mr[1,2]=-1; mr[2,2]=0 
-body_2.GetCollisionModel().AddBox(0.043,0.076,0.0185,chrono.ChVectorD(3.46944695195361E-17,0.0185,4.16333634234434E-17),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.043,0.076,0.0185,chrono.ChVectorD(3.46944695195361E-17,0.0185,4.16333634234434E-17),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=-0.707106781186547; mr[1,0]=-3.2447132549486E-32; mr[2,0]=0.707106781186547 
 mr[0,1]=-0.707106781186547; mr[1,1]=1.14603585120717E-15; mr[2,1]=-0.707106781186548 
 mr[0,2]=-8.10369721871485E-16; mr[1,2]=-1; mr[2,2]=-8.10369721871485E-16 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.0472982720163547,0.02,0.108298272016355),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.0472982720163547,0.02,0.108298272016355),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=-1; mr[1,0]=9.61721753139795E-16; mr[2,0]=2.35742161722355E-16 
 mr[0,1]=-5.55111512312578E-17; mr[1,1]=6.23289211995407E-16; mr[2,1]=-1 
 mr[0,2]=-9.61721753139795E-16; mr[1,2]=-1; mr[2,2]=-6.23289211995407E-16 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.08425,0.0200000000000001,1.33785674537557E-17),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.08425,0.0200000000000001,1.33785674537557E-17),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=0.707106781186548; mr[1,0]=-1.02261098513081E-15; mr[2,0]=0.707106781186547 
 mr[0,1]=-0.707106781186547; mr[1,1]=-5.17363455746468E-16; mr[2,1]=0.707106781186548 
 mr[0,2]=-3.57263954205419E-16; mr[1,2]=-1; mr[2,2]=-1.08892636999829E-15 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.0472982720163548,0.0200000000000001,0.108298272016355),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.0472982720163548,0.0200000000000001,0.108298272016355),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=-0.707106781186548; mr[1,0]=4.64976887847598E-16; mr[2,0]=-0.707106781186547 
 mr[0,1]=0.707106781186547; mr[1,1]=1.04747060389287E-15; mr[2,1]=-0.707106781186548 
 mr[0,2]=4.11885256614163E-16; mr[1,2]=-1; mr[2,2]=-1.06946187759827E-15 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.0472982720163547,0.0200000000000002,-0.108298272016355),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.0472982720163547,0.0200000000000002,-0.108298272016355),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=0.707106781186548; mr[1,0]=1.07268873472802E-15; mr[2,0]=-0.707106781186547 
 mr[0,1]=0.707106781186547; mr[1,1]=-4.03406805395969E-16; mr[2,1]=0.707106781186548 
 mr[0,2]=4.7325379075631E-16; mr[1,2]=-1; mr[2,2]=-1.04375716610089E-15 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.0472982720163548,0.0200000000000001,-0.108298272016355),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.0472982720163548,0.0200000000000001,-0.108298272016355),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=1; mr[1,0]=-3.2447132549486E-32; mr[2,0]=-2.91253312953612E-16 
 mr[0,1]=1.11022302462516E-16; mr[1,1]=1.14603585120717E-15; mr[2,1]=1 
 mr[0,2]=3.01339605878215E-31; mr[1,2]=-1; mr[2,2]=1.14603585120717E-15 
-body_2.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.08425,0.02,4.43417560598007E-17),mr)
+body_2.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.08425,0.02,4.43417560598007E-17),mr)
 body_2.GetCollisionModel().BuildModel()
 body_2.SetCollide(True)
 
@@ -1062,7 +1062,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_4.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.00399213119387072),mr)
+body_4.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.00399213119387072),mr)
 body_4.GetCollisionModel().BuildModel()
 body_4.SetCollide(True)
 
@@ -1212,7 +1212,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_5.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155226,-0.00664367400116065,0.00148274463111287),mr)
+body_5.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155226,-0.00664367400116065,0.00148274463111287),mr)
 body_5.GetCollisionModel().BuildModel()
 body_5.SetCollide(True)
 
@@ -1380,7 +1380,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_6.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.0039921311938707),mr)
+body_6.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.0039921311938707),mr)
 body_6.GetCollisionModel().BuildModel()
 body_6.SetCollide(True)
 
@@ -1774,7 +1774,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_9.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116068,0.00148274463111286),mr)
+body_9.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116068,0.00148274463111286),mr)
 body_9.GetCollisionModel().BuildModel()
 body_9.SetCollide(True)
 
@@ -1942,7 +1942,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_10.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387941,-0.0177501732085428,0.0039921311938707),mr)
+body_10.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387941,-0.0177501732085428,0.0039921311938707),mr)
 body_10.GetCollisionModel().BuildModel()
 body_10.SetCollide(True)
 
@@ -2092,7 +2092,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_11.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111285),mr)
+body_11.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111285),mr)
 body_11.GetCollisionModel().BuildModel()
 body_11.SetCollide(True)
 
@@ -2242,7 +2242,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_12.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155226,-0.00664367400116065,0.00148274463111287),mr)
+body_12.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155226,-0.00664367400116065,0.00148274463111287),mr)
 body_12.GetCollisionModel().BuildModel()
 body_12.SetCollide(True)
 
@@ -2392,7 +2392,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_13.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111286),mr)
+body_13.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(0.00245913216155228,-0.00664367400116065,0.00148274463111286),mr)
 body_13.GetCollisionModel().BuildModel()
 body_13.SetCollide(True)
 
@@ -2804,7 +2804,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_16.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387937,-0.0177501732085428,0.00399213119387069),mr)
+body_16.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387937,-0.0177501732085428,0.00399213119387069),mr)
 body_16.GetCollisionModel().BuildModel()
 body_16.SetCollide(True)
 
@@ -2972,7 +2972,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_17.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387937,-0.0177501732085428,0.0039921311938707),mr)
+body_17.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387937,-0.0177501732085428,0.0039921311938707),mr)
 body_17.GetCollisionModel().BuildModel()
 body_17.SetCollide(True)
 
@@ -3140,7 +3140,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=-1.80231010491097E-16; mr[1,0]=1; mr[2,0]=0 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=-1 
-body_18.GetCollisionModel().AddBox(0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.0039921311938707),mr)
+body_18.GetCollisionModel().AddBox(mymat, 0.01925,0.016,0.0175,chrono.ChVectorD(-0.000276646091387934,-0.0177501732085428,0.0039921311938707),mr)
 body_18.GetCollisionModel().BuildModel()
 body_18.SetCollide(True)
 
@@ -3300,7 +3300,7 @@ body_20.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_20.GetCollisionModel().ClearModel()
-body_20.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.0987885988031631,-0.0795491716502537,-1.7255368887234E-05))
+body_20.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.0987885988031631,-0.0795491716502537,-1.7255368887234E-05))
 body_20.GetCollisionModel().BuildModel()
 body_20.SetCollide(True)
 
@@ -3338,7 +3338,7 @@ body_21.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_21.GetCollisionModel().ClearModel()
-body_21.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.72553688871924E-05))
+body_21.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.72553688871924E-05))
 body_21.GetCollisionModel().BuildModel()
 body_21.SetCollide(True)
 
@@ -3376,7 +3376,7 @@ body_22.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_22.GetCollisionModel().ClearModel()
-body_22.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.0987885988031631,-0.0795491716502536,-1.72553688871985E-05))
+body_22.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.0987885988031631,-0.0795491716502536,-1.72553688871985E-05))
 body_22.GetCollisionModel().BuildModel()
 body_22.SetCollide(True)
 
@@ -3414,7 +3414,7 @@ body_23.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_23.GetCollisionModel().ClearModel()
-body_23.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.7255368887234E-05))
+body_23.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.7255368887234E-05))
 body_23.GetCollisionModel().BuildModel()
 body_23.SetCollide(True)
 
@@ -3452,7 +3452,7 @@ body_24.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_24.GetCollisionModel().ClearModel()
-body_24.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502537,-1.72553688872062E-05))
+body_24.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502537,-1.72553688872062E-05))
 body_24.GetCollisionModel().BuildModel()
 body_24.SetCollide(True)
 
@@ -3490,7 +3490,7 @@ body_25.GetAssets().push_back(body_20_2_level)
 
 # Collision shapes 
 body_25.GetCollisionModel().ClearModel()
-body_25.GetCollisionModel().AddSphere(0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.72553688871954E-05))
+body_25.GetCollisionModel().AddSphere(mymat, 0.0045, chrono.ChVectorD(0.098788598803163,-0.0795491716502536,-1.72553688871954E-05))
 body_25.GetCollisionModel().BuildModel()
 body_25.SetCollide(True)
 

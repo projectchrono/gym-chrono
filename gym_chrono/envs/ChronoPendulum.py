@@ -74,8 +74,6 @@ class ChronoPendulum(ChronoBaseEnv):
       self.body_rod.SetMass(self.mass_rod)
 
       self.body_rod.SetInertiaXX(chrono.ChVectorD(self.inertia_rod_x,self.inertia_rod_y,self.inertia_rod_x))
-    # set collision surface properties
-      self.body_rod.SetMaterialSurface(self.rod_material)
 
 
       self.cyl_base1= chrono.ChVectorD(0, -self.size_rod_y/2, 0 )
@@ -93,7 +91,6 @@ class ChronoPendulum(ChronoBaseEnv):
       self.body_floor = chrono.ChBody()
       self.body_floor.SetBodyFixed(True)
       self.body_floor.SetPos(chrono.ChVectorD(0, -5, 0 ))
-      self.body_floor.SetMaterialSurface(self.rod_material)
       self.body_floor_shape = chrono.ChBoxShape()
       self.body_floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(3, 1, 3)
       self.body_floor.GetAssets().push_back(self.body_floor_shape)
@@ -107,7 +104,6 @@ class ChronoPendulum(ChronoBaseEnv):
 
       self.body_table = chrono.ChBody()
       self.body_table.SetPos(chrono.ChVectorD(0, -self.size_table_y/2, 0 ))
-      self.body_table.SetMaterialSurface(self.rod_material)
 
       self.body_table.SetMass(0.1)
       self.body_table_shape = chrono.ChBoxShape()
