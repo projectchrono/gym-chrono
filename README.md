@@ -1,5 +1,5 @@
 **Status:** Under Active Development (New Environments and features will be added)
-
+> :warning: **These environment are compatible with the develop version of ChronoAPI**: Checkout develop branch if you build from [sources](https://github.com/projectchrono/chrono) or use develop label if you install with [Anaconda](https://anaconda.org/projectchrono/pychrono)
 # gym-chrono
 
 Gym Chrono is a set of continuous state and action spaces DRL environmentbased on the open-source physics engine [Project Chrono](https://projectchrono.org/). 

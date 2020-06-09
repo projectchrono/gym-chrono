@@ -170,12 +170,10 @@ class ChronoComauR3(ChronoBaseEnv):
               self.body_floor = chrono.ChBody()
               self.body_floor.SetBodyFixed(True)
               self.body_floor.SetPos(chrono.ChVectorD(0, -1, 0 ))
-              self.body_floor.SetMaterialSurface(self.my_material)
               
               # Floor Collision.
-              self.body_floor.SetMaterialSurface(self.my_material)
               self.body_floor.GetCollisionModel().ClearModel()
-              self.body_floor.GetCollisionModel().AddBox(5, 1, 5, chrono.ChVectorD(0, 0, 0 ))
+              self.body_floor.GetCollisionModel().AddBox(self.my_material, 5, 1, 5, chrono.ChVectorD(0, 0, 0 ))
               self.body_floor.GetCollisionModel().BuildModel()
               self.body_floor.SetCollide(True)
               
@@ -195,11 +193,9 @@ class ChronoComauR3(ChronoBaseEnv):
               # UNset to grasp
               self.targ_box.SetBodyFixed(True)
               self.targ_box.SetPos(chrono.ChVectorD(self.targ_init_pos[0], self.targ_init_pos[1], self.targ_init_pos[2]))
-              self.targ_box.SetMaterialSurface(self.my_material)    
               # Floor Collision.
-              self.targ_box.SetMaterialSurface(self.my_material)
               self.targ_box.GetCollisionModel().ClearModel()
-              self.targ_box.GetCollisionModel().AddBox(0.015, 0.015, 0.015, chrono.ChVectorD(0, 0, 0 ))
+              self.targ_box.GetCollisionModel().AddBox(self.my_material, 0.015, 0.015, 0.015, chrono.ChVectorD(0, 0, 0 ))
               self.targ_box.GetCollisionModel().BuildModel()
               self.targ_box.SetCollide(True)    
               # Visualization shape

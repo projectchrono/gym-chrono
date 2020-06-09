@@ -216,12 +216,10 @@ class ChronoHexapod(ChronoBaseEnv):
               self.body_floor = chrono.ChBody()
               self.body_floor.SetBodyFixed(True)
               self.body_floor.SetPos(chrono.ChVectorD(0, -1-0.128-0.0045, 10 ))
-              self.body_floor.SetMaterialSurface(self.my_material)
               
               # Floor Collision.
-              self.body_floor.SetMaterialSurface(self.my_material)
               self.body_floor.GetCollisionModel().ClearModel()
-              self.body_floor.GetCollisionModel().AddBox(50, 1, 50, chrono.ChVectorD(0, 0, 0 ))
+              self.body_floor.GetCollisionModel().AddBox(self.my_material, 50, 1, 50, chrono.ChVectorD(0, 0, 0 ))
               self.body_floor.GetCollisionModel().BuildModel()
               self.body_floor.SetCollide(True)
               

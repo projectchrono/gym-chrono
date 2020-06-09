@@ -6,7 +6,7 @@ import pychrono as chrono
 import builtins 
 
 shapes_dir = 'ComauR3_shapes/' 
-
+mymat = chrono.ChMaterialSurfaceNSC()
 if hasattr(builtins, 'exported_system_relpath'): 
     shapes_dir = builtins.exported_system_relpath + shapes_dir 
 
@@ -42,7 +42,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=1; mr[1,0]=0; mr[2,0]=-6.60847038467355E-16 
 mr[0,1]=0; mr[1,1]=-1; mr[2,1]=-6.93889390390723E-16 
 mr[0,2]=-6.60847038467355E-16; mr[1,2]=6.93889390390723E-16; mr[2,2]=-1 
-body_1.GetCollisionModel().AddBox(0.0105,0.01,0.00299999999999999,chrono.ChVectorD(-1.0000000000005E-05,0.0501,0.0279999999999992),mr)
+body_1.GetCollisionModel().AddBox(mymat, 0.0105,0.01,0.00299999999999999,chrono.ChVectorD(-1.0000000000005E-05,0.0501,0.0279999999999992),mr)
 body_1.GetCollisionModel().BuildModel()
 body_1.SetCollide(True)
 
@@ -98,7 +98,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=0; mr[1,0]=0; mr[2,0]=-1 
 mr[0,1]=1; mr[1,1]=-1.72563323017096E-31; mr[2,1]=0 
 mr[0,2]=-1.72563323017096E-31; mr[1,2]=-1; mr[2,2]=0 
-body_3.GetCollisionModel().AddCylinder(0.075,0.075,0.055,chrono.ChVectorD(-0.00500000000000001,-1.30975562169976E-32,0),mr)
+body_3.GetCollisionModel().AddCylinder(mymat, 0.075,0.075,0.055,chrono.ChVectorD(-0.00500000000000001,-1.30975562169976E-32,0),mr)
 body_3.GetCollisionModel().BuildModel()
 body_3.SetCollide(True)
 
@@ -154,12 +154,12 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=0; mr[1,0]=0; mr[2,0]=-1 
 mr[0,1]=1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=-1; mr[2,2]=0 
-body_5.GetCollisionModel().AddCylinder(0.0445270099166724,0.0445270099166724,0.02,chrono.ChVectorD(0.041,0,-0.24694),mr)
+body_5.GetCollisionModel().AddCylinder(mymat, 0.0445270099166724,0.0445270099166724,0.02,chrono.ChVectorD(0.041,0,-0.24694),mr)
 mr = chrono.ChMatrix33D()
 mr[0,0]=0; mr[1,0]=0; mr[2,0]=0 
 mr[0,1]=-1; mr[1,1]=0; mr[2,1]=0 
 mr[0,2]=0; mr[1,2]=0; mr[2,2]=0 
-body_5.GetCollisionModel().AddCylinder(0.0445270099166724,0.0445270099166724,0.015,chrono.ChVectorD(-0.045,0,-0.24694),mr)
+body_5.GetCollisionModel().AddCylinder(mymat, 0.0445270099166724,0.0445270099166724,0.015,chrono.ChVectorD(-0.045,0,-0.24694),mr)
 body_5.GetCollisionModel().BuildModel()
 body_5.SetCollide(True)
 
@@ -215,7 +215,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=1; mr[1,0]=0; mr[2,0]=-6.60847038467355E-16 
 mr[0,1]=0; mr[1,1]=-1; mr[2,1]=-6.93889390390723E-16 
 mr[0,2]=-6.60847038467355E-16; mr[1,2]=6.93889390390723E-16; mr[2,2]=-1 
-body_7.GetCollisionModel().AddBox(0.0105,0.01,0.00299999999999999,chrono.ChVectorD(-1.0000000000005E-05,0.0501,0.0279999999999992),mr)
+body_7.GetCollisionModel().AddBox(mymat, 0.0105,0.01,0.00299999999999999,chrono.ChVectorD(-1.0000000000005E-05,0.0501,0.0279999999999992),mr)
 body_7.GetCollisionModel().BuildModel()
 body_7.SetCollide(True)
 
@@ -272,7 +272,7 @@ mr = chrono.ChMatrix33D()
 mr[0,0]=0; mr[1,0]=0; mr[2,0]=-1 
 mr[0,1]=0; mr[1,1]=-1; mr[2,1]=0 
 mr[0,2]=-1; mr[1,2]=0; mr[2,2]=0 
-body_9.GetCollisionModel().AddCylinder(0.118566017177982,0.118566017177982,0.09425,chrono.ChVectorD(0,0.09425,0),mr)
+body_9.GetCollisionModel().AddCylinder(mymat, 0.118566017177982,0.118566017177982,0.09425,chrono.ChVectorD(0,0.09425,0),mr)
 body_9.GetCollisionModel().BuildModel()
 body_9.SetCollide(True)
 
