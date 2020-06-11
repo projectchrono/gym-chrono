@@ -231,7 +231,7 @@ class off_road_v2(ChronoBaseEnv):
         #self.observation_space = spaces.Tuple((
         #        spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
         #        spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
-        self.observation_space = spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)
+        self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -548,8 +548,8 @@ class off_road_v2(ChronoBaseEnv):
         else:
             cur_gps_data = GPSCoord(origin.lat, origin.long)
 
-        #pos = self.chassis_body.GetPos()
-        speed = self.chassis_body.GetPos_dt().Length()
+        pos = self.chassis_body.GetPos()
+        vel = self.chassis_body.GetPos_dt()
 
         head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
         # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
@@ -562,18 +562,19 @@ class off_road_v2(ChronoBaseEnv):
         heads = [targ_head - head, targ_head - head + 2*np.pi, targ_head - head - 2*np.pi]
         ind = np.argmin(np.abs(heads))
         self.head_diff = heads[ind]
-        array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
+        #array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
+        array_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x ,vel.y ])
         # return np.concatenate([rgb.flatten(), gps_data])
         #return (rgb, array_data)
         return  array_data
 
     def calc_rew(self):
-
-        # Reward projection of the velocity along the distance
-        #vel = self.chassis_body.GetPos_dt().Length()
-        dist = (self.goal - self.chassis_body.GetPos()).Length()
-        c = 10/dist
-        return c
+        progress_coeff = 20
+        # vel_coeff = .01
+        time_cost = 0
+        progress = self.calc_progress()
+        # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
+        return progress
 
     def is_done(self):
 
@@ -589,11 +590,11 @@ class off_road_v2(ChronoBaseEnv):
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            #self.rew -= 10000
+            self.rew -= 250
             self.isdone = True
             failed = 1
         elif collision:
-            #self.rew -= 10000
+            self.rew -= 250
             print('Hit object')
             self.isdone = True
             failed = 2
@@ -603,7 +604,7 @@ class off_road_v2(ChronoBaseEnv):
         #    self.isdone = True
         #    failed = 2
         elif (pos - self.goal).Length() < 10:
-            self.rew += 1000
+            self.rew += 2500
             print('Success!!')
             # self.successes += 1
             self.isdone = True
@@ -619,14 +620,9 @@ class off_road_v2(ChronoBaseEnv):
         #         csv_writer.writerow(goal)
 
     def calc_progress(self):
-        # dist = (self.goal - self.chassis_body.GetPos()).GetNormalized() ^ self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
-        # progress = dist
-        # print((self.goal - self.chassis_body.GetPos()).GetNormalized(), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt(), dist)
-        # print((self.chassis_body.GetPos() - self.goal), (self.chassis_body.GetPos() - self.goal).GetNormalized())
-        # print((self.chassis_body.GetPos() - self.goal), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt())
-        # print(dist, self.old_dist)
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
+        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
