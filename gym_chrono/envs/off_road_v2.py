@@ -558,12 +558,14 @@ class off_road_v2(ChronoBaseEnv):
         gps_data = [(self.goal - self.chassis_body.GetPos()).x, (self.goal - self.chassis_body.GetPos()).y ]
 
         dist = self.goal - self.chassis_body.GetPos()
-        targ_head = np.arctan2(dist.y, dist.x)
-        heads = [targ_head - head, targ_head - head + 2*np.pi, targ_head - head - 2*np.pi]
-        ind = np.argmin(np.abs(heads))
-        self.head_diff = heads[ind]
+        dist_local = self.chassis_body.GetRot().RotateBack(dist)
+        targ_head = np.arctan2(dist_local.y, dist_local.x)
+        #heads = [targ_head - head, targ_head - head + 2*np.pi, targ_head - head - 2*np.pi]
+        #ind = np.argmin(np.abs(heads))
+        #self.head_diff = heads[ind]
         #array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
-        array_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x ,vel.y ])
+        array_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, head ,targ_head ])
+        #print(str(head*(180/3.14)) + '  ,  ' + str(targ_head*(180/3.14)))
         # return np.concatenate([rgb.flatten(), gps_data])
         #return (rgb, array_data)
         return  array_data
