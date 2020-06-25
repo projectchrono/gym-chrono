@@ -564,8 +564,8 @@ class off_road_v2(ChronoBaseEnv):
         #ind = np.argmin(np.abs(heads))
         #self.head_diff = heads[ind]
         #array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
-        array_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, head ,targ_head ])
-        #print(str(head*(180/3.14)) + '  ,  ' + str(targ_head*(180/3.14)))
+        array_data = np.array([dist_local.x, dist_local.y, pos.x, pos.y, head ,targ_head ])
+        print(str(dist_local.x) + '  ,  ' + str(dist_local.y))
         # return np.concatenate([rgb.flatten(), gps_data])
         #return (rgb, array_data)
         return  array_data
