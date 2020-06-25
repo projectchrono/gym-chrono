@@ -228,10 +228,10 @@ class off_road_v2(ChronoBaseEnv):
         self.camera_height = 45
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        #self.observation_space = spaces.Tuple((
-        #        spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-        #        spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
-        self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
+        self.observation_space = spaces.Tuple((
+                spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
+        #self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -252,7 +252,7 @@ class off_road_v2(ChronoBaseEnv):
         self.play_mode = False
 
     def reset(self):
-        n = 0#2 * np.random.randint(0, 2)
+        n = 2 * np.random.randint(0, 4)
         b1 = 0
         b2 = 0
         r1 = n
@@ -356,7 +356,7 @@ class off_road_v2(ChronoBaseEnv):
 
         # create goal
         # pi/4 ang displ
-        delta_theta = (random.random()-0.5) * 0.75 * np.pi
+        delta_theta = (random.random()-0.5) * 1.0 * np.pi
         gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
@@ -565,10 +565,10 @@ class off_road_v2(ChronoBaseEnv):
         #self.head_diff = heads[ind]
         #array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
         array_data = np.array([dist_local.x, dist_local.y, pos.x, pos.y, head ,targ_head ])
-        print(str(dist_local.x) + '  ,  ' + str(dist_local.y))
+        #print(str(dist_local.x) + '  ,  ' + str(dist_local.y))
         # return np.concatenate([rgb.flatten(), gps_data])
-        #return (rgb, array_data)
-        return  array_data
+        return (rgb, array_data)
+        #return  array_data
 
     def calc_rew(self):
         progress_coeff = 20
