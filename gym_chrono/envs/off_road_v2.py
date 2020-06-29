@@ -230,7 +230,7 @@ class off_road_v2(ChronoBaseEnv):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Tuple((
                 spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
+                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))                                        # goal gps
         #self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
@@ -432,7 +432,8 @@ class off_road_v2(ChronoBaseEnv):
             self.camera_height,  # number of vertical channels
             chrono.CH_C_PI / 2,  # horizontal field of view
             0,
-            1/20
+            1/20,
+            6
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
@@ -564,7 +565,7 @@ class off_road_v2(ChronoBaseEnv):
         #ind = np.argmin(np.abs(heads))
         #self.head_diff = heads[ind]
         #array_data = np.concatenate([gps_data, [head], [self.head_diff], [speed]])
-        array_data = np.array([dist_local.x, dist_local.y, pos.x, pos.y, head ,targ_head ])
+        array_data = np.array([dist_local.x, dist_local.y, head ,targ_head ])
         #print(str(dist_local.x) + '  ,  ' + str(dist_local.y))
         # return np.concatenate([rgb.flatten(), gps_data])
         return (rgb, array_data)
