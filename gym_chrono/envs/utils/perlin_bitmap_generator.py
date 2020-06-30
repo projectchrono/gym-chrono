@@ -68,15 +68,16 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
         # map values to a specific range
         mapped_noise = map(gen_noise, np.array([-1, 1]), np.array(mapping))
 
-        # Add noises togethers
+        # Add noises together
         if noise is None:
             noise = mapped_noise
         else:
             noise += mapped_noise
 
     # Map to image pixel range
-    noise = map(noise, np.array([-length,length]), np.array([0,255]))
-
+    from_range = [np.min(noise), np.max(noise)]
+    noise = map(noise, from_range, np.array([0,255]))
+    
     # Create and save image
     img = Image.fromarray(np.uint8(noise))
     img = img.resize(img_size)
