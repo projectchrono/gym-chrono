@@ -13,7 +13,7 @@ import random
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
-from gym_chrono.envs.utils.gps_utilities import *
+#from gym_chrono.envs.utils.gps_utilities import *
 
 # openai-gym imports
 import gym
@@ -139,7 +139,7 @@ class AssetList():
 
         return frame
 
-    def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, path, terrain, length, width, should_scale=True):
+    def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width, should_scale=True):
         for asset in self.assets:
             for _ in range(asset.num):
                 # Check if position is too close to another asset, vehicle or goal
@@ -154,15 +154,8 @@ class AssetList():
                     if len(self.positions) == 0:
                         break
                     min_pos = min(self.positions, key=lambda x: (x - pos).Length())
-                    if (pos - vehicle_pos).Length() < 15:
-                        continue
-                    if (pos - min_pos).Length() < threshold:
-                        continue
-                    if (pos - goal_pos).Length() < 15:
-                        continue
-                    if (pos - path.calcClosestPoint(pos)).Length() < 10:
-                        continue
-                    break
+                    if (pos - vehicle_pos).Length() > 15 and (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
+                        break
 
                 # Calculate other random values
                 ang = random.random()*chrono.CH_C_PI
@@ -219,46 +212,6 @@ class AssetList():
     def GetNum(self):
         return len(self.assets)
 
-class ChBezierPath(chrono.ChBezierCurve):
-    def __init__(self, points):
-        self.points = points
-        for p in points:
-            p.z = 0.5
-        chrono.ChBezierCurve.__init__(self, points)
-        self.tracker = chrono.ChBezierCurveTracker(self)
-        self.tracker.reset(points[0])
-
-    def calc_i(self, t, return_epar=False):
-        par = np.clip(t, 0.0, 1.0)
-        numIntervals = self.getNumPoints() - 1
-        epar = par * numIntervals
-        i = m.floor(par * numIntervals)
-        i = np.clip(i, 0, numIntervals - 1)
-        if return_epar:
-            return i, epar
-        return i
-
-    def evalD(self, t):
-        i, epar = calc_i(t, return_epar=True)
-        return self.evalD(int(i), epar - i)
-
-    def calcClosestPoint(self, pos, use_tracker=False, return_dist=False):
-        if use_tracker:
-            point = chrono.ChVectorD(pos)
-            self.tracker.calcClosestPoint(pos, point)
-        else:
-            point = self.eval(0)
-            best_dist = (pos - point).Length()
-            for t in np.linspace(0,1,num=100):
-                temp = self.eval(t)
-                dist = (temp - pos).Length()
-                if (best_dist > dist):
-                    point = temp
-                    best_dist = dist
-        if return_dist:
-            return point, (point - pos).Length()
-        return point
-
 class off_road(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
@@ -271,23 +224,14 @@ class off_road(ChronoBaseEnv):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
-        self.use_camera = True
         self.camera_width  = 80
         self.camera_height = 45
-        self.lidar_width = 80
-        self.lidar_height = 45
-        self.lidar_vfov = chrono.CH_C_PI / 2.
-        self.lidar_hfov = chrono.CH_C_PI / 12.
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
-        if self.use_camera:
-            self.observation_space = spaces.Tuple((
-                    spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
-                    spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
-        else:
-            self.observation_space = spaces.Tuple((
-                    spaces.Box(low=0, high=255, shape=(self.lidar_height, self.lidar_width, 3), dtype=np.uint8),  # lidar
-                    spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
+        self.observation_space = spaces.Tuple((
+                spaces.Box(low=0, high=255, shape=(self.camera_height, self.camera_width, 3), dtype=np.uint8),  # camera
+                spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float)))                                        # goal gps
+        #self.observation_space = spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)
 
         self.info =  {"timeout": 10000.0}
         self.timestep = 3e-3
@@ -301,12 +245,14 @@ class off_road(ChronoBaseEnv):
 
         self.min_terrain_height = 0     # min terrain height
         self.max_terrain_height = 0 # max terrain height
-        self.terrain_length = 100.0 # size in X direction
-        self.terrain_width = 100.0  # size in Y direction
+        self.terrain_length = 80.0 # size in X direction
+        self.terrain_width = 80.0  # size in Y direction
 
-        # self.initLoc = chrono.ChVectorD(0,0,1)
+        self.render_setup = False
+        self.play_mode = False
 
-        n = 50
+    def reset(self):
+        n = 2 * np.random.randint(0, 4)
         b1 = 0
         b2 = 0
         r1 = n
@@ -319,16 +265,11 @@ class off_road(ChronoBaseEnv):
         t3 = 0
         c = 0
         self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
-
-        self.render_setup = False
-        self.play_mode = False
-
-    def reset(self):
         # Create systems
         self.system = chrono.ChSystemNSC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-        self.system.SetSolverMaxIterations(50)
+        self.system.SetSolverMaxIterations(150)
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         # Create the terrain
@@ -338,8 +279,8 @@ class off_road(ChronoBaseEnv):
             patch_mat = chrono.ChMaterialSurfaceNSC()
             patch_mat.SetFriction(0.9)
             patch_mat.SetRestitution(0.01)
-            patch = self.terrain.AddPatch(patch_mat, 
-                                     chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 
+            patch = self.terrain.AddPatch(patch_mat,
+                                     chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
                                      self.terrain_length*1.5, self.terrain_width*1.5)
         else:
             self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
@@ -363,7 +304,7 @@ class off_road(ChronoBaseEnv):
                                             self.terrain_width*1.5,      # sizeY
                                             self.min_terrain_height, # hMin
                                             self.max_terrain_height) # hMax
-        patch.SetTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"), 200, 200)
+        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 
         patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
         self.terrain.Initialize()
@@ -373,22 +314,13 @@ class off_road(ChronoBaseEnv):
         visual_asset = chrono.CastToChVisualization(ground_asset)
         visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
-        vis_mat.SetSpecularColor(chrono.ChVectorF(0.1, 0.1, 0.1))
-        vis_mat.SetFresnelMin(0)
-        vis_mat.SetFresnelMax(0.01)
+        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
         visual_asset.material_list.append(vis_mat)
 
-
-        corner = random.randint(1,4)
-        # corner = 1
-        x,y = self.terrain_length / 2.25, self.terrain_width / 2.25
-        corners = [[-x,-y], [x, -y], [x, y], [-x, y]]
-        x,y = corners[corner-1]
+        theta = random.random()*2*np.pi
+        x,y = self.terrain_length*0.5*np.cos(theta) , self.terrain_width*0.5*np.sin(theta)
         z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.5
-        ang = random.random() * chrono.CH_C_PI / 2
-        # ang = 0
-        ang += (corner - 1) * chrono.CH_C_PI / 2
+        ang = np.pi + theta
         self.initLoc = chrono.ChVectorD(x, y, z)
         self.initRot = chrono.Q_from_AngZ(ang)
 
@@ -396,6 +328,7 @@ class off_road(ChronoBaseEnv):
         self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
+        self.m_inputs = veh.Inputs()
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
         self.vehicle.SetTireType(veh.TireModelType_RIGID)
         self.vehicle.SetTireStepSize(self.timestep)
@@ -422,45 +355,10 @@ class off_road(ChronoBaseEnv):
         self.driver = veh.ChDriver(self.vehicle.GetVehicle())
 
         # create goal
-        r = False
-        if r:
-            gx = random.random() * self.terrain_length - self.terrain_length / 2
-            gy = random.random() * self.terrain_width - self.terrain_width / 2
-        else:
-            i = corner + 1
-            if i > 3:
-                i = i - 4
-            gx,gy = corners[i]
+        # pi/4 ang displ
+        delta_theta = (random.random()-0.5) * 1.0 * np.pi
+        gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
-
-        # Random path
-        total_length = chrono.ChVectorD(self.terrain_length, self.terrain_width, 0).Length()
-        self.points = chrono.vector_ChVectorD()
-        self.points.push_back(self.initLoc)
-        num = 10.
-        sqrt_2 = math.sqrt(2)
-        local_length = (self.goal - self.initLoc).Length()
-        for i in np.arange(0, 1, 1/num):
-            path_point = (self.goal - self.initLoc) * i + self.initLoc
-            if path_point.x == 0:
-                path_point.x = 1
-            if path_point.y == 0:
-                path_point.y = 1
-            perp = chrono.ChVectorD(path_point.y, -path_point.x, 0).GetNormalized()
-            max_length = (self.terrain_length - abs(path_point.x)) * sqrt_2
-            length = (random.random()-.5) * max_length * local_length / total_length
-            point = path_point + perp * length
-            point.z = 0
-            self.points.push_back(point)
-        self.points.push_back(self.goal)
-        self.path = ChBezierPath(self.points)
-
-        # for i in np.arange(0, 1, .001):
-        #     sphere = chrono.ChBodyEasySphere(.5, 1000, True, False)
-        #     sphere.SetBodyFixed(True)
-        #     sphere.AddAsset(chrono.ChColorAsset(1,0,0))
-        #     sphere.SetPos(self.path.eval(i))
-        #     self.system.Add(sphere)
 
         i = 0
         while (self.goal - self.initLoc).Length() < 15:
@@ -473,12 +371,25 @@ class off_road(ChronoBaseEnv):
             i += 1
 
         # self.goal = chrono.ChVectorD(75, 0, 0)
-        self.goal_coord = toGPSCoordinate(self.goal)
-        self.origin = GPSCoord(43.073268, -89.400636, 260.0)
- 
-        self.goal_sphere = chrono.ChBodyEasySphere(.25, 1000, True, False)
+        # Origin in Madison WI
+        self.origin = chrono.ChVectorD(43.073268, -89.400636, 260.0)
+        self.goal_coord = chrono.ChVectorD(self.goal)
+        sens.Cartesian2GPS(self.goal_coord, self.origin)
+
+        self.goal_sphere = chrono.ChBodyEasySphere(.55, 1000, True, False)
         self.goal_sphere.SetBodyFixed(True)
-        self.goal_sphere.AddAsset(chrono.ChColorAsset(1,0,0))
+
+        sphere_asset = self.goal_sphere.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(sphere_asset)
+
+        vis_mat = chrono.ChVisualMaterial()
+        vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
+        vis_mat.SetDiffuseColor(chrono.ChVectorF(.2, .2, .9))
+        vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
+
+        visual_asset.material_list.append(vis_mat)
+        visual_asset.SetStatic(True)
+
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
             self.system.Add(self.goal_sphere)
@@ -486,26 +397,8 @@ class off_road(ChronoBaseEnv):
         # create obstacles
         # start = t.time()
         self.assets.Clear()
-        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.path, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5, should_scale=False)
-        # print('Assets Add :: ', t.time() - start)
-        # create obstacles
-        # self.boxes = []
-        # for i in range(3):
-        #     box = chrono.ChBodyEasyBox(2, 2, 10, 1000, True, True)
-        #     box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10 , 5.05))
-        #     box.SetBodyFixed(True)
-        #     box_asset = box.GetAssets()[0]
-        #     visual_asset = chrono.CastToChVisualization(box_asset)
-        #
-        #     vis_mat = chrono.ChVisualMaterial()
-        #     vis_mat.SetAmbientColor(chrono.ChVectorF(0, 0, 0))
-        #     vis_mat.SetDiffuseColor(chrono.ChVectorF(.2, .2, .9))
-        #     vis_mat.SetSpecularColor(chrono.ChVectorF(.9, .9, .9))
-        #
-        #     visual_asset.material_list.append(vis_mat)
-        #     visual_asset.SetStatic(True)
-        #     self.boxes.append(box)
-        #     self.system.Add(box)
+        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length*1.5, self.terrain_width*1.5, should_scale=False)
+
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -520,9 +413,8 @@ class off_road(ChronoBaseEnv):
         self.BrakingDelta = (self.timestep / braking_time)
 
         self.manager = sens.ChSensorManager(self.system)
-        intensity = 0.75
-        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
-        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(intensity, intensity, intensity), 4000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
+        self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         # Let's not, for the moment, give a different scenario during test
         """
         if self.play_mode:
@@ -533,38 +425,21 @@ class off_road(ChronoBaseEnv):
         # -----------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # -----------------------------------------------------
-        if self.use_camera:
-            self.camera = sens.ChCameraSensor(
-                self.chassis_body,  # body camera is attached to
-                50,  # scanning rate in Hz
-                chrono.ChFrameD(chrono.ChVectorD(1.75, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-                # offset pose
-                self.camera_width,  # number of horizontal samples
-                self.camera_height,  # number of vertical channels
-                chrono.CH_C_PI / 2,  # horizontal field of view
-                (self.camera_height / self.camera_width) * chrono.CH_C_PI / 3.  # vertical field of view
-            )
-            self.camera.SetName("Camera Sensor")
-            self.manager.AddSensor(self.camera)
-            self.camera.FilterList().append(sens.ChFilterRGBA8Access())
-
-        # ----------------------------------------------------
-        # Create a self.lidar and add it to the sensor manager
-        # ----------------------------------------------------
-        if not self.use_camera:
-            self.lidar = sens.ChLidarSensor(
-                self.chassis_body,                                                          # body lidar is attached to
-                30,                                                                 # scanning rate in Hz
-                chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),  # offset pose
-                self.lidar_width,                                                               # number of horizontal samples
-                self.lidar_height,                                                                 # number of vertical channels
-                self.lidar_vfov,                                                            # horizontal field of view
-                self.lidar_hfov                                                        # vertical field of view
-                )
-            self.lidar.SetName("Lidar Sensor")
-            self.lidar.FilterList().append(sens.ChFilterPCfromDepth())
-            self.lidar.FilterList().append(sens.ChFilterXYZIAccess())
-            self.manager.AddSensor(self.lidar)
+        self.camera = sens.ChCameraSensor(
+            self.chassis_body,  # body camera is attached to
+            20,  # scanning rate in Hz
+            chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            # offset pose
+            self.camera_width,   # number of horizontal samples
+            self.camera_height,  # number of vertical channels
+            chrono.CH_C_PI / 2,  # horizontal field of view
+            6                    # supersampling factor
+        )
+        self.camera.SetName("Camera Sensor")
+        self.camera.PushFilter(sens.ChFilterRGBA8Access())
+        #if self.play_mode:
+        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
         # Create a self.gps and add it to the sensor manager
@@ -572,13 +447,13 @@ class off_road(ChronoBaseEnv):
         gps_noise_none = sens.ChGPSNoiseNone()
         self.gps = sens.ChGPSSensor(
             self.chassis_body,
-            5,
+            15,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-            origin,
+            self.origin,
             gps_noise_none
         )
         self.gps.SetName("GPS Sensor")
-        self.gps.FilterList().append(sens.ChFilterGPSAccess())
+        self.gps.PushFilter(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
 
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
@@ -595,12 +470,12 @@ class off_road(ChronoBaseEnv):
             # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
-        self.dist_to_path = 0
 
         self.step_number = 0
         self.c_f = 0
         self.isdone = False
         self.render_setup = False
+        self.dist0 = (self.goal - self.chassis_body.GetPos()).Length()
         if self.play_mode:
             self.render()
 
@@ -613,27 +488,23 @@ class off_road(ChronoBaseEnv):
 
         for i in range(round(1/(self.control_frequency*self.timestep))):
             # start = t.time()
-            self.driver_inputs = self.driver.GetInputs()
-            # Update modules (process inputs from other modules)
             time = self.system.GetChTime()
-            self.driver.Synchronize(time)
-            self.vehicle.Synchronize(time, self.driver_inputs, self.terrain)
-            self.terrain.Synchronize(time)
-            steering = np.clip(self.ac[0,], self.driver.GetSteering() - self.SteeringDelta, self.driver.GetSteering() + self.SteeringDelta)
+
+            self.m_inputs.m_steering = np.clip(self.ac[0,], self.m_inputs.m_steering - self.SteeringDelta,
+                                               self.m_inputs.m_steering + self.SteeringDelta)
             if self.ac[1,] > 0:
-                throttle = np.clip(abs(self.ac[1,]), self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-                braking = np.clip(0, self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(abs(self.ac[1,]), self.m_inputs.m_throttle - self.ThrottleDelta,
+                                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+                self.m_inputs.m_braking = np.clip(0, self.m_inputs.m_braking - self.BrakingDelta,
+                                                  self.m_inputs.m_braking + self.BrakingDelta)
             else:
-                braking = np.clip(abs(self.ac[1,]), self.driver.GetBraking() - self.BrakingDelta, self.driver.GetBraking() + self.BrakingDelta)
-                throttle = np.clip(0, self.driver.GetThrottle() - self.ThrottleDelta, self.driver.GetThrottle() + self.ThrottleDelta)
-            self.driver.SetSteering(steering)
-            self.driver.SetThrottle(throttle)
-            self.driver.SetBraking(braking)
-            # trot = np.clip( (self.ac[0,]+1)/2 , self.driver.GetThrottle()-self.ThrottleDelta, self.driver.GetThrottle()+self.ThrottleDelta)
-            # self.driver.SetThrottle(trot)
-            # steer = np.clip(self.ac[1,], self.driver.GetSteering() - self.SteeringDelta,  self.driver.GetSteering() + self.SteeringDelta)
-            # self.driver.SetSteering(steer)
-            # self.driver.SetBraking(0)
+                self.m_inputs.m_braking = np.clip(abs(self.ac[1,]), self.m_inputs.m_braking - self.BrakingDelta,
+                                                  self.m_inputs.m_braking + self.BrakingDelta)
+                self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
+                                                   self.m_inputs.m_throttle + self.ThrottleDelta)
+            # self.driver.Synchronize(time)
+            self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
+            self.terrain.Synchronize(time)
 
 
             # Advance simulation for one timestep for all modules
@@ -648,76 +519,58 @@ class off_road(ChronoBaseEnv):
             # if sensor_time > 1e-4:
                 # print('Chrono :: ', chrono_time)
                 # print('Sensor :: ', sensor_time)
+
             self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
-            # self.c_f = (self.dist_to_path > 5)
             if self.c_f:
                 break
             # for box in self.boxes:
             #     self.c_f += box.GetContactForce().Length()
-       
+        
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
         self.is_done()
         return self.obs, self.rew, self.isdone, self.info
 
     def get_ob(self):
-        if self.use_camera:
-            camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
-            if camera_buffer_RGBA8.HasData():
-                perception_data = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
-            else:
-                perception_data = np.zeros((self.camera_height,self.camera_width,3))
-                # print('NO DATA \n')
-            # rgb = np.zeros((self.camera_height,self.camera_width,3))
+        camera_buffer_RGBA8 = self.camera.GetMostRecentRGBA8Buffer()
+        if camera_buffer_RGBA8.HasData():
+            rgb = camera_buffer_RGBA8.GetRGBA8Data()[:,:,0:3]
         else:
-            lidar_buffer_XYZI = self.lidar.GetMostRecentXYZIBuffer()
-            if lidar_buffer_XYZI.HasData():
-                perception_data = lidar_buffer_XYZI.GetXYZIData()[:,:,0:3]
-            else:
-                perception_data = np.zeros((self.lidar_height,self.lidar_width,3))
-
-            perception_data = perception_data.astype(np.uint8)
+            rgb = np.zeros((self.camera_height,self.camera_width,3))
+            # print('NO DATA \n')
+        # rgb = np.zeros((self.camera_height,self.camera_width,3))
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
         if gps_buffer.HasData():
-            cur_gps_data = gps_buffer.GetGPSData()[0:3]
-            cur_gps_data = GPSCoord(cur_gps_data[1], cur_gps_data[0], cur_gps_data[2])
+            cur_gps_data = gps_buffer.GetGPSData()
+            cur_gps_data = chrono.ChVectorD(cur_gps_data[1], cur_gps_data[0], cur_gps_data[2])
         else:
-            cur_gps_data = GPSCoord(origin.lat, origin.long)
+            cur_gps_data = chrono.ChVectorD(self.origin)
 
-        # goal_gps_data = np.array([self.goal_coord.x, self.goal_coord.y, self.goal_coord.z])
-
-        # err = self.goal - self.chassis_body.GetPos()
         pos = self.chassis_body.GetPos()
-        vel = self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
+        vel = self.chassis_body.GetPos_dt()
+
         head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
-        # goal_gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        # gps_data = (self.goal_coord - cur_gps_data)
-        # gps_data = np.array([gps_data.x, gps_data.y]) * 100000
-        # gps_data = np.array([gps_data[0], gps_data[1], head])
-        # print(cur_gps_data, self.origin)
+        gps_data = [(self.goal - self.chassis_body.GetPos()).x, (self.goal - self.chassis_body.GetPos()).y ]
+        dist = self.goal - self.chassis_body.GetPos()
+        dist_local = self.chassis_body.GetRot().RotateBack(dist)
+        targ_head = np.arctan2(dist_local.y, dist_local.x)
+        goalCart = chrono.ChVectorD(self.goal_coord)
+        sens.GPS2Cartesian(goalCart, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
-        # print(pos, cur_gps_data)
-        # gps_data = [self.goal.x, self.goal.y, cur_gps_data.x, cur_gps_data.y, vel.x, vel.y]
-        gps_data = np.array([self.goal.x, self.goal.y, pos.x, pos.y, vel.x, vel.y])
-        # gps_data = np.array([0,0,0,0,0,0])
-        # return np.concatenate([rgb.flatten(), gps_data])
-        return perception_data, gps_data
+        gps_dist = goalCart - cur_gps_data
+        loc_dist_gps = [gps_dist.x*np.cos(head)+gps_dist.y*np.sin(head), -gps_dist.x*np.sin(head)+gps_dist.y*np.cos(head)]
+        #print('x error'+ str(loc_dist_gps[0]-dist_local.x)+ 'y error'+ str(loc_dist_gps[1]-dist_local.y))
+        array_data = np.array([loc_dist_gps[0], loc_dist_gps[1], head, targ_head])
+        return (rgb, array_data)
 
     def calc_rew(self):
         progress_coeff = 20
-        vel_coeff = 0
+        # vel_coeff = .01
         time_cost = 0
         progress = self.calc_progress()
         # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        rew = progress_coeff*progress # + vel_coeff*vel + time_cost*self.system.GetChTime()
-        # pos = self.chassis_body.GetPos()
-        # _, self.dist_to_path = self.path.calcClosestPoint(pos, use_tracker=True, return_dist=True)
-        # if self.dist_to_path > 1.5:
-        #     rew -= 50
-        # else:
-        #     rew += 7.5
-        return rew
+        return progress
 
     def is_done(self):
 
@@ -733,16 +586,21 @@ class off_road(ChronoBaseEnv):
         elif abs(pos.x) > self.terrain_length * 1.5 / 2.0 or abs(pos.y) > self.terrain_width * 1.5 / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
-            self.rew -= 400
+            self.rew -= 250
             self.isdone = True
             failed = 1
         elif collision:
-            self.rew -= 400
-            print('Hit object!!')
+            self.rew -= 250
+            print('Hit object')
             self.isdone = True
             failed = 2
+        #elif abs(self.head_diff)>np.pi/2 :
+        #    #self.rew -= 10000
+        #    print('Out of trajectory')
+        #    self.isdone = True
+        #    failed = 2
         elif (pos - self.goal).Length() < 10:
-            self.rew += 25000
+            self.rew += 2500
             print('Success!!')
             # self.successes += 1
             self.isdone = True
@@ -758,14 +616,9 @@ class off_road(ChronoBaseEnv):
         #         csv_writer.writerow(goal)
 
     def calc_progress(self):
-        # dist = (self.goal - self.chassis_body.GetPos()).GetNormalized() ^ self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt()
-        # progress = dist
-        # print((self.goal - self.chassis_body.GetPos()).GetNormalized(), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt(), dist)
-        # print((self.chassis_body.GetPos() - self.goal), (self.chassis_body.GetPos() - self.goal).GetNormalized())
-        # print((self.chassis_body.GetPos() - self.goal), self.vehicle.GetChassisBody().GetFrame_REF_to_abs().GetPos_dt())
-        # print(dist, self.old_dist)
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
+        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
@@ -774,56 +627,47 @@ class off_road(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = 0
-            save = 1
-            birds_eye = 1
-            third_person = not birds_eye
-            width = 800
-            height = 700
+            vis = True
+            save = False
+            birds_eye = True
+            third_person = False
+            width = 1280
+            height = 720
             if birds_eye:
                 body = chrono.ChBodyAuxRef()
                 body.SetBodyFixed(True)
                 self.system.AddBody(body)
                 vis_camera = sens.ChCameraSensor(
                     body,  # body camera is attached to
-                    30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 125), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
+                    20,  # scanning rate in Hz
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
-                    chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
-                )
+                    chrono.CH_C_PI / 3  # horizontal field of view
+                    )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    # self.camera.FilterList().append(sens.ChFilterSave())
-                    vis_camera.FilterList().append(sens.ChFilterSave())
-                    # if not self.use_camera:
-                    #     self.lidar.FitlterList().append(sens.ChFilterSavePtCloud())
+                    vis_camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             if third_person:
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
-                    30,  # scanning rate in Hz
+                    20,  # scanning rate in Hz
                     chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
-                    chrono.CH_C_PI / 3,  # horizontal field of view
-                    (height/width) * chrono.CH_C_PI / 3.  # vertical field of view
-                )
+                    chrono.CH_C_PI / 3  # horizontal field of view
+                    )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:
-                    self.camera.FilterList().append(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
-                    vis_camera.FilterList().append(sens.ChFilterVisualize(width, height, "Visualization Camera"))
+                    vis_camera.PushFilter(sens.ChFilterVisualize(width, height, "Visualization Camera"))
                 if save:
-                    vis_camera.FilterList().append(sens.ChFilterSave())
-                    # if not self.use_camera:
-                    #     self.lidar.FilterList().append(sens.ChFilterSavePtCloud())
+                    vis_camera.PushFilter(sens.ChFilterSave())
                 self.manager.AddSensor(vis_camera)
 
             # -----------------------------------------------------------------
@@ -831,8 +675,8 @@ class off_road(ChronoBaseEnv):
             # -----------------------------------------------------------------
 
 
-            # self.camera.FilterList().append(sens.ChFilterVisualize("RGB Camera"))
-            # vis_camera.FilterList().append(sens.ChFilterVisualize("Visualization Camera"))
+            # self.camera.PushFilter(sens.ChFilterVisualize("RGB Camera"))
+            # vis_camera.PushFilter(sens.ChFilterVisualize("Visualization Camera"))
             self.render_setup = True
 
         if (mode == 'rgb_array'):
