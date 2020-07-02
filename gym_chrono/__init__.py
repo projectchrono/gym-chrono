@@ -66,8 +66,8 @@ register(
 )
 
 register(
-    id='off_road-v1',
-    entry_point='gym_chrono.envs:off_road_v1'
+    id='off_road_gator-v1',
+    entry_point='gym_chrono.envs:off_road_gator_v1'
 )
 register(
     id='off_road_gator-v0',

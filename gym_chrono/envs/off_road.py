@@ -286,7 +286,7 @@ class off_road(ChronoBaseEnv):
             self.bitmap_file =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
             self.bitmap_file_backup =  os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
             shape = (252, 252)
-            generate_random_bitmap(shape=shape, resolutions=[(18, 18), (12, 12), (2, 2)], mappings=[(-.1, -.1), (-.25,.25), (-1.5,1.5)], file_name=self.bitmap_file)
+            generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
             try:
                 patch = self.terrain.AddPatch(chrono.CSYSNORM,       # position
                                             self.bitmap_file,        # heightmap file (.bmp)
