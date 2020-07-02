@@ -69,7 +69,16 @@ register(
     id='off_road_gator-v1',
     entry_point='gym_chrono.envs:off_road_gator_v1'
 )
+
 register(
     id='off_road_gator-v0',
     entry_point='gym_chrono.envs:off_road_gator'
+)
+
+register(
+    id='robot_learning-v0',
+    entry_point='gym_chrono.envs:robot_learning'
+    #timestep_limit=1000,
+    #reward_threshold=10.0,
+    #nondeterministic = True,
 )

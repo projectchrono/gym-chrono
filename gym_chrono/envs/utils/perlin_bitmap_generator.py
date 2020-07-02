@@ -77,7 +77,7 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
     # Map to image pixel range
     from_range = [np.min(noise), np.max(noise)]
     noise = map(noise, from_range, np.array([0,255]))
-    
+
     # Create and save image
     img = Image.fromarray(np.uint8(noise))
     img = img.resize(img_size)
@@ -88,13 +88,12 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
         return noise
 
 if __name__ == '__main__':
-    show = True
+    show = False
     save = True
 
     for _ in range(3):
         shape = (252, 252)
-        noise = generate_random_bitmap(shape=shape, resolutions=[(12, 12), (2, 2)], mappings=[(-.25,.25), (-2,2)], return_noise=True)
-        print(noise.shape)
+        noise = generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(500,500), return_noise=True)
         if show:
             image = plt.imread("height_map.bmp")
             plt.imshow(image, cmap='gray', interpolation='lanczos')
