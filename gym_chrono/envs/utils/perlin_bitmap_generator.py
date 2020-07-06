@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 import matplotlib.pyplot as plt
 
 # ------------------------- Perlin Noise Functions ------------------------- #
@@ -81,6 +81,7 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
     # Create and save image
     img = Image.fromarray(np.uint8(noise))
     img = img.resize(img_size)
+    img = img.filter(ImageFilter.GaussianBlur(8))
     if save:
         img.save(file_name)
 
@@ -91,9 +92,11 @@ if __name__ == '__main__':
     show = False
     save = True
 
-    for _ in range(3):
+    np.random.seed(2)
+
+    for _ in range(1):
         shape = (252, 252)
-        noise = generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(500,500), return_noise=True)
+        noise = generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(400,400), return_noise=True)
         if show:
             image = plt.imread("height_map.bmp")
             plt.imshow(image, cmap='gray', interpolation='lanczos')
