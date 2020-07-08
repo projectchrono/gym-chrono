@@ -133,10 +133,12 @@ class AssetList():
                     else:
                         scale = 1
                     threshold = asset.mesh.bounding_box.Length() * scale / 2
+                    if (pos - vehicle_pos).Length() < 15:
+                        continue
                     if len(self.positions) == 0:
                         break
                     min_pos = min(self.positions, key=lambda x: (x - pos).Length())
-                    if (pos - vehicle_pos).Length() > 15 and (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
+                    if  (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
                         break
 
                 # Calculate other random values
