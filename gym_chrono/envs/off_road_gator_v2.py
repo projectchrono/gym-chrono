@@ -225,7 +225,7 @@ class AssetList():
         return len(self.assets)
 
 
-class off_road_gator_v1(ChronoBaseEnv):
+class off_road_gator_v2(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
@@ -266,7 +266,7 @@ class off_road_gator_v1(ChronoBaseEnv):
         self.play_mode = False
 
     def reset(self):
-        n = 6
+        n = 10
         b1 = 0
         b2 = 0
         r1 = n
@@ -322,7 +322,7 @@ class off_road_gator_v1(ChronoBaseEnv):
                                               self.max_terrain_height)  # hMax
         patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 
-        patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+        patch.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
         self.terrain.Initialize()
 
         ground_body = patch.GetGroundBody()
@@ -330,7 +330,11 @@ class off_road_gator_v1(ChronoBaseEnv):
         visual_asset = chrono.CastToChVisualization(ground_asset)
         visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        tex = np.random.randint(1,6)
+        if tex%2 == 0 and tex%5 != 0 :
+            vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        elif tex%2 == 1 and tex%5 != 0 :
+            vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
         visual_asset.material_list.append(vis_mat)
 
         theta = random.random() * 2 * np.pi
@@ -491,6 +495,7 @@ class off_road_gator_v1(ChronoBaseEnv):
 
         self.step_number = 0
         self.c_f = 0
+        self.old_ac = 0
         self.isdone = False
         self.render_setup = False
         self.dist0 = (self.goal - self.chassis_body.GetPos()).Length()
@@ -587,8 +592,11 @@ class off_road_gator_v1(ChronoBaseEnv):
         # vel_coeff = .01
         time_cost = 0
         progress = self.calc_progress()
-        # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        return progress
+        deltaac = np.linalg.norm(self.ac - self.old_ac)
+        self.old_ac = self.ac
+        print('prog'+str(progress))
+        print('penal'+str(deltaac))
+        return 1.0*progress - 0.2*deltaac
 
     def is_done(self):
 

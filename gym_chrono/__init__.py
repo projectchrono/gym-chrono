@@ -73,3 +73,7 @@ register(
     id='off_road_gator-v0',
     entry_point='gym_chrono.envs:off_road_gator'
 )
+register(
+    id='off_road_gator-v2',
+    entry_point='gym_chrono.envs:off_road_gator_v2'
+)
