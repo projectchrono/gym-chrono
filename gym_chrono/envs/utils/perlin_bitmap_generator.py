@@ -1,5 +1,6 @@
 import numpy as np
-from PIL import Image
+import cv2 as cv
+from PIL import Image, ImageFilter
 import matplotlib.pyplot as plt
 
 # ------------------------- Perlin Noise Functions ------------------------- #
@@ -27,7 +28,9 @@ def generate_perlin_noise_2d(shape, res):
     t = f(grid)
     n0 = n00*(1-t[:,:,0]) + t[:,:,0]*n10
     n1 = n01*(1-t[:,:,0]) + t[:,:,0]*n11
-    return np.sqrt(2)*((1-t[:,:,1])*n0 + t[:,:,1]*n1)
+    # Final Noise
+    n = np.sqrt(2)*((1-t[:,:,1])*n0 + t[:,:,1]*n1)
+    return n
 
 # -------------------------------------------------------------------------- #
 
@@ -36,8 +39,11 @@ def map(arr, from_range, to_range):
 
     return to_range[0] + (arr - from_range[0]) / float(np.diff(from_range)) * float(np.diff(to_range))
 
-def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1,1)], img_size=(100, 100), file_name="height_map.bmp", save=True, return_noise=False):
-    """ Generates a random bitmap (.bmp) file for use as a terrain
+def flatten(n, b):
+    n[b] = np.mean(n[b])
+
+def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1,1)], img_size=(100, 100), file_name="height_map.bmp", save=True, return_noise=False, initPos=None):
+    """ Generates a random bitmap (.png) file for use as a terrain
 
     Inputs:
         shape: Generated noise grid shape
@@ -48,8 +54,8 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
             [tuple(map1, map1), tuple(map2, map2)...]
         img_size: Image size
             tuple(width, height)
-        file_name: File to save .bmp file to, only relevant if save=True
-        save: Save the generated .bmp file
+        file_name: File to save .png file to, only relevant if save=True
+        save: Save the generated .png file
         return_grid: return the generated noise grid
     """
 
@@ -74,28 +80,45 @@ def generate_random_bitmap(shape=(256, 256), resolutions=[(8, 8)], mappings=[(-1
         else:
             noise += mapped_noise
 
+    # Flatten the noise
+    if initPos is not None:
+        dx = dy = 20
+        x,y = map(np.array([initPos.x, -initPos.y]), np.array([-40,40]), np.array([0, shape[0]]))
+        b = (slice(max(int(y - dy), 0), min(int(y + dy), shape[1]-1)), slice(max(int(x - dx),0), min(int(x + dx), shape[0]-1)))
+        flatten(noise, b)
+
     # Map to image pixel range
     from_range = [np.min(noise), np.max(noise)]
-    noise = map(noise, from_range, np.array([0,255]))
-    
+
     # Create and save image
-    img = Image.fromarray(np.uint8(noise))
-    img = img.resize(img_size)
     if save:
-        img.save(file_name)
+        if '.png' in file_name:
+            noise = map(noise, from_range, np.array([0,65535]))
+            noise = cv.GaussianBlur(noise, (17,17), 10)
+            noise = cv.resize(noise, img_size)
+            cv.imwrite(file_name, noise.astype(np.uint16))
+        elif '.bmp' in file_name:
+            noise = map(noise, from_range, np.array([0,255]))
+            img = Image.fromarray(noise.astype(np.uint8))
+            img = img.resize(img_size)
+            img = img.filter(ImageFilter.GaussianBlur(8))
+            img.save(file_name)
 
     if return_noise:
         return noise
 
 if __name__ == '__main__':
-    show = True
+    show = False
     save = True
 
-    for _ in range(3):
+    np.random.seed(2)
+
+    for _ in range(1):
         shape = (252, 252)
-        noise = generate_random_bitmap(shape=shape, resolutions=[(12, 12), (2, 2)], mappings=[(-.25,.25), (-2,2)], return_noise=True)
-        print(noise.shape)
+        import pychrono as chrono
+        file_name = 'height_map.png'
+        noise = generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(400,400), save=save, file_name=file_name, return_noise=True, initPos=chrono.ChVectorD(1,1,0))
         if show:
-            image = plt.imread("height_map.bmp")
+            image = plt.imread(file_name)
             plt.imshow(image, cmap='gray', interpolation='lanczos')
             plt.show()

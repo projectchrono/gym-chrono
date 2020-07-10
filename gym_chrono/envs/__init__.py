@@ -14,3 +14,4 @@ from gym_chrono.envs.off_road_gator_v1 import off_road_gator_v1
 from gym_chrono.envs.off_road_gator_v2 import off_road_gator_v2
 from gym_chrono.envs.off_road_gator import off_road_gator
 from gym_chrono.envs.GVSETS_env import GVSETS_env
+from gym_chrono.envs.robot_learning.robot_learning import robot_learning
