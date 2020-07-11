@@ -459,8 +459,8 @@ class off_road_gator_v2(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
-        if self.play_mode:
-            self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        #if self.play_mode:
+        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
         self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
@@ -489,7 +489,6 @@ class off_road_gator_v2(ChronoBaseEnv):
             # self.manager.ReconstructScenes()
             # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
             # self.manager.Update()
-            # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
@@ -502,7 +501,6 @@ class off_road_gator_v2(ChronoBaseEnv):
         if self.play_mode:
             self.render()
 
-        # print(self.get_ob()[1])
         return self.get_ob()
 
     def step(self, ac):
@@ -537,10 +535,7 @@ class off_road_gator_v2(ChronoBaseEnv):
             # chrono_time = t.time() - start
             # sens_start = t.time()
             self.manager.Update()
-            # sensor_time = t.time() - sens_start
-            # if sensor_time > 1e-4:
-            # print('Chrono :: ', chrono_time)
-            # print('Sensor :: ', sensor_time)
+
 
             self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
             if self.c_f:
@@ -559,7 +554,6 @@ class off_road_gator_v2(ChronoBaseEnv):
             rgb = camera_buffer_RGBA8.GetRGBA8Data()[:, :, 0:3]
         else:
             rgb = np.zeros((self.camera_height, self.camera_width, 3))
-            # print('NO DATA \n')
         # rgb = np.zeros((self.camera_height,self.camera_width,3))
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
@@ -583,7 +577,6 @@ class off_road_gator_v2(ChronoBaseEnv):
         gps_dist = goalCart - cur_gps_data
         loc_dist_gps = [gps_dist.x * np.cos(head) + gps_dist.y * np.sin(head),
                         -gps_dist.x * np.sin(head) + gps_dist.y * np.cos(head)]
-        # print('x error'+ str(loc_dist_gps[0]-dist_local.x)+ 'y error'+ str(loc_dist_gps[1]-dist_local.y))
         array_data = np.array([loc_dist_gps[0], loc_dist_gps[1], head, targ_head, vel.Length()])
         return (rgb, array_data)
 
@@ -594,9 +587,7 @@ class off_road_gator_v2(ChronoBaseEnv):
         progress = self.calc_progress()
         deltaac = np.linalg.norm(self.ac - self.old_ac)
         self.old_ac = self.ac
-        print('prog'+str(progress))
-        print('penal'+str(deltaac))
-        return 1.0*progress - 0.2*deltaac
+        return 1.0*progress - 0.5*deltaac
 
     def is_done(self):
 
@@ -645,7 +636,6 @@ class off_road_gator_v2(ChronoBaseEnv):
     def calc_progress(self):
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
-        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
@@ -656,8 +646,8 @@ class off_road_gator_v2(ChronoBaseEnv):
         if not self.render_setup:
             vis = True
             save = False
-            birds_eye = True
-            third_person = False
+            birds_eye = False
+            third_person = True
             width = 1280
             height = 720
             if birds_eye:
