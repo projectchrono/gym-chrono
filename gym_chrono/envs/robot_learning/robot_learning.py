@@ -14,7 +14,7 @@ from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 from gym_chrono.envs.utils.gps_utilities import *
-from gym_chrono.envs.robot_learning.assets import *
+from gym_chrono.envs.robot_learning.asset2 import *
 from gym_chrono.envs.robot_learning.parameters import *
 
 # openai-gym imports
@@ -81,7 +81,7 @@ class robot_learning(ChronoBaseEnv):
         np.random.seed(seed)
         random.seed(seed)
 
-        n = 8
+        n = 25
         b1 = 0
         b2 = 0
         r1 = n
@@ -94,7 +94,7 @@ class robot_learning(ChronoBaseEnv):
         t3 = 0
         c = 0
         if 'soft' in terrain_type: b1 = b2 = t1 = t2 = t3 = 0
-        self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
+        self.assets = AssetHandler(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
 
         # Create systems
         self.system = chrono.ChSystemNSC()
@@ -121,6 +121,7 @@ class robot_learning(ChronoBaseEnv):
             patch_mat = chrono.ChMaterialSurfaceNSC()
             patch_mat.SetFriction(0.9)
             patch_mat.SetRestitution(0.01)
+            # patch_mat.SetYoungModulus(2e7)
 
             if 'flat' in terrain_type:
                 patch = self.terrain.AddPatch(patch_mat,
@@ -206,7 +207,7 @@ class robot_learning(ChronoBaseEnv):
 
         self.vehicle = veh.Gator(self.system)
         self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
+        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
         self.vehicle.SetChassisFixed(False)
         self.m_inputs = veh.Inputs()
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
@@ -228,11 +229,9 @@ class robot_learning(ChronoBaseEnv):
         self.vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
         self.chassis_body = self.vehicle.GetChassisBody()
-        # self.chassis_body.GetCollisionModel().ClearModel()
-        # size = chrono.ChVectorD(3,2,0.2)
-        # self.chassis_body.GetCollisionModel().AddBox(0.5 * size.x, 0.5 * size.y, 0.5 * size.z)
-        # self.chassis_body.GetCollisionModel().BuildModel()
-        self.chassis_collision_box = chrono.ChVectorD(3,2,0.2)
+
+        self.chassis_body.GetCollisionModel().SetFamily(2)
+        self.chassis_body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(0)
 
         if 'scm' in terrain_type:
             self.terrain.AddMovingPatch(self.vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), 5, 5)
@@ -285,9 +284,7 @@ class robot_learning(ChronoBaseEnv):
 
         # create obstacles
         # start = t.time()
-        self.assets.Clear()
-        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length, self.terrain_width, should_scale=False)
-
+        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length, self.terrain_width)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -347,20 +344,20 @@ class robot_learning(ChronoBaseEnv):
 
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
         # start = t.time()
-        if self.assets.GetNum() > 0:
-            self.assets.TransformAgain()
-            # start = t.time()
-            # for asset in self.assets.assets:
-            #     if len(asset.frames) > 0:
-            #         self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
-            self.manager.ReconstructScenes()
-            # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
-            # self.manager.Update()
-            # print('Reconstruction :: ', t.time() - start)
+        # if len(self.assets) > 0:
+        #     self.assets.TransformAgain()
+        #     # start = t.time()
+        #     # for asset in self.assets.assets:
+        #     #     if len(asset.frames) > 0:
+        #     #         self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
+        #     self.manager.ReconstructScenes()
+        #     # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
+        #     # self.manager.Update()
+        #     # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
-        self.assets.write()
+        self.assets.Write()
 
         with open('test.txt', 'w') as temp:
             pass
@@ -416,13 +413,17 @@ class robot_learning(ChronoBaseEnv):
 
             self.file.write(f'{pos.x},{pos.y},{pos.z},{vel.x},{vel.y},{vel.z},{acc.x},{acc.y},{acc.z},{t},{s},{b}\n')
 
-            self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
-            if self.c_f:
+            contacted_assets = self.assets.GetContactedAssets()
+            if len(contacted_assets):
+                print('Contact!')
+                self.assets.Write('hit_obstacles.txt', contacted_assets)
+                self.c_f = 1
                 break
 
             if time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
                 self.step_number += 1
+
 
         self.rew = self.calc_rew()
         self.obs = self.get_ob()
@@ -526,10 +527,11 @@ class robot_learning(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
+            temp = False
             vis = False
-            save = True
+            save = temp
             birds_eye = False
-            third_person = True
+            third_person = temp
             angle = False
             width = 600
             height = 400
@@ -613,4 +615,7 @@ class robot_learning(ChronoBaseEnv):
         raise NotImplementedError
 
     def __del__(self):
-        self.file.close()
+        try:
+            self.file.close()
+        except:
+            return
