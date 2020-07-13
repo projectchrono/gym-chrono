@@ -3,9 +3,12 @@ import numpy as np
 
 class Asset:
     def __init__(self, filename, scale_range):
+        self.filename = filename
+        self.scale_range = scale_range
+        self.ready = False
 
         self.mesh = chrono.ChTriangleMeshConnected()
-        self.mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(filename), True, True)
+        self.mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(self.filename), True, True)
 
         self.shape = chrono.ChTriangleMeshShape()
         self.shape.SetMesh(self.mesh)
@@ -16,7 +19,6 @@ class Asset:
         self.body.SetCollide(True)
         self.body.SetBodyFixed(True)
 
-
         surface_mat = chrono.ChMaterialSurfaceNSC()
         surface_mat.SetFriction(0.9)
         surface_mat.SetRestitution(0.01)
@@ -25,14 +27,15 @@ class Asset:
         self.body.GetCollisionModel().AddTriangleMesh(surface_mat, self.mesh, False, False)
         self.body.GetCollisionModel().BuildModel()
 
-        self.scale_range = scale_range
-
-        self.ready = False
+        self.scale = 1
 
     def CreateCollisionModel(self):
         self.body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(0)
         self.body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
         self.body.GetCollisionModel().SetFamily(1)
+
+    def Transform(self):
+        self.mesh.Transform(chrono.ChVectorD(0,0,0), chrono.ChMatrix33D(self.scale))
 
     @property
     def pos(self):
@@ -43,6 +46,8 @@ class Asset:
         self.body.SetPos(p)
         self.ready = True
 
+    def Copy(self):
+        return Asset(self.filename, self.scale_range)
 
 class AssetHandler:
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
@@ -70,38 +75,50 @@ class AssetHandler:
         for _ in range(c):
             self.assets.append(Asset("sensor/offroad/cottage.obj", (1, 1)))
 
-    def RandomlyPositionAssets(self, system, initLoc, finalLoc, terrain, terrain_length, terrain_width):
+    def RandomlyPositionAssets(self, system, initLoc, finalLoc, terrain, terrain_length, terrain_width, should_scale=False):
+        diag_obs = 10
+        for i in range(diag_obs):
+            x = np.linspace(initLoc.x, finalLoc.x, diag_obs + 2)[1:-1]
+            y = np.linspace(initLoc.y, finalLoc.y, diag_obs + 2)[1:-1]
+            pos = chrono.ChVectorD(x[i], y[i], 0)
+            pos.z = terrain.GetHeight(pos)
 
-        for i, asset in enumerate(self.assets):
-            diag_obs = 3
-            if i < diag_obs:
-                x = np.linspace(initLoc.x, finalLoc.x, diag_obs + 2)[1:-1]
-                y = np.linspace(initLoc.y, finalLoc.y, diag_obs + 2)[1:-1]
-                pos = chrono.ChVectorD(x[i], y[i], 0)
-                pos.z = terrain.GetHeight(pos)
-            else:
-                success = True
-                for i in range(101):
-                    if i == 100:
-                        success = False
-                        break
+            rand_asset = np.random.choice(self.assets).Copy()
+            rand_asset.pos = pos
+            if should_scale:
+                rand_asset.scale = rand_asset.scale_range[0]
 
-                    pos = self.GenerateRandomPosition(terrain, terrain_length, terrain_width)
+            self.assets.append(rand_asset)
 
-                    if (pos - initLoc).Length() < 15 or (pos - finalLoc).Length() < 15:
-                        continue
-
-                    closest_asset = min(self.assets, key=lambda x: (x.pos - pos).Length())
-                    if (closest_asset.pos - pos).Length() < 3:
-                        continue
-
+        for i, asset in enumerate(self.assets[:-diag_obs]):
+            success = True
+            for i in range(101):
+                if i == 100:
+                    success = False
                     break
 
-                if not success:
+                pos = self.GenerateRandomPosition(terrain, terrain_length, terrain_width)
+                scale = 1
+                if should_scale:
+                    scale = np.random.uniform(asset.scale_range[0], asset.scale_range[1])
+
+                if (pos - initLoc).Length() < 15 or (pos - finalLoc).Length() < 15:
                     continue
 
-            asset.pos = pos
+                closest_asset = min(self.assets, key=lambda x: (x.pos - pos).Length())
+                overlap = 0
+                if (closest_asset.pos - pos).Length() < scale + closest_asset.scale + overlap:
+                    continue
 
+                break
+
+            if not success:
+                continue
+
+            asset.pos = pos
+            asset.scale = scale
+
+        for asset in self.assets:
             system.Add(asset.body)
             asset.CreateCollisionModel()
 
@@ -111,6 +128,10 @@ class AssetHandler:
         pos = chrono.ChVectorD(x, y, 0)
         pos.z = terrain.GetHeight(pos)
         return pos
+
+    def ResetAssets(self):
+        for asset in self.assets:
+            asset.Transform()
 
     def Write(self, filename='obstacles.txt', arr=None):
         if arr == None:

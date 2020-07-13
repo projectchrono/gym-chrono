@@ -81,9 +81,9 @@ class robot_learning(ChronoBaseEnv):
         np.random.seed(seed)
         random.seed(seed)
 
-        n = 25
-        b1 = 0
-        b2 = 0
+        n = 20
+        b1 = int(n / 5)
+        b2 = int(n / 5)
         r1 = n
         r2 = n
         r3 = n
@@ -207,7 +207,7 @@ class robot_learning(ChronoBaseEnv):
 
         self.vehicle = veh.Gator(self.system)
         self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_PRIMITIVES)
+        self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_MESH)
         self.vehicle.SetChassisFixed(False)
         self.m_inputs = veh.Inputs()
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
@@ -232,6 +232,9 @@ class robot_learning(ChronoBaseEnv):
 
         self.chassis_body.GetCollisionModel().SetFamily(2)
         self.chassis_body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(0)
+
+        # for axle in self.vehicle.GetAxles():
+        #     for wheel in axle.GetWheels():
 
         if 'scm' in terrain_type:
             self.terrain.AddMovingPatch(self.vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), 5, 5)
@@ -284,7 +287,7 @@ class robot_learning(ChronoBaseEnv):
 
         # create obstacles
         # start = t.time()
-        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length, self.terrain_width)
+        self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length, self.terrain_width, should_scale=True)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -354,13 +357,15 @@ class robot_learning(ChronoBaseEnv):
         #     # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
         #     # self.manager.Update()
         #     # print('Reconstruction :: ', t.time() - start)
+        self.assets.ResetAssets()
+        self.manager.ReconstructScenes()
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
         self.assets.Write()
 
-        with open('test.txt', 'w') as temp:
-            pass
+        temp = open('test.txt', 'w'); temp.close()
+        temp = open('hit_obstacles.txt', 'w'); temp.close()
         self.file = open('test.txt', 'a')
 
         self.step_number = 0
@@ -527,7 +532,7 @@ class robot_learning(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            temp = False
+            temp = 1
             vis = False
             save = temp
             birds_eye = False
