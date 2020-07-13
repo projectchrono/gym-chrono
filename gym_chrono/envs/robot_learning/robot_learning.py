@@ -50,7 +50,7 @@ class robot_learning(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 20
+        self.timeend = 40
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
@@ -73,15 +73,15 @@ class robot_learning(ChronoBaseEnv):
         terrain_type += 'rigid'
         # terrain_type += 'scm_hard'
         # terrain_type += 'scm_soft'
-        # terrain_type += '_flat'
-        terrain_type += '_height_map'
+        terrain_type += '_flat'
+        # terrain_type += '_height_map'
 
         # Add objects
-        seed = 7
+        seed = 3
         np.random.seed(seed)
         random.seed(seed)
 
-        n = 3
+        n = 8
         b1 = 0
         b2 = 0
         r1 = n
@@ -106,6 +106,7 @@ class robot_learning(ChronoBaseEnv):
         theta = random.random()*2*np.pi
         x,y = self.terrain_length*0.5*np.cos(theta) , self.terrain_width*0.5*np.sin(theta)
         ang = np.pi + theta
+        x,y = -35,35
         self.initLoc = chrono.ChVectorD(x, y, 0)
         self.initRot = chrono.Q_from_AngZ(ang)
 
@@ -138,6 +139,9 @@ class robot_learning(ChronoBaseEnv):
             self.terrain.Initialize()
 
             texture_file = chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg")
+            # texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
+            # texture_file = chrono.GetChronoDataFile("sensor/textures/mud.png")
+            # texture_file = chrono.GetChronoDataFile("sensor/textures/snow.jpg")
             material_list = chrono.CastToChVisualization(patch.GetGroundBody().GetAssets()[0]).material_list
 
         elif 'scm' in terrain_type:
@@ -184,6 +188,10 @@ class robot_learning(ChronoBaseEnv):
             texture_file = chrono.GetChronoDataFile('sensor/textures/')
             if 'hard' in terrain_type: texture_file += 'mud.png'
             elif 'soft' in terrain_type: texture_file += 'snow.jpg'
+            # texture_file = chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg")
+            # texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
+            # texture_file = chrono.GetChronoDataFile("sensor/textures/mud.png")
+            # texture_file = chrono.GetChronoDataFile("sensor/textures/snow.jpg")
             material_list = self.terrain.GetMesh().material_list
         else:
             raise Exception(f'{terrain_type} does not specify terrain type (rigid or scm)')
@@ -237,7 +245,9 @@ class robot_learning(ChronoBaseEnv):
         delta_theta = (random.random()-0.5) * 1.0 * np.pi
         gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
-        self.goal = chrono.ChVectorD(23.6622, -32.2506, 1)
+        # self.goal = chrono.ChVectorD(23.6622, -32.2506, 1)
+        gx, gy = -self.initLoc.x, -self.initLoc.y
+        self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
         i = 0
         while (self.goal - self.initLoc).Length() < 15:
@@ -270,7 +280,8 @@ class robot_learning(ChronoBaseEnv):
 
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
-            self.system.Add(self.goal_sphere)
+            # self.system.Add(self.goal_sphere)
+            pass
 
         # create obstacles
         # start = t.time()
@@ -337,17 +348,23 @@ class robot_learning(ChronoBaseEnv):
         # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
         # start = t.time()
         if self.assets.GetNum() > 0:
-            # self.assets.TransformAgain()
+            self.assets.TransformAgain()
             # start = t.time()
-            for asset in self.assets.assets:
-                if len(asset.frames) > 0:
-                    self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
-            # self.manager.ReconstructScenes()
+            # for asset in self.assets.assets:
+            #     if len(asset.frames) > 0:
+            #         self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
+            self.manager.ReconstructScenes()
             # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
             # self.manager.Update()
             # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
+
+        self.assets.write()
+
+        with open('test.txt', 'w') as temp:
+            pass
+        self.file = open('test.txt', 'a')
 
         self.step_number = 0
         self.c_f = 0
@@ -389,19 +406,19 @@ class robot_learning(ChronoBaseEnv):
             self.vehicle.Advance(self.timestep)
             self.terrain.Advance(self.timestep)
             self.system.DoStepDynamics(self.timestep)
-            # chrono_time = t.time() - start
-            # sens_start = t.time()
+
             self.manager.Update()
-            # sensor_time = t.time() - sens_start
-            # if sensor_time > 1e-4:
-                # print('Chrono :: ', chrono_time)
-                # print('Sensor :: ', sensor_time)
+
+            pos = self.chassis_body.GetPos()
+            vel = self.chassis_body.GetPos_dt()
+            acc = self.chassis_body.GetPos_dtdt()
+            t,s,b = self.m_inputs.m_throttle, self.m_inputs.m_steering, self.m_inputs.m_braking
+
+            self.file.write(f'{pos.x},{pos.y},{pos.z},{vel.x},{vel.y},{vel.z},{acc.x},{acc.y},{acc.z},{t},{s},{b}\n')
 
             self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
             if self.c_f:
                 break
-            # for box in self.boxes:
-            #     self.c_f += box.GetContactForce().Length()
 
             if time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
@@ -513,9 +530,9 @@ class robot_learning(ChronoBaseEnv):
             save = True
             birds_eye = False
             third_person = True
-            angle = True
-            width = 1920
-            height = 1280
+            angle = False
+            width = 600
+            height = 400
             if birds_eye:
                 body = chrono.ChBodyAuxRef()
                 body.SetBodyFixed(True)
@@ -596,4 +613,4 @@ class robot_learning(ChronoBaseEnv):
         raise NotImplementedError
 
     def __del__(self):
-        del self.manager
+        self.file.close()

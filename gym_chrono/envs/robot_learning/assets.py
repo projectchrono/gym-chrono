@@ -1,6 +1,7 @@
 import pychrono as chrono
 import pychrono.sensor as sens
 import random
+import numpy as np
 
 class AssetMesh():
     def __init__(self, filename, bounding_box=None):
@@ -122,16 +123,26 @@ class AssetList():
         return frame
 
     def RandomlyPositionAssets(self, system, vehicle_pos, goal_pos, terrain, length, width, should_scale=True):
-        for asset in self.assets:
-            for _ in range(asset.num):
+        first = True
+        for i, asset in enumerate(self.assets):
+            if not asset.num:
+                continue
+            for j in range(asset.num):
+
+                if should_scale:
+                    scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+                else:
+                    scale = 1
+
                 # Check if position is too close to another asset, vehicle or goal
+                iter = 0
                 while True:
+                    iter += 1
+                    if iter > 100:
+                        iter = 101
+                        break
                     # Calculate random transformation values
                     pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
-                    if should_scale:
-                        scale = self.map(random.random(), asset.min_scale, asset.max_scale)
-                    else:
-                        scale = 1
                     threshold = asset.mesh.bounding_box.Length() * scale / 2
                     if (pos - vehicle_pos).Length() < 15:
                         continue
@@ -140,6 +151,14 @@ class AssetList():
                     min_pos = min(self.positions, key=lambda x: (x - pos).Length())
                     if  (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
                         break
+                if iter == 101:
+                    continue
+
+                obs = 3
+                if first and j < obs:
+                    x = np.linspace(vehicle_pos.x, goal_pos.x, obs+2)[1:-1]
+                    y = np.linspace(vehicle_pos.y, goal_pos.y, obs+2)[1:-1]
+                    pos = chrono.ChVectorD(x[j],y[j],terrain.GetHeight(chrono.ChVectorD(x[j], y[j], 0)))
 
                 # Calculate other random values
                 ang = random.random()*chrono.CH_C_PI
@@ -159,6 +178,66 @@ class AssetList():
 
                 # system.Add(asset.mesh.body)
 
+            first = False
+
+    def RandomlyAddAssets(self, system, vehicle_pos, goal_pos, terrain, length, width, should_scale=True):
+        first = True
+        for i, asset in enumerate(self.assets):
+            if not asset.num:
+                continue
+            for j in range(asset.num):
+
+                if should_scale:
+                    scale = self.map(random.random(), asset.min_scale, asset.max_scale)
+                else:
+                    scale = 1
+
+                # Check if position is too close to another asset, vehicle or goal
+                iter = 0
+                while True:
+                    iter += 1
+                    if iter > 100:
+                        iter = 101
+                        break
+                    # Calculate random transformation values
+                    pos = self.CalcRandomPose(terrain, length, width, offset=-random.random()*.5)
+                    threshold = asset.mesh.bounding_box.Length() * scale / 2
+                    if (pos - vehicle_pos).Length() < 15:
+                        continue
+                    if len(self.positions) == 0:
+                        break
+                    min_pos = min(self.positions, key=lambda x: (x - pos).Length())
+                    if  (pos - min_pos).Length() > threshold and (pos - goal_pos).Length() > 15:
+                        break
+                if iter == 101:
+                    continue
+
+                obs = 3
+                if first and j < obs:
+                    x = np.linspace(vehicle_pos.x, goal_pos.x, obs+2)[1:-1]
+                    y = np.linspace(vehicle_pos.y, goal_pos.y, obs+2)[1:-1]
+                    pos = chrono.ChVectorD(x[j],y[j],terrain.GetHeight(chrono.ChVectorD(x[j], y[j], 0)))
+
+                # Calculate other random values
+                ang = random.random()*chrono.CH_C_PI
+                frame = self.GenerateFrame(pos, ang, scale)
+                # scale = 10
+                # asset.Transform(pos, scale, ang)
+
+                self.positions.append(pos)
+                asset.frames.append(frame)
+
+                asset.mesh.pos = pos
+                asset.mesh.ang = ang
+                asset.mesh.scale = scale
+
+                # Update the collision model
+                # asset.mesh.UpdateCollisionModel(scale)
+
+                # system.Add(asset.mesh.body)
+
+            first = False
+
     def map(self, value, min, max):
         """ Scale a random value to be within a range """
         return min + (value * (max - min))
@@ -176,13 +255,15 @@ class AssetList():
 
     def CalcContactForces(self, chassis_body, collision_box):
         pos = chassis_body.GetPos()
-        for asset_pos in self.positions:
-            # box1 = np.array([collision_box.x, collision_box.y])
-            # box2 = np.array([asset.mesh.bounding_box.x, asset.mesh.bounding_box.y])
-            # if areColliding(chassis_body, asset.mesh.body, box1, box2):
-            #     return 1
-            if (pos - asset_pos).Length() < 3:
-                return 1
+        # for asset_pos in self.positions:
+        #     # box1 = np.array([collision_box.x, collision_box.y])
+        #     # box2 = np.array([asset.mesh.bounding_box.x, asset.mesh.bounding_box.y])
+        #     # if areColliding(chassis_body, asset.mesh.body, box1, box2):
+        #     #     return 1
+        #     if (pos - asset_pos).Length() < 3:
+        #         return 1
+        # for asset in self.assets:
+        #     print(asset.GetContactForceLength())
         return 0
 
     def GetClosestAssetDist(self, chassis_body, min_dist=200):
@@ -195,3 +276,11 @@ class AssetList():
 
     def GetNum(self):
         return len(self.assets)
+
+    def write(self, filename='obstacles.txt'):
+        with open(filename, 'w') as file:
+            for asset in self.assets:
+                for i in range(asset.frames.size()):
+                    frame = asset.frames[i]
+                    pos = frame.GetPos()
+                    file.write(f'{pos.x},{pos.y},{pos.z}\n')
