@@ -1,6 +1,8 @@
 import pychrono as chrono
 import numpy as np
 
+import re
+
 class Asset:
     def __init__(self, filename, scale_range):
         self.filename = filename
@@ -31,8 +33,8 @@ class Asset:
 
     def CreateCollisionModel(self):
         self.body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(0)
-        self.body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
-        self.body.GetCollisionModel().SetFamily(1)
+        self.body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(3)
+        self.body.GetCollisionModel().SetFamily(3)
 
     def Transform(self):
         self.mesh.Transform(chrono.ChVectorD(0,0,0), chrono.ChMatrix33D(self.scale))
@@ -46,6 +48,17 @@ class Asset:
         self.body.SetPos(p)
         self.ready = True
 
+    @property
+    def rot(self):
+        return self.body.GetRot()
+
+    @rot.setter
+    def rot(self, r):
+        self.body.SetRot(r)
+
+    def GetName(self):
+        return re.search('sensor/offroad/(.*).obj', self.filename).group(1)
+
     def Copy(self):
         return Asset(self.filename, self.scale_range)
 
@@ -53,25 +66,25 @@ class AssetHandler:
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
         self.assets = []
         for _ in range(b1):
-            self.assets.append(Asset("sensor/offroad/bush.obj", (0.5, 1.5)))
+            self.assets.append(Asset("sensor/offroad/bush1.obj", (1, 2)))
         for _ in range(b2):
             self.assets.append(Asset("sensor/offroad/bush2.obj", (0.5, 1.5)))
         for _ in range(r1):
-            self.assets.append(Asset("sensor/offroad/rock1.obj", (0.25, 1)))
+            self.assets.append(Asset("sensor/offroad/rock1.obj", (0.5, 1)))
         for _ in range(r2):
-            self.assets.append(Asset("sensor/offroad/rock2.obj", (0.25, .75)))
+            self.assets.append(Asset("sensor/offroad/rock2.obj", (0.5, 1.1)))
         for _ in range(r3):
-            self.assets.append(Asset("sensor/offroad/rock3.obj", (0.25, .75)))
+            self.assets.append(Asset("sensor/offroad/rock3.obj", (0.5, 1.1)))
         for _ in range(r4):
-            self.assets.append(Asset("sensor/offroad/rock4.obj", (0.25, .75)))
+            self.assets.append(Asset("sensor/offroad/rock4.obj", (0.5, 1.1)))
         for _ in range(r5):
-            self.assets.append(Asset("sensor/offroad/rock5.obj", (0.25, .75)))
+            self.assets.append(Asset("sensor/offroad/rock5.obj", (0.5, 1.1)))
         for _ in range(t1):
             self.assets.append(Asset("sensor/offroad/tree1.obj", (0.5, 2)))
         for _ in range(t2):
             self.assets.append(Asset("sensor/offroad/tree2.obj", (0.15, .5)))
         for _ in range(t3):
-            self.assets.append(Asset("sensor/offroad/tree3.obj", (5, 5)))
+            self.assets.append(Asset("sensor/offroad/tree3.obj", (1, 1)))
         for _ in range(c):
             self.assets.append(Asset("sensor/offroad/cottage.obj", (1, 1)))
 
@@ -83,10 +96,16 @@ class AssetHandler:
             pos = chrono.ChVectorD(x[i], y[i], 0)
             pos.z = terrain.GetHeight(pos)
 
+            rot = chrono.Q_from_AngZ(np.random.uniform(0, np.pi))
+
+            offset = chrono.ChVectorD(pos.y, -pos.x, 0)
+            offset = offset.GetNormalized() * (np.random.random() - 0.5) * 20
+
             rand_asset = np.random.choice(self.assets).Copy()
-            rand_asset.pos = pos
+            rand_asset.pos = pos + offset
+            rand_asset.rot = rot
             if should_scale:
-                rand_asset.scale = rand_asset.scale_range[0]
+                rand_asset.scale = np.random.uniform(rand_asset.scale_range[0], rand_asset.scale_range[1])
 
             self.assets.append(rand_asset)
 
@@ -115,7 +134,10 @@ class AssetHandler:
             if not success:
                 continue
 
+            rot = chrono.Q_from_AngZ(np.random.uniform(0, np.pi))
+
             asset.pos = pos
+            asset.rot = rot
             asset.scale = scale
 
         for asset in self.assets:
@@ -141,7 +163,9 @@ class AssetHandler:
                 if not asset.ready:
                     continue
                 pos = asset.pos
-                file.write(f'{pos.x},{pos.y},{pos.z}\n')
+                rot = asset.rot
+                name = asset.GetName()
+                file.write(f'{name},{pos.x},{pos.y},{pos.z},{rot.Q_to_Euler123().z},{asset.scale}\n')
 
     def GetContactedAssets(self):
         ca = []
