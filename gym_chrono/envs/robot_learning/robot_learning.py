@@ -137,7 +137,7 @@ class robot_learning(ChronoBaseEnv):
         if 'height_map' in self.terrain_type:
             shape = (252, 252)
             self.bitmap_file = os.path.join(self.out_dir, f'height_map{self.run_number}.png')
-            generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(400,400), file_name=self.bitmap_file, initPos=self.initLoc)
+            generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(100,100), file_name=self.bitmap_file, initPos=self.initLoc)
 
         if 'rigid' in self.terrain_type:
             self.terrain = veh.RigidTerrain(self.system)
