@@ -3,8 +3,6 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 
-from control_utilities.track import Track
-
 import math
 import numpy as np
 
@@ -65,6 +63,8 @@ def CalcInitialPose(p1 : chrono.ChVectorD, p2 : chrono.ChVectorD, z=0.1, reverse
     return initLoc, initRot
 
 def GenerateHallwayTrack(z=.15, width=1.1):
+    from control_utilities.track import Track
+
     points = [[-8.713, -1.646],
               [-7.851, -1.589],
               [-6.847, -1.405],

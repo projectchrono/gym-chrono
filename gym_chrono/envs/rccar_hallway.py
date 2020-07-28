@@ -19,8 +19,8 @@ import gym
 from gym import spaces
 
 # control_utilities imports
-from control_utilities.driver import Driver
-from control_utilities.track import Track
+# from control_utilities.driver import Driver
+# from control_utilities.track import Track
 
 class rccar_hallway(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
@@ -45,7 +45,7 @@ class rccar_hallway(ChronoBaseEnv):
         # -------------------------------
         # Initialize simulation settings
         # -------------------------------
-        
+
         self.timeend = 40
         self.control_frequency = 10
 

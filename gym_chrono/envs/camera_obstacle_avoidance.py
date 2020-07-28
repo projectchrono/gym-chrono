@@ -11,7 +11,7 @@ from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 import gym
 from gym import spaces
 
-from control_utilities.chrono_utilities import setDataDirectory
+# from control_utilities.chrono_utilities import setDataDirectory
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
 #
@@ -186,7 +186,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.SteeringDelta = (self.timestep / steering_time)
         self.ThrottleDelta = (self.timestep / throttle_time)
         self.BrakingDelta  =(self.timestep / braking_time)
-        
+
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 4000.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 4000.0)

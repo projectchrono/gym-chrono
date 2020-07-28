@@ -18,8 +18,8 @@ import gym
 from gym import spaces
 
 # control_utilities imports
-from control_utilities.driver import Driver
-from control_utilities.track import RandomTrack
+# from control_utilities.driver import Driver
+# from control_utilities.track import RandomTrack
 
 class barrier_track(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""

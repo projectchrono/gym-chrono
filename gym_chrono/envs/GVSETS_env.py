@@ -15,8 +15,7 @@ import cv2 as cv
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from control_utilities.chrono_utilities import setDataDirectory
-from control_utilities.obstacle import getObstacleBoundaryDim
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories
 
 # openai-gym imports
 from gym import spaces
@@ -163,7 +162,7 @@ class GVSETS_env(ChronoBaseEnv):
 
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        setDataDirectory()
+        SetChronoDataDirectories()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:

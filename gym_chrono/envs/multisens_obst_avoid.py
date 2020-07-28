@@ -1,7 +1,6 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-from control_utilities.chrono_utilities import setDataDirectory
 import numpy as np
 import math
 import os
@@ -10,6 +9,7 @@ from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 # openai-gym imports
 import gym
 from gym import spaces
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 
 # ----------------------------------------------------------------------------------------------------
 # Set data directory
@@ -62,7 +62,7 @@ class multisens_obst_avoid(ChronoBaseEnv):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        setDataDirectory()
+        SetChronoDataDirectories()
 
         # Define action and observation space
         # They must be gym.spaces objects
@@ -187,7 +187,7 @@ class multisens_obst_avoid(ChronoBaseEnv):
         self.SteeringDelta = (self.timestep / steering_time)
         self.ThrottleDelta = (self.timestep / throttle_time)
         self.BrakingDelta  =(self.timestep / braking_time)
-        
+
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 500.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 500.0)

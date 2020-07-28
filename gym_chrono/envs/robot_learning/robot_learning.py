@@ -73,11 +73,11 @@ class robot_learning(ChronoBaseEnv):
 
         # Specify the terrain type
         self.terrain_type = ''
-        # self.terrain_type += 'rigid'
+        self.terrain_type += 'rigid'
         # self.terrain_type += 'scm_hard'
-        self.terrain_type += 'scm_soft'
-        # self.terrain_type += '_flat'
-        self.terrain_type += '_height_map'
+        # self.terrain_type += 'scm_soft'
+        self.terrain_type += '_flat'
+        # self.terrain_type += '_height_map'
 
         self.num_obstacles = 5
 
