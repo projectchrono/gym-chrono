@@ -14,7 +14,7 @@ from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 from gym_chrono.envs.utils.gps_utilities import *
-from gym_chrono.envs.robot_learning.asset2 import *
+from gym_chrono.envs.robot_learning.assets import *
 from gym_chrono.envs.robot_learning.parameters import *
 
 # openai-gym imports
@@ -38,7 +38,9 @@ class robot_learning(ChronoBaseEnv):
         ChronoBaseEnv.__init__(self)
 
         # Set Chrono data directories
-        SetChronoDataDirectories()
+        data_dir = os.path.join(os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)), 'data', '')
+        chrono.SetChronoDataPath(data_dir)
+        veh.SetDataPath(os.path.join(data_dir, 'vehicle', ''))
 
         # Define action and observation space
         # They must be gym.spaces objects
@@ -63,7 +65,7 @@ class robot_learning(ChronoBaseEnv):
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
-        self.max_terrain_height = 5 # max terrain height
+        self.max_terrain_height = 4 # max terrain height
         self.terrain_length = 80.0 # size in X direction
         self.terrain_width = 80.0  # size in Y direction
         self.divs_per_units = 20 # divisions per unit (SCM only)
@@ -77,33 +79,38 @@ class robot_learning(ChronoBaseEnv):
         # self.terrain_type += '_flat'
         self.terrain_type += '_height_map'
 
-        self.num_obstacles = 2
+        self.num_obstacles = 5
 
-        temp_dir = os.path.dirname(os.path.realpath(__file__))
-        temp_dir = os.path.abspath(os.path.join(temp_dir, '..'))
+        self.rank = -1
+        self.num_envs = -1
+        self.run_number = 0
+
+        self.save_data = False
+        if self.save_data:
+            self.folder = 'RL_OUTPUT'
+
+            if 'height_map' in self.terrain_type:
+                self.out_dir = f'{self.folder}/{self.terrain_type}{self.max_terrain_height}/{self.num_obstacles}'
+            else:
+                self.out_dir = f'{self.folder}/{self.terrain_type}/{self.num_obstacles}'
+
+            try:
+                os.makedirs(self.out_dir, exist_ok=True)
+            except OSError as error:
+                print(error)
 
         self.render_setup = False
         self.play_mode = False
 
-        self.run_number = 0
-        if 'height_map' in self.terrain_type:
-            self.out_dir = f'RL_OUTPUT/{self.terrain_type}{self.max_terrain_height}/{self.num_obstacles}'
-        else:
-            self.out_dir = f'RL_OUTPUT/{self.terrain_type}/{self.num_obstacles}'
-
-        try:
-            os.makedirs(self.out_dir, exist_ok=True)
-        except OSError as error:
-            print(error)
+    def get_num(self):
+        return self.rank + self.run_number * self.num_envs
 
     def reset(self):
+        num = self.get_num()
+
         self.start = get_real_time()
 
         # Add objects
-        # seed = 1
-        # np.random.seed(seed)
-        # random.seed(seed)
-
         n = self.num_obstacles
         b1 = 0 # int(n / 2)
         b2 = 0 # int(n / 2)
@@ -136,7 +143,10 @@ class robot_learning(ChronoBaseEnv):
         # Create terrain
         if 'height_map' in self.terrain_type:
             shape = (252, 252)
-            self.bitmap_file = os.path.join(self.out_dir, f'height_map{self.run_number}.png')
+            if self.save_data:
+                self.bitmap_file = os.path.join(self.out_dir, f'height_map{num}.png')
+            else:
+                self.bitmap_file = f'height_map{num}.png'
             generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5,1.5)], img_size=(100,100), file_name=self.bitmap_file, initPos=self.initLoc)
 
         if 'rigid' in self.terrain_type:
@@ -164,9 +174,6 @@ class robot_learning(ChronoBaseEnv):
             self.terrain.Initialize()
 
             texture_file = chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg")
-            # texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
-            # texture_file = chrono.GetChronoDataFile("sensor/textures/mud.png")
-            # texture_file = chrono.GetChronoDataFile("sensor/textures/snow.jpg")
             material_list = chrono.CastToChVisualization(patch.GetGroundBody().GetAssets()[0]).material_list
 
         elif 'scm' in self.terrain_type:
@@ -213,10 +220,6 @@ class robot_learning(ChronoBaseEnv):
             texture_file = chrono.GetChronoDataFile('sensor/textures/')
             if 'hard' in self.terrain_type: texture_file += 'mud.png'
             elif 'soft' in self.terrain_type: texture_file += 'snow.jpg'
-            # texture_file = chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg")
-            # texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
-            # texture_file = chrono.GetChronoDataFile("sensor/textures/mud.png")
-            # texture_file = chrono.GetChronoDataFile("sensor/textures/snow.jpg")
             material_list = self.terrain.GetMesh().material_list
         else:
             raise Exception(f'{self.terrain_type} does not specify terrain type (rigid or scm)')
@@ -227,7 +230,7 @@ class robot_learning(ChronoBaseEnv):
         vis_mat.SetKdTexture(texture_file)
         material_list.push_back(vis_mat)
 
-        self.initLoc.z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.5
+        self.initLoc.z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.4
 
         self.vehicle = veh.Gator(self.system)
         self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
@@ -244,7 +247,7 @@ class robot_learning(ChronoBaseEnv):
 
         if self.play_mode:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-            self.vehicle.SetTireVisualizationType(veh.VisualizationType_NONE)
+            self.vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
         else:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
@@ -257,9 +260,6 @@ class robot_learning(ChronoBaseEnv):
         self.chassis_body.GetCollisionModel().SetFamily(2)
         self.chassis_body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(0)
         self.chassis_body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
-
-        # for axle in self.vehicle.GetAxles():
-        #     for wheel in axle.GetWheels():
 
         if 'scm' in self.terrain_type:
             self.terrain.AddMovingPatch(self.vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), 5, 5)
@@ -311,7 +311,6 @@ class robot_learning(ChronoBaseEnv):
             pass
 
         # create obstacles
-        # start = t.time()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain, self.terrain_length, self.terrain_width, should_scale=True)
 
         # Set the time response for steering and throttle inputs.
@@ -329,13 +328,7 @@ class robot_learning(ChronoBaseEnv):
         self.manager = sens.ChSensorManager(self.system)
         self.manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
         self.manager.scene.AddPointLight(chrono.ChVectorF(-100, -100, 100), chrono.ChVectorF(1, 1, 1), 5000.0)
-        # Let's not, for the moment, give a different scenario during test
-        """
-        if self.play_mode:
-            self.manager.scene.GetBackground().has_texture = True;
-            self.manager.scene.GetBackground().env_tex = "sensor/textures/qwantani_8k.hdr"
-            self.manager.scene.GetBackground().has_changed = True;
-        """
+
         # -----------------------------------------------------
         # Create a self.camera and add it to the sensor manager
         # -----------------------------------------------------
@@ -351,9 +344,8 @@ class robot_learning(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
-        # self.camera.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/first_person/"))
-        #if self.play_mode:
-        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        if self.play_mode:
+           self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
         self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
@@ -371,32 +363,23 @@ class robot_learning(ChronoBaseEnv):
         self.gps.PushFilter(sens.ChFilterGPSAccess())
         self.manager.AddSensor(self.gps)
 
-        # have to reconstruct scene because sensor loads in meshes separately (ask Asher)
-        # start = t.time()
-        # if len(self.assets) > 0:
-        #     self.assets.TransformAgain()
-        #     # start = t.time()
-        #     # for asset in self.assets.assets:
-        #     #     if len(asset.frames) > 0:
-        #     #         self.manager.AddInstancedStaticSceneMeshes(asset.frames, asset.mesh.shape)
-        #     self.manager.ReconstructScenes()
-        #     # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
-        #     # self.manager.Update()
-        #     # print('Reconstruction :: ', t.time() - start)
         self.assets.ResetAssets()
         self.manager.ReconstructScenes()
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
-        sim_data_filename = os.path.join(self.out_dir, f'sim_data{self.run_number}.txt')
-        obs_filename = os.path.join(self.out_dir, f'obs{self.run_number}.txt')
-        self.hit_obs_filename = os.path.join(self.out_dir, f'hit_obs{self.run_number}.txt')
-        self.results_filename = os.path.join(self.out_dir, f'results{self.run_number}.txt')
+        if self.save_data:
+            sim_data_filename = os.path.join(self.out_dir, f'sim_data{num}.txt')
+            obs_filename = os.path.join(self.out_dir, f'obs{num}.txt')
+            self.hit_obs_filename = os.path.join(self.out_dir, f'hit_obs{num}.txt')
+            self.results_filename = os.path.join(self.out_dir, f'results{num}.txt')
 
-        self.sim_data_file = open(sim_data_filename, 'w')
-        temp = open(self.hit_obs_filename, 'w'); temp.close()
+            self.sim_data_file = open(sim_data_filename, 'w')
+            temp = open(self.hit_obs_filename, 'w'); temp.close()
 
-        self.assets.Write(filename=obs_filename)
+            self.assets.Write(filename=obs_filename)
+
+            # self.driver_file = open(os.path.join(self.out_dir, f'sim_data{num}.txt'))
 
         self.run_number += 1
 
@@ -431,6 +414,13 @@ class robot_learning(ChronoBaseEnv):
                                                   self.m_inputs.m_braking + self.BrakingDelta)
                 self.m_inputs.m_throttle = np.clip(0, self.m_inputs.m_throttle - self.ThrottleDelta,
                                                    self.m_inputs.m_throttle + self.ThrottleDelta)
+
+            # line = self.driver_file.readline()
+            # (t,s,b) = line.split(',')[11:14]
+            # self.m_inputs.m_throttle = float(t)
+            # self.m_inputs.m_steering = float(s)
+            # self.m_inputs.m_braking = float(b[0])
+
             self.driver.Synchronize(time)
             self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
             self.terrain.Synchronize(time)
@@ -443,18 +433,20 @@ class robot_learning(ChronoBaseEnv):
 
             self.manager.Update()
 
-            pos = self.chassis_body.GetPos()
-            vel = self.chassis_body.GetPos_dt()
-            acc = self.chassis_body.GetPos_dtdt()
-            head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
-            t,s,b = self.m_inputs.m_throttle, self.m_inputs.m_steering, self.m_inputs.m_braking
+            if self.save_data:
+                pos = self.chassis_body.GetPos()
+                vel = self.chassis_body.GetPos_dt()
+                acc = self.chassis_body.GetPos_dtdt()
+                head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
+                t,s,b = self.m_inputs.m_throttle, self.m_inputs.m_steering, self.m_inputs.m_braking
 
-            self.sim_data_file.write(f'{time},{pos.x},{pos.y},{pos.z},{vel.x},{vel.y},{vel.z},{acc.x},{acc.y},{acc.z},{head},{t},{s},{b}\n')
+                self.sim_data_file.write(f'{time},{pos.x},{pos.y},{pos.z},{vel.x},{vel.y},{vel.z},{acc.x},{acc.y},{acc.z},{head},{t},{s},{b}\n')
 
             contacted_assets = self.assets.GetContactedAssets()
             if len(contacted_assets):
                 print('Contact!')
-                self.assets.Write(self.hit_obs_filename, contacted_assets)
+                if self.save_data:
+                    self.assets.Write(self.hit_obs_filename, contacted_assets)
                 self.c_f = 1
                 break
 
@@ -516,8 +508,9 @@ class robot_learning(ChronoBaseEnv):
     def is_done(self):
 
         def save_results(result, reason):
-            with open(self.results_filename, 'w') as file:
-                file.write(f'{result},{reason}')
+            if self.save_data:
+                with open(self.results_filename, 'w') as file:
+                    file.write(f'{result},{reason}')
 
         pos = self.chassis_body.GetPos()
 
@@ -577,8 +570,8 @@ class robot_learning(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            # res = (1920,1280)
-            res = (800,600)
+            res = (1920,1280)
+            # res = (800,600)
             vis = 0
             save = 1
             birds_eye = 0
@@ -650,7 +643,7 @@ class robot_learning(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-6, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(-11, 0, 4), chrono.Q_from_AngAxis(chrono.CH_C_PI / 17, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
@@ -674,6 +667,9 @@ class robot_learning(ChronoBaseEnv):
             # vis_camera.PushFilter(sens.ChFilterVisualize("Visualization Camera"))
             self.render_setup = True
 
+            # self.manager.Update()
+            # exit()
+
         if (mode == 'rgb_array'):
             return self.get_ob()
 
@@ -686,5 +682,6 @@ class robot_learning(ChronoBaseEnv):
     def __del__(self):
         try:
             self.file.close()
+            # self.driver_file.close()
         except:
             return
