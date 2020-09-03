@@ -15,3 +15,7 @@ from gym_chrono.envs.off_road_gator_v2 import off_road_gator_v2
 from gym_chrono.envs.off_road_gator import off_road_gator
 from gym_chrono.envs.GVSETS_env import GVSETS_env
 from gym_chrono.envs.robot_learning.robot_learning import robot_learning
+from gym_chrono.envs.ICRA.ICRA_tracked_leader import icra_tracked_leader
+from gym_chrono.envs.ICRA.ICRA_wheeled_leader import icra_wheeled_leader
+from gym_chrono.envs.ICRA.ICRA_wheeled_follower import icra_wheeled_follower
+from gym_chrono.envs.ICRA.ICRA_tracked_follower import icra_tracked_follower

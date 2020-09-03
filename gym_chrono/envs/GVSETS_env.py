@@ -15,7 +15,7 @@ import cv2 as cv
 
 # Custom imports
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
-from gym_chrono.envs.utils.utilities import SetChronoDataDirectories
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, getObstacleBoundaryDim
 
 # openai-gym imports
 from gym import spaces
@@ -192,7 +192,7 @@ class GVSETS_env(ChronoBaseEnv):
         self.terrainLength = 200.0  # size in X direction
         self.terrainWidth = 200.0  # size in Y direction
         self.obst_paths = ['sensor/offroad/rock1.obj', 'sensor/offroad/rock3.obj', 'sensor/offroad/rock4.obj',
-                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush.obj']
+                      'sensor/offroad/rock5.obj', 'sensor/offroad/tree1.obj', 'sensor/offroad/bush1.obj']
         self.vis_meshes = [chrono.ChTriangleMeshConnected() for i in range(len(self.obst_paths))]
         for path, mesh in zip(self.obst_paths, self.vis_meshes):  mesh.LoadWavefrontMesh(chrono.GetChronoDataFile(path), True, True)
         self.obst_bound = [ getObstacleBoundaryDim(mesh) for mesh in self.vis_meshes]

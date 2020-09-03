@@ -86,3 +86,23 @@ register(
     #reward_threshold=10.0,
     #nondeterministic = True,
 )
+
+register(
+    id='icra_tracked_leader-v0',
+    entry_point='gym_chrono.envs:icra_tracked_leader'
+)
+
+register(
+    id='icra_wheeled_leader-v0',
+    entry_point='gym_chrono.envs:icra_wheeled_leader'
+)
+
+register(
+    id='icra_wheeled_follower-v0',
+    entry_point='gym_chrono.envs:icra_wheeled_follower'
+)
+
+register(
+    id='icra_tracked_follower-v0',
+    entry_point='gym_chrono.envs:icra_tracked_follower'
+)

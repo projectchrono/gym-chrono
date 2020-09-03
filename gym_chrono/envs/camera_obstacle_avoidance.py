@@ -10,6 +10,7 @@ from gym_chrono.envs.ChronoBase import  ChronoBaseEnv
 # openai-gym imports
 import gym
 from gym import spaces
+from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 
 # from control_utilities.chrono_utilities import setDataDirectory
 # ----------------------------------------------------------------------------------------------------
@@ -63,7 +64,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         ChronoBaseEnv.__init__(self)
-        setDataDirectory()
+        SetChronoDataDirectories()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:

@@ -124,3 +124,18 @@ def areColliding(body1, body2, box1, box2):
         if abs(d.x)<box1[0] and abs(d.y)<box1[1]:
             return True
     return False
+
+# Evaluates obstacle's boundary box dimensions x, y, z
+def getObstacleBoundaryDim(mesh):
+    verts = mesh.getCoordsVertices()
+    x = []
+    y = []
+    z = []
+    for vert in verts:
+        x.append(vert.x)
+        y.append(vert.y)
+        z.append(vert.z)
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    return np.amax(x) - np.amin(x), np.amax(y) - np.amin(y), np.amax(z) - np.amin(z)
