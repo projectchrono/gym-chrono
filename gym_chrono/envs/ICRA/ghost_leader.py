@@ -25,7 +25,7 @@ class GhostLeaderHandler(AssetHandler):
     def Update(self):
         t = self.path.current_t
         for i, leader in enumerate(self.leaders):
-            pos, rot = self.path.GetPose(t + i * self.interval)
+            pos, rot = self.path.GetPose(t + (i+1) * self.interval)
 
             leader.pos = pos
             leader.rot = rot
