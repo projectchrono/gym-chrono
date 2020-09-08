@@ -24,13 +24,16 @@ class Point(SPoint):
 
 
 class Line(SLine):
-    def __init__(self, first, final):
-        super().__init__([first.center, final.center])
-        self.first = first
-        self.final = final
-        self.dx = final.x - first.x
-        self.dy = final.y - first.y
-        self.theta = np.arctan2(self.dy, self.dx)
+    def __init__(self, first=None, final=None, points=None):
+        if first is not None and final is not None:
+            super().__init__([first.center, final.center])
+            self.first = first
+            self.final = final
+            self.dx = final.x - first.x
+            self.dy = final.y - first.y
+            self.theta = np.arctan2(self.dy, self.dx)
+        elif points is not None:
+            super().__init__(points)
 
     def divide(self, d):
         ix = self.dx / (d+1)
@@ -46,6 +49,23 @@ class Line(SLine):
 
 
 class Polygon(SPolygon):
+    def __init__(self, filename, center, theta, scale=1.5):
+        temp = np.loadtxt(filename)
+
+        points = []
+        for p in temp:
+            point = Point(p[0], p[1]).scale(scale, scale).rotate(theta).translate(center)
+            points.append(point)
+        
+        super().__init__(points)
+
+        self.rotation = theta
+
+    def angle(self):
+        # convert from radians to degrees
+        return self.rotation * 180.0 / np.pi
+
+class Rectangle(SPolygon):
     def __init__(self, sx, sy, theta, t):
         corners = [
             Point(0.0, 0.0).scale(sx, sy).rotate(theta).translate(t).center,

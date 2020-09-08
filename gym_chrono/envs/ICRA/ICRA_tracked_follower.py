@@ -272,7 +272,7 @@ class icra_tracked_follower(ChronoBaseEnv):
                                veh.TrackShoeType_SINGLE_PIN, 
                                veh.BrakeType_SIMPLE, 
                                self.system,
-                               veh.ChassisCollisionType_MESH)
+                               veh.ChassisCollisionType_PRIMITIVES)
         self.vehicle.Initialize(chrono.ChCoordsysD(self.initLoc, self.initRot))
 
         if self.play_mode:
@@ -510,7 +510,7 @@ class icra_tracked_follower(ChronoBaseEnv):
                 self.c_f = 1
                 break
 
-            if time + self.timestep > self.step_number:
+            if self.play_mode and time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
                 self.step_number += 1
             

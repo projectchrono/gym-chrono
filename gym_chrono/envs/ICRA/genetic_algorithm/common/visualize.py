@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptc
+from descartes import PolygonPatch
 
-i = 0
+from common.geometry import Line
+
+def closeFigs():
+    plt.close('all')
 
 def visualizeResult(grid, boundaries, obstacles, title, population=None, optimal=None):
-    import matplotlib
-    matplotlib.use('Agg')
     fig, ax = plt.subplots()
 
     ax.set_title(title, weight='bold')
@@ -25,14 +27,8 @@ def visualizeResult(grid, boundaries, obstacles, title, population=None, optimal
     )
 
     for obstacle in obstacles:
-        rectangle = ptc.Rectangle(
-            obstacle.datum,
-            obstacle.width,
-            obstacle.height,
-            obstacle.angle(),
-            edgecolor='None', facecolor='grey', alpha=1.0
-        )
-        ax.add_patch(rectangle)
+        patch = PolygonPatch(obstacle, edgecolor='None', facecolor='grey', alpha=1.0)
+        ax.add_patch(patch)
 
     for boundary in boundaries:
         rectangle = ptc.Rectangle(
@@ -53,7 +49,11 @@ def visualizeResult(grid, boundaries, obstacles, title, population=None, optimal
     if optimal is not None:
         px = [point.x for point in optimal.points]
         py = [point.y for point in optimal.points]
-        ax.plot(px, py, 'c-', alpha=0.8, markersize=4)
+        ax.plot(px, py, '.c-', alpha=0.8, markersize=4)
+
+        ls = Line(points=optimal.points).buffer(2.0)
+        patch = PolygonPatch(ls, edgecolor='None', facecolor='grey', alpha=0.3)
+        ax.add_patch(patch)
 
     ax.plot(grid.first.x, grid.first.y, 'co')
     ax.plot(grid.final.x, grid.final.y, 'mo')
@@ -62,12 +62,8 @@ def visualizeResult(grid, boundaries, obstacles, title, population=None, optimal
 
     plt.axis('scaled')
 
-    # plt.ion()
-    # plt.show()
-    global i
-    plt.savefig(f'test{i}.png', dpi=200)
-    i += 1
-    plt.clf()
+    plt.ion()
+    plt.show()
 
 
 def scatterPlot(x, y, title, xlabel, ylabel):

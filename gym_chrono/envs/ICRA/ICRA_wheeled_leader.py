@@ -54,7 +54,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
                 spaces.Box(low=-100, high=100, shape=(5,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
-        self.timestep = 1e-3
+        self.timestep = 4e-3
 
         # -------------------------------
         # Initialize simulation settings
@@ -77,8 +77,6 @@ class icra_wheeled_leader(ChronoBaseEnv):
         # self.terrain_type += 'scm_soft'
         self.terrain_type += '_flat'
         # self.terrain_type += '_height_map'
-
-        self.num_obstacles = 5
 
         self.rank = -1
         self.num_envs = -1
@@ -114,7 +112,10 @@ class icra_wheeled_leader(ChronoBaseEnv):
         patch_mat.SetRestitution(0.01)
 
         # Add objects
+        # self.num_obstacles = 5
+        self.num_obstacles = 2 * np.random.randint(1, 4)
         n = self.num_obstacles
+        n = 1
         b1 = 0 # int(n / 2)
         b2 = 0 # int(n / 2)
         r1 = n
@@ -133,11 +134,11 @@ class icra_wheeled_leader(ChronoBaseEnv):
         self.system = chrono.ChSystemNSC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-        self.system.SetSolverMaxIterations(50)
+        self.system.SetSolverMaxIterations(150)
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
-        theta = random.random()*2*np.pi
-        x,y = self.terrain_length*0.5*np.cos(theta) , self.terrain_width*0.5*np.sin(theta)
+        theta = random.random() * 2 * np.pi
+        x,y = self.terrain_length * 0.5 * np.cos(theta), self.terrain_width * 0.5 * np.sin(theta)
         ang = np.pi + theta
         x,y = -35,35
         self.initLoc = chrono.ChVectorD(x, y, 0)
@@ -268,7 +269,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
         delta_theta = (random.random()-0.5) * 1.0 * np.pi
         gx, gy = self.terrain_length * 0.5 * np.cos(theta + np.pi + delta_theta), self.terrain_width * 0.5 * np.sin(theta + np.pi + delta_theta)
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
-        # self.goal = chrono.ChVectorD(23.6622, -32.2506, 1)
+        
         gx, gy = -self.initLoc.x, -self.initLoc.y
         self.goal = chrono.ChVectorD(gx, gy, self.terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
@@ -303,7 +304,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
 
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
-            # self.system.Add(self.goal_sphere)
+            self.system.Add(self.goal_sphere)
             pass
 
         # create obstacles
@@ -332,6 +333,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
             self.chassis_body,  # body camera is attached to
             20,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
+            # chrono.ChFrameD(chrono.ChVectorD(.65, 0, .75), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
@@ -340,8 +342,9 @@ class icra_wheeled_leader(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
-        # if self.play_mode:
-        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        if self.play_mode:
+           self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        #    self.camera.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/first_person"))
         self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
@@ -416,6 +419,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
             # self.m_inputs.m_throttle = float(t)
             # self.m_inputs.m_steering = float(s)
             # self.m_inputs.m_braking = float(b[0])
+            # print(f'T: {self.m_inputs.m_throttle}, S: {self.m_inputs.m_steering}, B: {self.m_inputs.m_braking}')
 
             self.driver.Synchronize(time)
             self.vehicle.Synchronize(time, self.m_inputs, self.terrain)
@@ -446,7 +450,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
                 self.c_f = 1
                 break
 
-            if time + self.timestep > self.step_number:
+            if self.play_mode and time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
                 self.step_number += 1
             

@@ -19,6 +19,10 @@ from gym_chrono.envs.ICRA.parameters import *
 from gym_chrono.envs.ICRA.ghost_leader import *
 from gym_chrono.envs.ICRA.bezier_path import *
 
+from gym_chrono.envs.ICRA.genetic_algorithm.genetic_algorithm import genetic_algorithm
+from gym_chrono.envs.ICRA.genetic_algorithm.common.inputs import Inputs
+from gym_chrono.envs.ICRA.genetic_algorithm.common.geometry import Point
+
 # openai-gym imports
 import gym
 from gym import spaces
@@ -56,7 +60,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
                 spaces.Box(low=-100, high=100, shape=(6,), dtype=np.float)))                                        # goal gps
 
         self.info =  {"timeout": 10000.0}
-        self.timestep = 1e-3
+        self.timestep = 4e-3
 
         # -------------------------------
         # Initialize simulation settings
@@ -263,7 +267,26 @@ class icra_wheeled_follower(ChronoBaseEnv):
         # create path
         start = [self.initLoc.x, self.initLoc.y]
         goal = [self.goal.x, self.goal.y]
-        self.path = CreatePath(start, goal, self.assets)
+            
+
+        inputs = Inputs('genetic')
+
+        inputs.grid_minimum = Point(-self.terrain_width / 2, -self.terrain_length / 2)
+        inputs.grid_maximum = Point(self.terrain_width / 2, self.terrain_length / 2)
+        inputs.curve_samples = 30
+        inputs.population_count = 50
+        inputs.start = Point(self.initLoc.x,self.initLoc.y)
+        inputs.goal = Point(self.goal.x,self.goal.y)
+        inputs.obstacles = self.assets.assets
+        inputs.plot = False
+        
+        optimal_path = genetic_algorithm(inputs)
+
+        points = chrono.vector_ChVectorD()
+        for p in optimal_path.points:
+            points.push_back(chrono.ChVectorD(p.x, p.y, 0.2))
+
+        self.path = BezierPath(points)
 
         _,self.initRot = self.path.GetPose(0)
         self.initLoc.z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.75
@@ -336,13 +359,13 @@ class icra_wheeled_follower(ChronoBaseEnv):
         self.opt_dist = 12
         self.dist_rad = 4
 
-        for i in np.arange(0,1,1/1000.):
-            p = self.path.eval(i)
-            sphere = chrono.ChBodyEasySphere(.25, 1000, True, False)
-            sphere.SetBodyFixed(True)
-            sphere.SetPos(p)
-            sphere.AddAsset(chrono.ChColorAsset(1,0,0))
-            self.system.Add(sphere)
+        # for i in np.arange(0,1,1/1000.):
+        #     p = self.path.eval(i)
+        #     sphere = chrono.ChBodyEasySphere(.25, 1000, True, False)
+        #     sphere.SetBodyFixed(True)
+        #     sphere.SetPos(p)
+        #     sphere.AddAsset(chrono.ChColorAsset(1,0,0))
+        #     self.system.Add(sphere)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -500,7 +523,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
                 self.c_f = 1
                 break
 
-            if time + self.timestep > self.step_number:
+            if self.play_mode and time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
                 self.step_number += 1
             
@@ -637,10 +660,10 @@ class icra_wheeled_follower(ChronoBaseEnv):
         if not self.render_setup:
             # res = (1920,1280)
             res = (800,600)
-            vis = 0
-            save = 1
-            birds_eye = 1
-            third_person = 0
+            vis = 1
+            save = 0
+            birds_eye = 0
+            third_person = 1
             angle = 0
             close = 0
             width = res[0]

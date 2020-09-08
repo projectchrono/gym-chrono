@@ -60,7 +60,7 @@ class icra_tracked_leader(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 40
+        self.timeend = 30
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
@@ -235,7 +235,7 @@ class icra_tracked_leader(ChronoBaseEnv):
                                veh.TrackShoeType_SINGLE_PIN, 
                                veh.BrakeType_SIMPLE, 
                                self.system,
-                               veh.ChassisCollisionType_MESH)
+                               veh.ChassisCollisionType_PRIMITIVES)
         self.vehicle.Initialize(chrono.ChCoordsysD(self.initLoc, self.initRot))
 
         if self.play_mode:
@@ -456,7 +456,7 @@ class icra_tracked_leader(ChronoBaseEnv):
                 self.c_f = 1
                 break
 
-            if time + self.timestep > self.step_number:
+            if self.play_mode and time + self.timestep > self.step_number:
                 print('Time:', int(time + self.timestep))
                 self.step_number += 1
             

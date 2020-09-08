@@ -91,8 +91,13 @@ class AssetHandler:
             self.assets.append(Asset("sensor/offroad/tree3.obj", (1, 1)))
         for _ in range(c):
             self.assets.append(Asset("sensor/offroad/cottage.obj", (1, 1)))
+        
+        self.first = True
 
     def RandomlyPositionAssets(self, system, initLoc, finalLoc, terrain, terrain_length, terrain_width, should_scale=False):
+        if len(self.assets) == 0:
+            return
+
         diag_obs = 5
         for i in range(diag_obs):
             x = np.linspace(initLoc.x, finalLoc.x, diag_obs + 2)[1:-1]
@@ -144,9 +149,11 @@ class AssetHandler:
             asset.rot = rot
             asset.scale = scale
 
-        for asset in self.assets:
-            system.Add(asset.body)
-            asset.CreateCollisionModel()
+        if self.first:
+            self.first = False
+            for asset in self.assets:
+                system.Add(asset.body)
+                asset.CreateCollisionModel()
 
     def GenerateRandomPosition(self, terrain, terrain_length, terrain_width):
         x = (np.random.rand() - 0.5) * terrain_length

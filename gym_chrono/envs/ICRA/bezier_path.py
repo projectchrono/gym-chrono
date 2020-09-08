@@ -4,8 +4,6 @@ import numpy as np
 import math as m
 from scipy.interpolate import splprep, splev
 
-from gym_chrono.envs.ICRA.genetic_algorithm.code.genetic_algorithm import create_path, main
-
 class BezierPath(chrono.ChBezierCurve):
     def __init__(self, points, t0=0.05):
         super(BezierPath, self).__init__(points)
@@ -46,27 +44,4 @@ class BezierPath(chrono.ChBezierCurve):
         alpha = m.atan2(posD.y, posD.x)
         rot = chrono.Q_from_AngZ(alpha)
         return pos, rot
-
-
-def CreatePath(start, goal, assets):
-    obs = []
-    for asset in assets:
-        pos = asset.pos
-        obs.append([pos.x, pos.y])
-
-    path = create_path(obs)
-
-    # smooth path
-    points = np.array([[p.x,p.y] for p in path.points])
-    tck, u = splprep(points.T, s=0, per=0)
-    u_new = np.linspace(u.min(), u.max(), 100)
-    x,y = splev(u_new, tck, der=0)
-    points = np.array(list(zip(x,y)))
-
-    vec = chrono.vector_ChVectorD()
-    for p in points:
-        vec.push_back(chrono.ChVectorD(p[0], p[1], 0.25))
-    
-    
-    return BezierPath(vec)
         
