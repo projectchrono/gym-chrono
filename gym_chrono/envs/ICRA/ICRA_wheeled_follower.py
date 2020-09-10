@@ -66,7 +66,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         # Initialize simulation settings
         # -------------------------------
 
-        self.timeend = 40
+        self.timeend = 30
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height
@@ -114,7 +114,8 @@ class icra_wheeled_follower(ChronoBaseEnv):
         # seed = 4
         # np.random.seed(seed)
         # random.seed(seed)
-
+        # TODO: randomize
+        self.offset = chrono.ChVectorD(-15, 15, 0)
         num = self.get_num()
 
         self.start = get_real_time()
@@ -142,8 +143,9 @@ class icra_wheeled_follower(ChronoBaseEnv):
 
         # create leaders
         self.leaders = GhostLeaderHandler(patch_mat, 2, 0.2, "sensor/hmmwv_combined.obj")
-
+        self.target = chrono.ChVectorD()
         # Create systems
+        #TODO: NSC sys?
         self.system = chrono.ChSystemSMC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
@@ -151,7 +153,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         self.system.SetMaxPenetrationRecoverySpeed(4.0)
 
         theta = random.random()*2*np.pi
-        x,y = self.terrain_length*0.5*np.cos(theta) , self.terrain_width*0.5*np.sin(theta)
+        x,y = self.terrain_length*0.45*np.cos(theta) , self.terrain_width*0.45*np.sin(theta)
         ang = np.pi + theta
         #x,y = pow(-1, np.random.randint(1,))*0.9*self.terrain_length ,
         self.initLoc = chrono.ChVectorD(x, y, 0)
@@ -345,7 +347,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
 
         self.goal_sphere.SetPos(self.goal)
         if self.play_mode:
-            # self.system.Add(self.goal_sphere)
+            self.system.Add(self.goal_sphere)
             pass
 
 
@@ -504,6 +506,8 @@ class icra_wheeled_follower(ChronoBaseEnv):
             self.path.Advance((1 / self.leader_totalsteps)*((2*self.total_steps)/self.leader_totalsteps))
             self.leaders.Update()
             self.manager.Update()
+            self.target.Set(self.leaders[0].body.GetPos() + self.leaders[0].body.GetRot().Rotate(self.offset)  )
+            self.goal_sphere.SetPos(self.target + chrono.ChVectorD(0,0,10))
             self.total_steps+=1
 
             if self.save_data:
@@ -562,40 +566,36 @@ class icra_wheeled_follower(ChronoBaseEnv):
         head = self.vehicle.GetVehicle().GetVehicleRot().Q_to_Euler123().z
         lead_pos = self.leaders[0].body.GetPos().Length()
         lead_speed = (self.lead_pos - lead_pos)*self.control_frequency
-        dist = self.leaders[0].body.GetPos() - self.chassis_body.GetPos()
-        dist_local = self.chassis_body.GetRot().RotateBack(dist)
-        targ_head = np.arctan2(dist_local.y, dist_local.x)
+        lead_head = self.leaders[0].body.GetRot().Q_to_Euler123().z
+        #dist = self.target - self.chassis_body.GetPos()
+        #dist_local = self.chassis_body.GetRot().RotateBack(dist)
+
         leadCart = chrono.ChVectorD(lead_gps_data)
         sens.GPS2Cartesian(leadCart, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
-        gps_dist = leadCart - cur_gps_data
+        gps_dist = leadCart + self.leaders[0].body.GetRot().Rotate(self.offset) - cur_gps_data
         loc_dist_gps = [gps_dist.x * np.cos(head) + gps_dist.y * np.sin(head),
                         -gps_dist.x * np.sin(head) + gps_dist.y * np.cos(head)]
-
+        targ_head = np.arctan2(loc_dist_gps[1], loc_dist_gps[0])
+        #Check quantities
+        """
+        dist_local_ref = self.chassis_body.GetRot().RotateBack(dist)
+        targ_head_ref = np.arctan2(dist_local_ref.y, dist_local_ref.x)
+        print(str(dist_local_ref.x-loc_dist_gps[0]) +str(dist_local_ref.y-loc_dist_gps[1]))
+        """
         return (rgb, np.concatenate([loc_dist_gps, [head], [targ_head], [speed], [lead_speed]]))
 
-    def calc_rew(self):
-        dist_coeff = 20
-        eps = 2e-1
 
-        # the target is BEHIND the last leader, on the path, one interval behind in the parameter
-        dist_l = self.leaders[0].body.GetRot().RotateBack(self.leaders[0].body.GetPos() - self.chassis_body.GetPos())
-        self.dist = dist_l.Length()
-        alpha = np.arctan2(dist_l.y, dist_l.x)
-        self.dist = dist_l.Length()
-        alpha = np.arctan2(dist_l.y, dist_l.x)
-        if -0.25*np.pi < alpha < 0.25*np.pi:
-            rew = dist_coeff / (max(self.dist - self.opt_dist - self.dist_rad, 0) + eps)
-        else:
-            rew = 0
-            
-        speed_reldiff = abs((self.obs[1][-1] - self.obs[1][-2]) / (self.obs[1][-2] + 0.05))
-        rew += -5*speed_reldiff
-        self.old_ac = np.copy(self.ac)
+    def calc_rew(self):
+        proximity = 20
+        eps = 0.05 # avoid division by 0
+        self.dist = (self.chassis_body.GetPos() - self.target).Length()
+        rew = self.calc_progress() + proximity * (1/(self.dist+eps))
+        # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
         return rew
 
     def calc_progress(self):
-        dist = (self.chassis_body.GetPos() - self.goal).Length()
+        dist = (self.chassis_body.GetPos() - self.target).Length()
         progress = self.old_dist - dist
         # print(dist, self.old_dist)
         self.old_dist = dist
@@ -662,8 +662,8 @@ class icra_wheeled_follower(ChronoBaseEnv):
             res = (800,600)
             vis = 1
             save = 0
-            birds_eye = 0
-            third_person = 1
+            birds_eye = 1
+            third_person = 0
             angle = 0
             close = 0
             width = res[0]
@@ -767,6 +767,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         raise NotImplementedError
 
     def __del__(self):
+        del self.manager
         try:
             self.file.close()
             # self.driver_file.close()
