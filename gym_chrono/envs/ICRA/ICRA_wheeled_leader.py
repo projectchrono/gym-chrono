@@ -61,6 +61,7 @@ class icra_wheeled_leader(ChronoBaseEnv):
         # -------------------------------
 
         self.timeend = 40
+        # TODO: set to 5?
         self.control_frequency = 10
 
         self.min_terrain_height = 0     # min terrain height

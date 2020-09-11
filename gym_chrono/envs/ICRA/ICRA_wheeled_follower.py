@@ -67,7 +67,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         # -------------------------------
 
         self.timeend = 30
-        self.control_frequency = 10
+        self.control_frequency = 5
 
         self.min_terrain_height = 0     # min terrain height
         self.max_terrain_height = 4 # max terrain height
@@ -111,15 +111,9 @@ class icra_wheeled_follower(ChronoBaseEnv):
         return self.rank + self.run_number * self.num_envs
 
     def reset(self):
-        # seed = 4
-        # np.random.seed(seed)
-        # random.seed(seed)
-        # TODO: randomize
-        self.offset = chrono.ChVectorD(-15, 15, 0)
+        self.offset = chrono.ChVectorD(-(10+10*random.random()), pow(-1,random.randint(1,3))*(10+10*random.random()), 0)
         num = self.get_num()
-
         self.start = get_real_time()
-
         patch_mat = chrono.ChMaterialSurfaceSMC()
         patch_mat.SetFriction(0.9)
         patch_mat.SetRestitution(0.01)
@@ -146,6 +140,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         self.target = chrono.ChVectorD()
         # Create systems
         #TODO: NSC sys?
+        #TODO: tweak solver & TS for speed
         self.system = chrono.ChSystemSMC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
@@ -186,7 +181,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
                                             self.max_terrain_height) # hMax
 
             self.terrain.Initialize()
-
+            #TODO: randomize terrain patch
             texture_file = chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg")
             material_list = chrono.CastToChVisualization(patch.GetGroundBody().GetAssets()[0]).material_list
 
@@ -298,7 +293,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
-        self.vehicle.SetTireType(veh.TireModelType_RIGID)
+        self.vehicle.SetTireType(veh.TireModelType_TMEASY)
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
 
@@ -573,6 +568,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         leadCart = chrono.ChVectorD(lead_gps_data)
         sens.GPS2Cartesian(leadCart, self.origin)
         sens.GPS2Cartesian(cur_gps_data, self.origin)
+        # TODO: rotate the offset using the angle for better represenation of the real scenario
         gps_dist = leadCart + self.leaders[0].body.GetRot().Rotate(self.offset) - cur_gps_data
         loc_dist_gps = [gps_dist.x * np.cos(head) + gps_dist.y * np.sin(head),
                         -gps_dist.x * np.sin(head) + gps_dist.y * np.cos(head)]
@@ -611,12 +607,15 @@ class icra_wheeled_follower(ChronoBaseEnv):
         pos = self.chassis_body.GetPos()
 
         collision = not(self.c_f == 0)
-        if self.system.GetChTime() > self.timeend:
-            dist = (pos - self.goal).Length()
-            print('Timeout!! Distance from goal :: ', dist)
+        # The episodes end with the agent in the right place
+        if self.system.GetChTime() > self.timeend and self.dist < 3:
+            self.rew += 2500
+            print('Success!!')
+            # self.successes += 1
             self.isdone = True
-            failed = 0
-            save_results('Failed','Timeout')
+            failed = 3
+            save_results('Success', '')
+
         elif abs(pos.x) > self.terrain_length / 2.0 or abs(pos.y) > self.terrain_width / 2 or pos.z < self.min_terrain_height:
             dist = (self.chassis_body.GetPos() - self.goal).Length()
             print('Fell off terrain!! Distance from goal :: ', dist)
@@ -630,28 +629,17 @@ class icra_wheeled_follower(ChronoBaseEnv):
             self.isdone = True
             failed = 2
             save_results('Failed','Hit')
-        elif self.dist > 60:
+        elif self.dist > 80:
             print('Too far from leader!')
             self.isdone = True
             failed = 4
             save_results('Failed','Leader')
-        elif (pos - self.goal).Length() < 10:
-            self.rew += 2500
-            print('Success!!')
-            # self.successes += 1
+        elif self.system.GetChTime() > self.timeend:
+            dist = (pos - self.goal).Length()
+            print('Timeout!! Distance from goal :: ', dist)
             self.isdone = True
-            failed = 3
-
-            save_results('Success','')
-
-        # if self.isdone:
-        #     goal = np.array([self.goal.x, self.goal.y])
-        #     from csv import writer
-        #     with open('./Monitor/log.csv', 'a+', newline='') as write_obj:
-        #         # Timeout = 0, fell off = 1, obstacle = 2, success = 3
-        #         goal = [failed, goal[0], goal[1]]
-        #         csv_writer = writer(write_obj)
-        #         csv_writer.writerow(goal)
+            failed = 0
+            save_results('Failed', 'Timeout')
 
     def render(self, mode='human'):
         if not (self.play_mode==True):
