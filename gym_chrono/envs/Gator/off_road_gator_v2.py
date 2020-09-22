@@ -103,7 +103,7 @@ class AssetList():
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
         self.assets = []
         self.assets.append(
-            Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
+            Asset(AssetMesh("sensor/offroad/bush1.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
         self.assets.append(
             Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5, b2))
         self.assets.append(
@@ -225,7 +225,7 @@ class AssetList():
         return len(self.assets)
 
 
-class off_road_gator_v1(ChronoBaseEnv):
+class off_road_gator_v2(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
@@ -266,7 +266,7 @@ class off_road_gator_v1(ChronoBaseEnv):
         self.play_mode = False
 
     def reset(self):
-        n = 6
+        n = 10
         b1 = 0
         b2 = 0
         r1 = n
@@ -297,8 +297,8 @@ class off_road_gator_v1(ChronoBaseEnv):
                                           chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
                                           self.terrain_length * 1.5, self.terrain_width * 1.5)
         else:
-            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
-            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
+            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
+            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
             shape = (252, 252)
             generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
             try:
@@ -322,7 +322,7 @@ class off_road_gator_v1(ChronoBaseEnv):
                                               self.max_terrain_height)  # hMax
         patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 
-        patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+        patch.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
         self.terrain.Initialize()
 
         ground_body = patch.GetGroundBody()
@@ -330,7 +330,11 @@ class off_road_gator_v1(ChronoBaseEnv):
         visual_asset = chrono.CastToChVisualization(ground_asset)
         visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        tex = np.random.randint(1,6)
+        if tex%2 == 0 and tex%5 != 0 :
+            vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        elif tex%2 == 1 and tex%5 != 0 :
+            vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
         visual_asset.material_list.append(vis_mat)
 
         theta = random.random() * 2 * np.pi
@@ -455,8 +459,8 @@ class off_road_gator_v1(ChronoBaseEnv):
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
-        if self.play_mode:
-            self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
+        #if self.play_mode:
+        #    self.camera.PushFilter(sens.ChFilterVisualize(self.camera_width, self.camera_height, "RGB Camera"))
         self.manager.AddSensor(self.camera)
 
         # -----------------------------------------------------
@@ -485,19 +489,18 @@ class off_road_gator_v1(ChronoBaseEnv):
             # self.manager.ReconstructScenes()
             # self.manager.AddInstancedStaticSceneMeshes(self.assets.frames, self.assets.shapes)
             # self.manager.Update()
-            # print('Reconstruction :: ', t.time() - start)
 
         self.old_dist = (self.goal - self.initLoc).Length()
 
         self.step_number = 0
         self.c_f = 0
+        self.old_ac = 0
         self.isdone = False
         self.render_setup = False
         self.dist0 = (self.goal - self.chassis_body.GetPos()).Length()
         if self.play_mode:
             self.render()
 
-        # print(self.get_ob()[1])
         return self.get_ob()
 
     def step(self, ac):
@@ -532,10 +535,7 @@ class off_road_gator_v1(ChronoBaseEnv):
             # chrono_time = t.time() - start
             # sens_start = t.time()
             self.manager.Update()
-            # sensor_time = t.time() - sens_start
-            # if sensor_time > 1e-4:
-            # print('Chrono :: ', chrono_time)
-            # print('Sensor :: ', sensor_time)
+
 
             self.c_f += self.assets.CalcContactForces(self.chassis_body, self.chassis_collision_box)
             if self.c_f:
@@ -554,7 +554,6 @@ class off_road_gator_v1(ChronoBaseEnv):
             rgb = camera_buffer_RGBA8.GetRGBA8Data()[:, :, 0:3]
         else:
             rgb = np.zeros((self.camera_height, self.camera_width, 3))
-            # print('NO DATA \n')
         # rgb = np.zeros((self.camera_height,self.camera_width,3))
 
         gps_buffer = self.gps.GetMostRecentGPSBuffer()
@@ -578,7 +577,6 @@ class off_road_gator_v1(ChronoBaseEnv):
         gps_dist = goalCart - cur_gps_data
         loc_dist_gps = [gps_dist.x * np.cos(head) + gps_dist.y * np.sin(head),
                         -gps_dist.x * np.sin(head) + gps_dist.y * np.cos(head)]
-        # print('x error'+ str(loc_dist_gps[0]-dist_local.x)+ 'y error'+ str(loc_dist_gps[1]-dist_local.y))
         array_data = np.array([loc_dist_gps[0], loc_dist_gps[1], head, targ_head, vel.Length()])
         return (rgb, array_data)
 
@@ -587,8 +585,9 @@ class off_road_gator_v1(ChronoBaseEnv):
         # vel_coeff = .01
         time_cost = 0
         progress = self.calc_progress()
-        # vel = self.vehicle.GetVehicle().GetVehicleSpeed()
-        return progress
+        deltaac = np.linalg.norm(self.ac - self.old_ac)
+        self.old_ac = self.ac
+        return 1.0*progress - 0.5*deltaac
 
     def is_done(self):
 
@@ -637,7 +636,6 @@ class off_road_gator_v1(ChronoBaseEnv):
     def calc_progress(self):
         dist = (self.chassis_body.GetPos() - self.goal).Length()
         progress = self.old_dist - dist
-        # print(dist, self.old_dist)
         self.old_dist = dist
         return progress
 
@@ -648,8 +646,8 @@ class off_road_gator_v1(ChronoBaseEnv):
         if not self.render_setup:
             vis = True
             save = False
-            birds_eye = True
-            third_person = False
+            birds_eye = False
+            third_person = True
             width = 1280
             height = 720
             if birds_eye:

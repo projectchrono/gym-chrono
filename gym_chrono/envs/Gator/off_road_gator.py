@@ -103,7 +103,7 @@ class AssetList():
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
         self.assets = []
         self.assets.append(
-            Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
+            Asset(AssetMesh("sensor/offroad/bush1.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
         self.assets.append(
             Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5, b2))
         self.assets.append(
@@ -297,8 +297,8 @@ class off_road_gator(ChronoBaseEnv):
                                           chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
                                           self.terrain_length * 1.5, self.terrain_width * 1.5)
         else:
-            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
-            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
+            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
+            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
             shape = (252, 252)
             generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
             try:

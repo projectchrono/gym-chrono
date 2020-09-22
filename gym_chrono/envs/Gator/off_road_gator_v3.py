@@ -12,6 +12,7 @@ import random
 from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
+from gym_chrono.envs.robot_learning.parameters import *
 
 # openai-gym imports
 import gym
@@ -103,7 +104,7 @@ class AssetList():
     def __init__(self, b1=0, b2=0, r1=0, r2=0, r3=0, r4=0, r5=0, t1=0, t2=0, t3=0, c=0):
         self.assets = []
         self.assets.append(
-            Asset(AssetMesh("sensor/offroad/bush.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
+            Asset(AssetMesh("sensor/offroad/bush1.obj", chrono.ChVectorD(1.35348, 1.33575, 0)), 0.5, 1.5, b1))
         self.assets.append(
             Asset(AssetMesh("sensor/offroad/bush2.obj", chrono.ChVectorD(3.21499, 3.30454, 0)), 0.5, 1.5, b2))
         self.assets.append(
@@ -225,7 +226,7 @@ class AssetList():
         return len(self.assets)
 
 
-class off_road_gator_v2(ChronoBaseEnv):
+class off_road_gator_v3(ChronoBaseEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
@@ -261,6 +262,7 @@ class off_road_gator_v2(ChronoBaseEnv):
         self.max_terrain_height = 5  # max terrain height
         self.terrain_length = 80.0  # size in X direction
         self.terrain_width = 80.0  # size in Y direction
+        self.divs_per_units = 20  # divisions per unit (SCM only)
 
         self.render_setup = False
         self.play_mode = False
@@ -288,54 +290,51 @@ class off_road_gator_v2(ChronoBaseEnv):
 
         # Create the terrain
         rigid_terrain = False
-        self.terrain = veh.RigidTerrain(self.system)
-        patch_mat = chrono.ChMaterialSurfaceNSC()
-        patch_mat.SetFriction(0.9)
-        patch_mat.SetRestitution(0.01)
+        self.terrain = veh.SCMDeformableTerrain(self.system)
+
+        # Parameters
+        randpar = random.randint(1,2)
+        params = SCMParameters()
+        if randpar%2 == 0:
+            params.InitializeParametersAsHard()
+        else:
+            params.InitializeParametersAsSoft()
+        params.SetParameters(self.terrain)
+        # Bulldozing
+        self.terrain.EnableBulldozing(True)
+        self.terrain.SetBulldozingParameters(
+            55,  # angle of friction for erosion of displaced material at the border of the rut
+            1,  # displaced material vs downward pressed material.
+            5,  # number of erosion refinements per timestep
+            10)  # number of concentric vertex selections subject to erosion
         if rigid_terrain:
             patch = self.terrain.AddPatch(patch_mat,
                                           chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
                                           self.terrain_length * 1.5, self.terrain_width * 1.5)
         else:
-            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map.bmp"
-            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/utils/height_map_backup.bmp"
+            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
+            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
             shape = (252, 252)
             generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
-            try:
-                patch = self.terrain.AddPatch(patch_mat,
-                                              chrono.CSYSNORM,  # position
-                                              self.bitmap_file,  # heightmap file (.bmp)
-                                              "test",  # mesh name
-                                              self.terrain_length * 1.5,  # sizeX
-                                              self.terrain_width * 1.5,  # sizeY
-                                              self.min_terrain_height,  # hMin
-                                              self.max_terrain_height)  # hMax
-            except Exception:
-                print('Corrupt Bitmap File')
-                patch = self.terrain.AddPatch(patch_mat,
-                                              chrono.CSYSNORM,  # position
-                                              self.bitmap_file_backup,  # heightmap file (.bmp)
-                                              "test",  # mesh name
-                                              self.terrain_length * 1.5,  # sizeX
-                                              self.terrain_width * 1.5,  # sizeY
-                                              self.min_terrain_height,  # hMin
-                                              self.max_terrain_height)  # hMax
-        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+            self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
+                                    self.terrain_length,  # sizeX
+                                    self.terrain_width,  # sizeY
+                                    self.min_terrain_height,  # hMin
+                                    self.max_terrain_height,  # hMax
+                                    0.05)                      # Delta
 
-        patch.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
-        self.terrain.Initialize()
+        texture_file = chrono.GetChronoDataFile('sensor/textures/')
+        if randpar%2 == 0:
+            texture_file += 'mud.png'
+        else:
+            texture_file += 'snow.jpg'
+        material_list = self.terrain.GetMesh().material_list
 
-        ground_body = patch.GetGroundBody()
-        ground_asset = ground_body.GetAssets()[0]
-        visual_asset = chrono.CastToChVisualization(ground_asset)
-        visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        tex = np.random.randint(1,6)
-        if tex%2 == 0 and tex%5 != 0 :
-            vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
-        elif tex%2 == 1 and tex%5 != 0 :
-            vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
-        visual_asset.material_list.append(vis_mat)
+        vis_mat.SetSpecularColor(chrono.ChVectorF(0.1, 0.1, 0.1))
+        vis_mat.SetFresnelMax(.1)
+        vis_mat.SetKdTexture(texture_file)
+        material_list.push_back(vis_mat)
 
         theta = random.random() * 2 * np.pi
         x, y = self.terrain_length * 0.5 * np.cos(theta), self.terrain_width * 0.5 * np.sin(theta)
