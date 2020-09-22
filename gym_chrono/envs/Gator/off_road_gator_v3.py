@@ -282,7 +282,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         c = 0
         self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
         # Create systems
-        self.system = chrono.ChSystemNSC()
+        self.system = chrono.ChSystemSMC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
         self.system.SetSolverMaxIterations(150)
@@ -307,27 +307,25 @@ class off_road_gator_v3(ChronoBaseEnv):
             1,  # displaced material vs downward pressed material.
             5,  # number of erosion refinements per timestep
             10)  # number of concentric vertex selections subject to erosion
-        if rigid_terrain:
-            patch = self.terrain.AddPatch(patch_mat,
-                                          chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1),
-                                          self.terrain_length * 1.5, self.terrain_width * 1.5)
-        else:
-            self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
-            self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
-            shape = (252, 252)
-            generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
-            self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
-                                    self.terrain_length,  # sizeX
-                                    self.terrain_width,  # sizeY
-                                    self.min_terrain_height,  # hMin
-                                    self.max_terrain_height,  # hMax
-                                    0.05)                      # Delta
+        self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
+        self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
+        shape = (252, 252)
+        generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
+        self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
+                                self.terrain_length*1.1,  # sizeX
+                                self.terrain_width*1.1,  # sizeY
+                                self.min_terrain_height,  # hMin
+                                self.max_terrain_height,  # hMax
+                                0.05)                      # Delta
 
-        texture_file = chrono.GetChronoDataFile('sensor/textures/')
-        if randpar%2 == 0:
-            texture_file += 'mud.png'
+        texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/')
+        randtex = random.randint(1, 3)
+        if randpar%3 == 0:
+            texture_file += 'dirt.jpg'
+        elif randpar%3 == 1:
+            texture_file = chrono.GetChronoDataFile('sensor/textures/grass_texture.jpg')
         else:
-            texture_file += 'snow.jpg'
+            texture_file += 'grass.jpg'
         material_list = self.terrain.GetMesh().material_list
 
         vis_mat = chrono.ChVisualMaterial()
@@ -338,18 +336,18 @@ class off_road_gator_v3(ChronoBaseEnv):
 
         theta = random.random() * 2 * np.pi
         x, y = self.terrain_length * 0.5 * np.cos(theta), self.terrain_width * 0.5 * np.sin(theta)
-        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.25
+        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.5
         ang = np.pi + theta
         self.initLoc = chrono.ChVectorD(x, y, z)
         self.initRot = chrono.Q_from_AngZ(ang)
 
         self.vehicle = veh.Gator(self.system)
-        self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+        self.vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
         self.m_inputs = veh.Inputs()
         self.vehicle.SetInitPosition(chrono.ChCoordsysD(self.initLoc, self.initRot))
-        self.vehicle.SetTireType(veh.TireModelType_TMEASY)
+        self.vehicle.SetTireType(veh.TireModelType_RIGID_MESH)
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
 
@@ -643,7 +641,7 @@ class off_road_gator_v3(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = True
+            vis = False
             save = False
             birds_eye = False
             third_person = True
