@@ -14,6 +14,8 @@ class ChronoBaseEnv(Env):
       chronopath = os.path.join(os.path.dirname(__file__), 'data')
       chrono.SetChronoDataPath(chronopath)
       self.render_setup = False
+      # Will be used by SetNumThreads
+      self.CPU = [1,1,1]
       return 
 
    def step(self, ac):

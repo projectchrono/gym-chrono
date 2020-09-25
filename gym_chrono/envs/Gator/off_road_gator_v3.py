@@ -283,6 +283,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
         # Create systems
         self.system = chrono.ChSystemSMC()
+        self.system.SetNumThreads(self.CPU[0],self.CPU[1], self.CPU[2])
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
         self.system.SetSolverMaxIterations(150)
@@ -416,7 +417,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         # start = t.time()
         self.assets.Clear()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain,
-                                           self.terrain_length * 1.5, self.terrain_width * 1.5, should_scale=False)
+                                           self.terrain_length * 1.0, self.terrain_width * 1.0, should_scale=False)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
