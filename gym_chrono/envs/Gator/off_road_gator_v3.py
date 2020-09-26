@@ -327,6 +327,7 @@ class off_road_gator_v3(ChronoBaseEnv):
             texture_file = chrono.GetChronoDataFile('sensor/textures/grass_texture.jpg')
         else:
             texture_file += 'grass.jpg'
+
         material_list = self.terrain.GetMesh().material_list
 
         vis_mat = chrono.ChVisualMaterial()
@@ -351,7 +352,10 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.vehicle.SetTireType(veh.TireModelType_RIGID_MESH)
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
-
+        tire_rad = self.vehicle.GetVehicle().GetTire(0, 0).GetRadius()
+        for i in range(2):
+            for j in range(2):
+                self.terrain.AddMovingPatch(self.vehicle.GetVehicle().GetWheel(i, j).GetSpindle(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(tire_rad*2.5,1,tire_rad*2.5))
         if self.play_mode:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
@@ -642,7 +646,7 @@ class off_road_gator_v3(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = False
+            vis = True
             save = False
             birds_eye = False
             third_person = True
