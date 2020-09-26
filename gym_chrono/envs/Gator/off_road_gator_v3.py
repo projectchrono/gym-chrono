@@ -312,12 +312,20 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
         shape = (252, 252)
         generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
-        self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
-                                self.terrain_length*1.1,  # sizeX
-                                self.terrain_width*1.1,  # sizeY
-                                self.min_terrain_height,  # hMin
-                                self.max_terrain_height,  # hMax
-                                0.05)                      # Delta
+        try:
+            self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
+                                    self.terrain_length*1.1,  # sizeX
+                                    self.terrain_width*1.1,  # sizeY
+                                    self.min_terrain_height,  # hMin
+                                    self.max_terrain_height,  # hMax
+                                    0.05)                      # Delta
+        except:
+            self.terrain.Initialize(self.bitmap_file_backup,  # heightmap file (.bmp)
+                                    self.terrain_length*1.1,  # sizeX
+                                    self.terrain_width*1.1,  # sizeY
+                                    self.min_terrain_height,  # hMin
+                                    self.max_terrain_height,  # hMax
+                                    0.05)                      # Delta
 
         texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/')
         randtex = random.randint(1, 3)
