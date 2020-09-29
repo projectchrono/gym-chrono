@@ -343,6 +343,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         vis_mat.SetFresnelMax(.1)
         vis_mat.SetKdTexture(texture_file)
         material_list.push_back(vis_mat)
+        self.terrain.GetMesh().SetStatic(True)
 
         theta = random.random() * 2 * np.pi
         x, y = self.terrain_length * 0.5 * np.cos(theta), self.terrain_width * 0.5 * np.sin(theta)
