@@ -83,6 +83,10 @@ register(
     entry_point='gym_chrono.envs:off_road_gator_v3'
 )
 register(
+    id='off_road_gator-v4',
+    entry_point='gym_chrono.envs:off_road_gator_v4'
+)
+register(
     id='robot_learning-v0',
     entry_point='gym_chrono.envs:robot_learning'
     #timestep_limit=1000,
