@@ -294,7 +294,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.terrain = veh.SCMDeformableTerrain(self.system)
 
         # Parameters
-        randpar = random.randint(1,2)
+        randpar = random.randint(1,6)
         params = SCMParameters()
         params.InitializeParametersAsHard()
         params.SetParameters(self.terrain)
@@ -324,19 +324,24 @@ class off_road_gator_v3(ChronoBaseEnv):
                                     self.max_terrain_height,  # hMax
                                     0.05)                      # Delta
 
-        texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/')
+        texture_file = False
         randtex = random.randint(1, 3)
-        if tex%2 == 0 and tex%5 != 0 :
+        if randpar%2 == 0 and randpar%5 != 0 :
+            print('grass1')
             texture_file = chrono.GetChronoDataFile('sensor/textures/grass_texture.jpg')
-        elif tex % 2 == 1 and tex % 5 != 0:
-            texture_file += 'grass.jpg'
+        elif randpar % 2 == 1 and randpar % 5 != 0:
+            texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/') + 'grass.jpg'
+            print('grass1')
+        else:
+            print('no tex')
 
         material_list = self.terrain.GetMesh().material_list
 
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetSpecularColor(chrono.ChVectorF(0.1, 0.1, 0.1))
+        vis_mat.SetSpecularColor(chrono.ChVectorF(0.05, 0.05, 0.05))
         vis_mat.SetFresnelMax(.1)
-        vis_mat.SetKdTexture(texture_file)
+        if texture_file:
+            vis_mat.SetKdTexture(texture_file)
         material_list.push_back(vis_mat)
         self.terrain.GetMesh().SetStatic(True)
 
