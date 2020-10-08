@@ -260,8 +260,8 @@ class off_road_gator_v4(ChronoBaseEnv):
 
         self.min_terrain_height = -5  # min terrain height
         self.max_terrain_height = 5  # max terrain height
-        self.terrain_length = 40.0  # size in X direction
-        self.terrain_width = 40.0  # size in Y direction
+        self.terrain_length = 80.0  # size in X direction
+        self.terrain_width = 80.0  # size in Y direction
         self.divs_per_units = 20  # divisions per unit (SCM only)
 
         self.render_setup = False
@@ -644,8 +644,8 @@ class off_road_gator_v4(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = True
-            save = False
+            vis = False
+            save = True
             birds_eye = False
             third_person = True
             width = 1280
