@@ -296,10 +296,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         # Parameters
         randpar = random.randint(1,2)
         params = SCMParameters()
-        if randpar%2 == 0:
-            params.InitializeParametersAsHard()
-        else:
-            params.InitializeParametersAsSoft()
+        params.InitializeParametersAsHard()
         params.SetParameters(self.terrain)
         # Bulldozing
         self.terrain.EnableBulldozing(True)
@@ -329,11 +326,9 @@ class off_road_gator_v3(ChronoBaseEnv):
 
         texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/')
         randtex = random.randint(1, 3)
-        if randpar%3 == 0:
-            texture_file += 'dirt.jpg'
-        elif randpar%3 == 1:
+        if tex%2 == 0 and tex%5 != 0 :
             texture_file = chrono.GetChronoDataFile('sensor/textures/grass_texture.jpg')
-        else:
+        elif tex % 2 == 1 and tex % 5 != 0:
             texture_file += 'grass.jpg'
 
         material_list = self.terrain.GetMesh().material_list
@@ -655,8 +650,8 @@ class off_road_gator_v3(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = True
-            save = False
+            vis = False
+            save = True
             birds_eye = False
             third_person = True
             width = 1280
