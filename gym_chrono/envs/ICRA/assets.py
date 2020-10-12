@@ -94,31 +94,36 @@ class AssetHandler:
         
         self.first = True
 
-    def RandomlyPositionAssets(self, system, initLoc, finalLoc, terrain, terrain_length, terrain_width, should_scale=False):
+    def RandomlyPositionAssets(self, system, initLoc, finalLoc, terrain, terrain_length, terrain_width, should_scale=False, path=None, diags=False):
         if len(self.assets) == 0:
             return
 
-        diag_obs = 5
-        for i in range(diag_obs):
-            x = np.linspace(initLoc.x, finalLoc.x, diag_obs + 2)[1:-1]
-            y = np.linspace(initLoc.y, finalLoc.y, diag_obs + 2)[1:-1]
-            pos = chrono.ChVectorD(x[i], y[i], 0)
-            pos.z = terrain.GetHeight(pos)
+        if diags:
+            diag_obs = 5
+            for i in range(diag_obs):
+                x = np.linspace(initLoc.x, finalLoc.x, diag_obs + 2)[1:-1]
+                y = np.linspace(initLoc.y, finalLoc.y, diag_obs + 2)[1:-1]
+                pos = chrono.ChVectorD(x[i], y[i], 0)
+                pos.z = terrain.GetHeight(pos)
 
-            rot = chrono.Q_from_AngZ(np.random.uniform(0, np.pi))
+                rot = chrono.Q_from_AngZ(np.random.uniform(0, np.pi))
 
-            offset = chrono.ChVectorD(pos.y, -pos.x, 0)
-            offset = offset.GetNormalized() * (np.random.random() - 0.5) * 20
+                offset = chrono.ChVectorD(pos.y, -pos.x, 0)
+                offset = offset.GetNormalized() * (np.random.random() - 0.5) * 20
 
-            rand_asset = np.random.choice(self.assets).Copy()
-            rand_asset.pos = pos + offset
-            rand_asset.rot = rot
-            if should_scale:
-                rand_asset.scale = np.random.uniform(rand_asset.scale_range[0], rand_asset.scale_range[1])
+                rand_asset = np.random.choice(self.assets).Copy()
+                rand_asset.pos = pos + offset
+                rand_asset.rot = rot
+                if should_scale:
+                    rand_asset.scale = np.random.uniform(rand_asset.scale_range[0], rand_asset.scale_range[1])
 
-            self.assets.append(rand_asset)
+                self.assets.append(rand_asset)
+            
+            assets = self.assets[:-diag_obs]
+        else:
+            assets = self.assets
 
-        for i, asset in enumerate(self.assets[:-diag_obs]):
+        for i, asset in enumerate(self.assets):
             success = True
             for i in range(101):
                 if i == 100:
@@ -137,7 +142,12 @@ class AssetHandler:
                 overlap = 0
                 if (closest_asset.pos - pos).Length() < scale + closest_asset.scale + overlap:
                     continue
-
+                
+                if path is not None:
+                    path_check = min([(path.eval(i) - pos).Length() for i in np.arange(0,1,1/1000.)])
+                    if path_check < 10:
+                        continue
+                
                 break
 
             if not success:

@@ -103,6 +103,10 @@ register(
     id='icra_wheeled_leader-v0',
     entry_point='gym_chrono.envs:icra_wheeled_leader'
 )
+register(
+    id='icra_gator-v0',
+    entry_point='gym_chrono.envs:icra_gator'
+)
 
 register(
     id='icra_wheeled_follower-v0',
