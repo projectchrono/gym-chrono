@@ -20,3 +20,4 @@ from gym_chrono.envs.ICRA.ICRA_tracked_leader import icra_tracked_leader
 from gym_chrono.envs.ICRA.ICRA_wheeled_leader import icra_wheeled_leader
 from gym_chrono.envs.ICRA.ICRA_wheeled_follower import icra_wheeled_follower
 from gym_chrono.envs.ICRA.ICRA_tracked_follower import icra_tracked_follower
+from gym_chrono.envs.ICRA.ICRA_gator import icra_gator

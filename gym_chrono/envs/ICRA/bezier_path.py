@@ -5,7 +5,7 @@ import math as m
 from scipy.interpolate import splprep, splev
 
 class BezierPath(chrono.ChBezierCurve):
-    def __init__(self, points, t0=0.05):
+    def __init__(self, points, t0=0.00):
         super(BezierPath, self).__init__(points)
 
         self.current_t = t0
