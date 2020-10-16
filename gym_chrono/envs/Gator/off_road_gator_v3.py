@@ -13,7 +13,6 @@ from gym_chrono.envs.ChronoBase import ChronoBaseEnv
 from gym_chrono.envs.utils.perlin_bitmap_generator import generate_random_bitmap
 from gym_chrono.envs.utils.utilities import SetChronoDataDirectories, CalcInitialPose, areColliding
 from gym_chrono.envs.robot_learning.parameters import *
-
 # openai-gym imports
 import gym
 from gym import spaces
@@ -262,7 +261,6 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.max_terrain_height = 5  # max terrain height
         self.terrain_length = 80.0  # size in X direction
         self.terrain_width = 80.0  # size in Y direction
-        self.divs_per_units = 20  # divisions per unit (SCM only)
 
         self.render_setup = False
         self.play_mode = False
@@ -282,8 +280,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         c = 0
         self.assets = AssetList(b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
         # Create systems
-        self.system = chrono.ChSystemSMC()
-        self.system.SetNumThreads(self.CPU[0],self.CPU[1], self.CPU[2])
+        self.system = chrono.ChSystemNSC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
         self.system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
         self.system.SetSolverMaxIterations(150)
@@ -291,10 +288,15 @@ class off_road_gator_v3(ChronoBaseEnv):
 
         # Create the terrain
         rigid_terrain = False
-        self.terrain = veh.SCMDeformableTerrain(self.system)
-
+        # Ghost Terrain: rigid, vis, no contact
+        self.ghost_terrain = veh.RigidTerrain(self.system)
+        patch_mat = chrono.ChMaterialSurfaceNSC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+        # Real Terrain: deformable, no vis, contact
+        self.terrain = veh.SCMDeformableTerrain(self.system, False)
         # Parameters
-        randpar = random.randint(1,6)
+        randpar = random.randint(1, 6)
         params = SCMParameters()
         params.InitializeParametersAsHard()
         params.SetParameters(self.terrain)
@@ -305,55 +307,69 @@ class off_road_gator_v3(ChronoBaseEnv):
             1,  # displaced material vs downward pressed material.
             5,  # number of erosion refinements per timestep
             10)  # number of concentric vertex selections subject to erosion
+
         self.bitmap_file = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map.bmp"
         self.bitmap_file_backup = os.path.dirname(os.path.realpath(__file__)) + "/../utils/height_map_backup.bmp"
         shape = (252, 252)
         generate_random_bitmap(shape=shape, resolutions=[(2, 2)], mappings=[(-1.5, 1.5)], file_name=self.bitmap_file)
         try:
+            patch = self.ghost_terrain.AddPatch(patch_mat,
+                                          chrono.CSYSNORM,  # position
+                                          self.bitmap_file,  # heightmap file (.bmp)
+                                          "test",  # mesh name
+                                          self.terrain_length * 1.5,  # sizeX
+                                          self.terrain_width * 1.5,  # sizeY
+                                          self.min_terrain_height,  # hMin
+                                          self.max_terrain_height)  # hMax
             self.terrain.Initialize(self.bitmap_file,  # heightmap file (.bmp)
-                                    self.terrain_length*1.1,  # sizeX
-                                    self.terrain_width*1.1,  # sizeY
+                                    self.terrain_length * 1.5,  # sizeX
+                                    self.terrain_width * 1.5,  # sizeY
                                     self.min_terrain_height,  # hMin
                                     self.max_terrain_height,  # hMax
-                                    0.05)                      # Delta
-        except:
+                                    0.05)  # Delta
+
+        except Exception:
+            print('Corrupt Bitmap File')
+            patch = self.ghost_terrain.AddPatch(patch_mat,
+                                          chrono.CSYSNORM,  # position
+                                          self.bitmap_file_backup,  # heightmap file (.bmp)
+                                          "test",  # mesh name
+                                          self.terrain_length * 1.5,  # sizeX
+                                          self.terrain_width * 1.5,  # sizeY
+                                          self.min_terrain_height,  # hMin
+                                          self.max_terrain_height)  # hMax
             self.terrain.Initialize(self.bitmap_file_backup,  # heightmap file (.bmp)
-                                    self.terrain_length*1.1,  # sizeX
-                                    self.terrain_width*1.1,  # sizeY
+                                    self.terrain_length * 1.5,  # sizeX
+                                    self.terrain_width * 1.5,  # sizeY
                                     self.min_terrain_height,  # hMin
                                     self.max_terrain_height,  # hMax
-                                    0.05)                      # Delta
+                                    0.05)
 
-        texture_file = False
-        randtex = random.randint(1, 3)
-        if randpar%2 == 0 and randpar%5 != 0 :
-            print('grass1')
-            texture_file = chrono.GetChronoDataFile('sensor/textures/grass_texture.jpg')
-        elif randpar % 2 == 1 and randpar % 5 != 0:
-            texture_file = chrono.GetChronoDataFile('vehicle/terrain/textures/') + 'grass.jpg'
-            print('grass1')
-        else:
-            print('no tex')
-
-        material_list = self.terrain.GetMesh().material_list
-
+        patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+        patch.SetColor(chrono.ChColor(1.0, 1.0, 1.0))
+        self.ghost_terrain.Initialize()
+        ground_body = patch.GetGroundBody()
+        ground_body.SetCollide(False)
+        ground_asset = ground_body.GetAssets()[0]
+        visual_asset = chrono.CastToChVisualization(ground_asset)
+        visual_asset.SetStatic(True)
         vis_mat = chrono.ChVisualMaterial()
-        vis_mat.SetSpecularColor(chrono.ChVectorF(0.05, 0.05, 0.05))
-        vis_mat.SetFresnelMax(.1)
-        if texture_file:
-            vis_mat.SetKdTexture(texture_file)
-        material_list.push_back(vis_mat)
-        self.terrain.GetMesh().SetStatic(True)
+        tex = np.random.randint(1,6)
+        if tex%2 == 0 and tex%5 != 0 :
+            vis_mat.SetKdTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+        elif tex%2 == 1 and tex%5 != 0 :
+            vis_mat.SetKdTexture(chrono.GetChronoDataFile("sensor/textures/grass_texture.jpg"))
+        visual_asset.material_list.append(vis_mat)
 
         theta = random.random() * 2 * np.pi
         x, y = self.terrain_length * 0.5 * np.cos(theta), self.terrain_width * 0.5 * np.sin(theta)
-        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.5
+        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + 0.25
         ang = np.pi + theta
         self.initLoc = chrono.ChVectorD(x, y, z)
         self.initRot = chrono.Q_from_AngZ(ang)
 
         self.vehicle = veh.Gator(self.system)
-        self.vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+        self.vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
         self.vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
         self.vehicle.SetChassisFixed(False)
         self.m_inputs = veh.Inputs()
@@ -361,10 +377,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         self.vehicle.SetTireType(veh.TireModelType_RIGID_MESH)
         self.vehicle.SetTireStepSize(self.timestep)
         self.vehicle.Initialize()
-        tire_rad = self.vehicle.GetVehicle().GetTire(0, 0).GetRadius()
-        for i in range(2):
-            for j in range(2):
-                self.terrain.AddMovingPatch(self.vehicle.GetVehicle().GetWheel(i, j).GetSpindle(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(tire_rad*2.5,1,tire_rad*2.5))
+
         if self.play_mode:
             self.vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
             self.vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
@@ -430,7 +443,7 @@ class off_road_gator_v3(ChronoBaseEnv):
         # start = t.time()
         self.assets.Clear()
         self.assets.RandomlyPositionAssets(self.system, self.initLoc, self.goal, self.terrain,
-                                           self.terrain_length * 1.0, self.terrain_width * 1.0, should_scale=False)
+                                           self.terrain_length * 1.5, self.terrain_width * 1.5, should_scale=False)
 
         # Set the time response for steering and throttle inputs.
         # NOTE: this is not exact, since we do not render quite at the specified FPS.
@@ -655,8 +668,8 @@ class off_road_gator_v3(ChronoBaseEnv):
             raise Exception('Please set play_mode=True to render')
 
         if not self.render_setup:
-            vis = False
-            save = True
+            vis = True
+            save = False
             birds_eye = False
             third_person = True
             width = 1280
