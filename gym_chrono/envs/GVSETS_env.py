@@ -314,14 +314,13 @@ class GVSETS_env(ChronoBaseEnv):
         # ------------------------------------------------
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
-            30,  # scanning rate in Hz
+            10,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875)),
             # offset pose
             self.camera_width,  # number of horizontal samples
             self.camera_height,  # number of vertical channels
-            chrono.CH_C_PI / 3,  # horizontal field of view
-            0,
-            1/30
+            chrono.CH_C_PI / 2,  # horizontal field of view
+            6
         )
         self.camera.SetName("Camera Sensor")
         self.camera.PushFilter(sens.ChFilterRGBA8Access())
@@ -332,10 +331,8 @@ class GVSETS_env(ChronoBaseEnv):
         gps_noise_none = sens.ChGPSNoiseNone()
         self.AgentGPS = sens.ChGPSSensor(
             self.chassis_body,
-            100,
+            10,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-            0,
-            0,
             self.origin,
             gps_noise_none
         )
@@ -345,10 +342,8 @@ class GVSETS_env(ChronoBaseEnv):
         ### Target GPS
         self.TargetGPS = sens.ChGPSSensor(
             self.leaders[0],
-            100,
+            10,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
-            0,
-            0,
             self.origin,
             gps_noise_none
         )
@@ -522,13 +517,13 @@ class GVSETS_env(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 200), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 150), q),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    0,
-                    1/30
+                    # 0,
+                    # 1/20
                 )
                 vis_camera.SetName("Birds Eye Camera Sensor")
                 if vis:
@@ -543,13 +538,13 @@ class GVSETS_env(ChronoBaseEnv):
                 vis_camera = sens.ChCameraSensor(
                     self.chassis_body,  # body camera is attached to
                     30,  # scanning rate in Hz
-                    chrono.ChFrameD(chrono.ChVectorD(-8, 0, 3), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(-11, 0, 4), chrono.Q_from_AngAxis(chrono.CH_C_PI / 17, chrono.ChVectorD(0, 1, 0))),
                     # offset pose
                     width,  # number of horizontal samples
                     height,  # number of vertical channels
                     chrono.CH_C_PI / 3,  # horizontal field of view
-                    0,
-                    1/30
+                    # 0,
+                    # 1/20
                 )
                 vis_camera.SetName("Follow Camera Sensor")
                 if vis:

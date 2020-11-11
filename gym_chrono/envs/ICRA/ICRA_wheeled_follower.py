@@ -136,7 +136,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         self.assets = AssetHandler(patch_mat, b1, b2, r1, r2, r3, r4, r5, t1, t2, t3, c)
 
         # create leaders
-        self.leaders = GhostLeaderHandler(patch_mat, 2, 0.2, "sensor/hmmwv_combined.obj")
+        self.leaders = GhostLeaderHandler(patch_mat, 1, 0.2, "sensor/hmmwv_combined.obj")
         self.target = chrono.ChVectorD()
         # Create systems
         #TODO: NSC sys?
@@ -385,7 +385,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         # -----------------------------------------------------
         self.camera = sens.ChCameraSensor(
             self.chassis_body,  # body camera is attached to
-            20,  # scanning rate in Hz
+            10,  # scanning rate in Hz
             chrono.ChFrameD(chrono.ChVectorD(1.5, 0, .875)),
             # offset pose
             self.camera_width,  # number of horizontal samples
@@ -405,7 +405,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         gps_noise_none = sens.ChGPSNoiseNone()
         self.agent_gps = sens.ChGPSSensor(
             self.chassis_body,
-            15,
+            10,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             self.origin,
             gps_noise_none
@@ -420,7 +420,7 @@ class icra_wheeled_follower(ChronoBaseEnv):
         gps_noise_none = sens.ChGPSNoiseNone()
         self.leader_gps = sens.ChGPSSensor(
             self.leaders[0].body,
-            15,
+            10,
             chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),
             self.origin,
             gps_noise_none
