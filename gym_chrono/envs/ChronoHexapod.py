@@ -52,10 +52,7 @@ class ChronoHexapod(ChronoBaseEnv):
               #hexapod_sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN) # precise, more slow
 
               self.info =  {"timeout": 3200.0}
-              if self.animate:
-                  m_filename = "hexapod"
-              else:
-                  m_filename = "hexapod_novis"
+              m_filename = "hexapod"
               self.timestep = 0.005
               m_length = 1.0
               self.my_material = chrono.ChMaterialSurfaceNSC()

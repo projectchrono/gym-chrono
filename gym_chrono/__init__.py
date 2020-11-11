@@ -6,10 +6,6 @@ register(
     entry_point='gym_chrono.envs:ChronoPendulum') # NAme of the CLASS after the colon
 
 register(
-    id='chrono_pendulum-v1',
-    entry_point='gym_chrono.envs:ChronoPendulumMS') # NAme of the CLASS after the colon
-
-register(
     id='chrono_ant-v0',
     entry_point='gym_chrono.envs:ChronoAnt'
 )
@@ -36,18 +32,8 @@ register(
 )
 
 register(
-    id='camera_obstacle_avoidance-v1',
-    entry_point='gym_chrono.envs:multisens_obst_avoid'
-)
-
-register(
     id='rccar_hallway-v0',
     entry_point='gym_chrono.envs:rccar_hallway'
-)
-
-register(
-    id='rccar_cone_track-v0',
-    entry_point='gym_chrono.envs:rccar_cone_track'
 )
 
 register(
