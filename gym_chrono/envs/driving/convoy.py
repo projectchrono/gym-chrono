@@ -4,7 +4,10 @@
 # PyChrono imports
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
+try:
+   import pychrono.sensor as sens
+except:
+   print('Could not import Chrono Sensor')
 
 # Default lib imports
 import numpy as np

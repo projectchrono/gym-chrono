@@ -9,7 +9,6 @@
 """
     ROBOT SPECIFICATIONS FREELY AVAILABLE ONLINE AT:
         https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063
-    MISSING DATA HAVE BEEN ADDED 
 """
 
 def main():

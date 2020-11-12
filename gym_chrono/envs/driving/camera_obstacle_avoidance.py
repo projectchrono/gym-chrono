@@ -1,6 +1,9 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
+try:
+   import pychrono.sensor as sens
+except:
+   print('Could not import Chrono Sensor')
 #import pychrono.irrlicht as chronoirr
 import numpy as np
 import math
@@ -152,7 +155,7 @@ class camera_obstacle_avoidance(ChronoBaseEnv):
         self.boxes = []
         for i in range(3):
             box = chrono.ChBodyEasyBox(2, 2, 10, 1000, True, True)
-            box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10 , 4.05))
+            box.SetPos(chrono.ChVectorD(25 + 25*i, (np.random.rand(1)[0]-0.5)*10, .05))
             box.SetBodyFixed(True)
             box_asset = box.GetAssets()[0]
             visual_asset = chrono.CastToChVisualization(box_asset)

@@ -36,11 +36,6 @@ register(
 )
 
 register(
-    id='off_road-v0',
-    entry_point='gym_chrono.envs:off_road'
-)
-
-register(
     id='convoy-v0',
     entry_point='gym_chrono.envs:convoy'
 )
