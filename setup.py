@@ -3,5 +3,7 @@ from setuptools import setup
 setup(name='gym_chrono',
       version='0.0.1',
       description='An OpenAI Gym wrapper for PyChrono',
-      install_requires=['gym>=0.2.3']
+      install_requires=['gym>=0.2.3'],
+      py_modules=['gym_chrono'],
+      package_dir={'': 'gym_chrono'},
 )
