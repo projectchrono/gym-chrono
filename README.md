@@ -48,7 +48,7 @@ pip install gym
 ```
 Then, install the PyChrono extension for Gym:
 ```bash
-git clone https://github.com/Benatti1991/gym-chrono
+git clone https://github.com/projectchrono/gym-chrono
 cd gym-chrono
 pip install -e .
 ```
