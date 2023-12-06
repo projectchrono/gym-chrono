@@ -1,7 +1,0 @@
-{
-  "Name":                       "M113 Simple Brake",
-  "Type":                       "TrackBrake",
-  "Template":                   "TrackBrakeSimple",
-
-  "Maximum Torque":             10000
-}

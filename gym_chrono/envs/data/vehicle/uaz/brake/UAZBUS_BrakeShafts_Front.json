@@ -1,8 +1,0 @@
-{
-  "Name":                       "UAZ Bus Brake Front",
-  "Type":                       "Brake",
-  "Template":                   "BrakeShafts",
-
-  "Maximum Torque":             3000,
-  "Shaft Inertia":              0.4
-}

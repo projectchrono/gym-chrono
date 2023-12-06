@@ -1,62 +1,65 @@
-**Status:** Under Active Development (New Environments and features will be added)
-> :warning: **These environment are compatible with the develop version of ChronoAPI**: Checkout develop branch if you build from [sources](https://github.com/projectchrono/chrono) or use develop label if you install with [Anaconda](https://anaconda.org/projectchrono/pychrono)
-# gym-chrono
+# gym-chronoV2
+This repository consists of a set of gymnasium "environments" which are essentially wrappers around pychrono. In order to install gym-chrono, we must first install its dependecies
+1) pychrono
+2) gymnasium
 
-Gym Chrono is a set of continuous state and action spaces DRL environmentbased on the open-source physics engine [Project Chrono](https://projectchrono.org/). 
-In order to run these environment you need to install [PyChrono](https://projectchrono.org/pychrono/). 
-Being part of Project Chrono, PyChrono is **free and open-source**. Moreover, it provides an [Anaconda installer](https://anaconda.org/projectchrono/pychrono).
-Currently, these tasks are supported:
+NOTE: the current gym-chrono is pegged to chrono fork: https://github.com/zzhou292/chrono, 'feature/robot_model' branch.
 
-**chrono_pendulum-v0** 
+## Repository Structure
 
+This repository is structured as follows:
 
-![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_pendulum.jpg)
-
-Reverse pendulum, the goal is to balance a pole on a cart.  1 action (force along the z axis) and 4 observations (position and speed of cart and pole).
-
-**chrono_ant-v0** 
+- **env**: gymnasium environment wrapper to enable RL training using PyChrono simulation
+- **test**: testing scripts to visualize the training environment
+- **training**: python scripts to train the models for each example env
+- **evaluate**: python scripts to evaluate a trained model
 
 
-![](http://projectchrono.org/assets/manual/Tutorial_tensorflow_ant.jpg)
-
-A 4-legged walker, the goal is learning to walk straight as fast as possible. 8 actions (motor torques) and 30 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
-
-**chrono_hexapod-v0** 
-
-
-![](https://github.com/projectchrono/chrono-web-assets/blob/master/Images/Hexapod.jpg)
-
-A 6-legged walker, the goal is learning to walk straight as fast as possible. Heach legs counts 3 actuated joints.
-18 actions (motor torques) and 53 observations (GOG height, COG speed, COG orientation in Euler Angles, COG rotational speed, joints rotation, joints speed, feet contact).
-
-This is a model of a real hexapod robot, the PhantomX Hexapod Mark II. Motors dara are available [here](https://trossenrobotics.com/dynamixel-ax-12-robot-actuator.aspx). Credit to [Hendricks](https://grabcad.com/hendricks-1) for the CAD drawings.
-
-**ChronoRacer3Reach-v0** 
-
-
-![](https://github.com/projectchrono/chrono-web-assets/blob/master/Images/Comau.jpg)
-
-A 6-DOF robotic arm (Comau Racer-3), the goal is minimizing the distance between the center of the gripper and the center of the red target box. CAD files and part of the techical data are freely available from the Comau website [here](https://www.comau.com/IT/le-nostre-competenze/robotics/robot-team/racer-3-063) .
-6 actions (motor torques) and 18 observations (joints rotation, joints speed, end-effector position, target position).
-
-# Installation
-If you want to install Gym and Chrono in a virtual environment (Conda or VirtualEnv), don't forget to activate the environment first.
-To install Chrono follow [these](http://api.projectchrono.org/development/pychrono_installation.html) instructions. 
-Install Gym. Obviously, OpenAI Gym is a prerequisite for gym-chrono. 
-```bash
-pip install gym
+Currently, this repository also contains scripts to train simple RL models using stable-baselines3 (see gym_chrono/training). So, you would also need to install stable-baselines3
+The setup has a few rough edges which will be evened out in due time.  
+## Installing dependencies
+### Installing pychrono
+1) First you need to install pychrono from source. The Chrono source that needs to be cloned (for now) is linked [here]([url](https://github.com/zzhou292/chrono/tree/feature/robot_model)https://github.com/zzhou292/chrono/tree/feature/robot_model). Please use the feature/robot_model branch.
+2) Once you have the source cloned, build pychrono from source using instructions found [here]([url](https://api.projectchrono.org/module_python_installation.html)https://api.projectchrono.org/module_python_installation.html). Enable modules Chrono::Sensor, Chrono::Irrlicht, Chrono::SynChrono, Chrono::Vehicle, Chrono::Python and Chrono::OPENMP.
+3) Make sure you add the appropriate numpy include directory (see linked instructions above)
+4) If you are not doing a system wide install of pychrono, make sure you add to PYTHONPATH the path to the installed python libraries (see linked instructions above)
+### Installing gymnasium
 ```
-Then, install the PyChrono extension for Gym:
-```bash
-git clone https://github.com/projectchrono/gym-chrono
-cd gym-chrono
-pip install -e .
+pip install gymnasium
 ```
-
-# Example
-Training the ant environment using the PPOalgorithm in [OpenAI Baselines](https://github.com/openai/baselines)
-```bash
-python -m baselines.run --alg=ppo2 --env=gym_chrono.envs:chrono_ant-v0 --network=mlp --num_timesteps=2e7 --ent_coef=0.1 --num_hidden=32 --num_layers=3 --value_network=copy
+If you are using a conda environment, install pip in the conda environment and install gymnasium using the pip from the conda environment. For example
 ```
+/home/USER/anaconda3/envs/ENV_NAME/bin/pip3 install gymnasium
+```
+### Installing stable-baselines3
+```
+pip install stable-baselines3[extra] 
+```
+### Rough Edges
+#### Adding gym-chrono to path
+Due to the lack of a pip installer for this package currently, you must add gym-chrono to PYTHONPATH. For example, you could do something like
+```
+ echo 'export PYTHONPATH=$PYTHONPATH:<path to gym-chronoV2>' >> ~/.bashrc
+```
+Replace `~/.bashrc` with `~/.zshrc` in case you are using `zsh`.<br>
+For Windows users, follow instructions from [here](https://helpdeskgeek.com/how-to/create-custom-environment-variables-in-windows/).
 
+#### Adding Chrono data directory to path
+Since the environments use data files from chrono's build directory, the data folder in the chrono build directory needs to be added to path.  
+For Linux or Mac users:  
+  Replace bashrc with the shell your using. Could be .zshrc.  
+  1. echo 'export CHRONO_DATA_DIR=<chrono's data directory>' >> ~/.bashrc  
+      Ex. echo 'export CHRONO_DATA_DIR=/home/user/chrono/data/' >> ~/.zshrc  
+  2. source ~/.zshrc  
 
+For Windows users:  
+  Link as reference: https://helpdeskgeek.com/how-to/create-custom-environment-variables-in-windows/  
+  1. Open the System Properties dialog, click on Advanced and then Environment Variables  
+  2. Under User variables, click New... and create a variable as described below  
+      Variable name: CHRONO_DATA_DIR  
+      Variable value: <chrono's data directory>  
+          Ex. Variable value: C:\ Users\ user\ chrono\ data\  
+#### More data
+To make matters worse, there is some more data downloaded.  
+Install the data folder from [here](https://uwmadison.box.com/s/4hhb9ldtzsih5kcupf7ttsjr8t8hs550), and place it `gym_chrono/envs`.
+  

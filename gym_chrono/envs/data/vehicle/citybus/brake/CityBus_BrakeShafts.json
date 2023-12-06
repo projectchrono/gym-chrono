@@ -1,8 +1,0 @@
-{
-  "Name":                       "CityBus Brake",
-  "Type":                       "Brake",
-  "Template":                   "BrakeShafts",
-
-  "Maximum Torque":             10000,
-  "Shaft Inertia":              0.4
-}

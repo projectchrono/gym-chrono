@@ -1,82 +1,121 @@
 import pychrono as chrono
 try:
-   from pychrono import irrlicht as chronoirr
+    import pychrono.irrlicht as chronoirr
 except:
-   print('Could not import ChronoIrrlicht')
+    print('Could not import ChronoIrrlicht')
+
 import numpy as np
-from gym import Env, spaces
-from collections import OrderedDict
+
+# gym imports
+import gymnasium as gym
 import os
 
 
-class ChronoBaseEnv(Env):
-   def __init__(self):
-      chronopath = os.path.join(os.path.dirname(__file__), 'data')
-      chrono.SetChronoDataPath(chronopath)
-      self.render_setup = False
-      # Will be used by SetNumThreads
-      self.CPU = [1,1,1]
-      return 
+class ChronoBaseEnv(gym.Env):
+    """
+    Base class for Chrono environments.
+    """
 
-   def step(self, ac):
-       raise NotImplementedError
-       
-   def reset(self):
-       raise NotImplementedError
+    def __init__(self, render_mode='human'):
+        # Data subdirectory in this folder
+        self.chronopath = os.path.join(os.path.dirname(__file__), 'data/')
+        chrono.SetChronoDataPath(self.chronopath)
+        self.render_mode = render_mode
+        self.render_setup = False
 
-   def get_ob(self):
-          raise NotImplementedError
+        # Used to SetNumThreads
+        self._cpu = [1, 1, 1]
 
-                 
-   def is_done(self):
-          raise NotImplementedError
-   
-   def ScreenCapture(self, interval):
-          try: 
-              self.myapplication.SetVideoframeSave(True)
-              self.myapplication.SetVideoframeSaveInterval(interval)
-              
-          except:
-                 print('No ChIrrApp found. Cannot save video frames.')
-                 
-                 
-   def Render(self):
-         raise NotImplementedError
+        return
 
-    
-    
-   def convert_observation_to_space(self, observation):
-        if isinstance(observation, dict):
-            space = spaces.Dict(OrderedDict([
-                (key, self.convert_observation_to_space(value))
-                for key, value in observation.items()
-            ]))
-        elif isinstance(observation, np.ndarray):
-            low = np.full(observation.shape, -float('inf'))
-            high = np.full(observation.shape, float('inf'))
-            space = spaces.Box(low, high, dtype=observation.dtype)
-        else:
-            raise NotImplementedError(type(observation), observation)
-    
-        return space
+    @property
+    def cpu(self):
+        return self._cpu
 
- 
-   def _set_observation_space(self, observation):
-        self.observation_space = self.convert_observation_to_space(observation)
+    def step(self, action):
+        """
+        Perform a simulation step of the environment.
+        :param action: The action to apply to the environment.
+        :return: The observation, the reward, a boolean indicating if the episode is terminated, a boolean indicating if the episode is truncated, and a dictionary of info.
+        """
+        raise NotImplementedError
+
+    def reset(self, seed=None, options=None):
+        """
+        Reset the environment to its initial state.
+        :param seed (Optional): The seed to use for the simulation.
+        :param options (Optional): The options to pass to the simulation.
+        :return: The observation, and the dictionary of info.
+        """
+        raise NotImplementedError
+
+    def render(self):
+        """
+        Render the environment.
+        """
+        raise NotImplementedError
+
+    def get_observation(self):
+        """
+        Get the current observation.
+        :return: The current observation.
+        """
+        raise NotImplementedError
+
+    def is_terminated(self):
+        """
+        Check if the episode is terminated.
+        :return: Return true indicating if the episode is terminated.
+        """
+        raise NotImplementedError
+
+    def is_truncated(self):
+        """
+        Check if the episode is truncated.
+        :return: Return true indicating if the episode is truncated.
+        """
+        raise NotImplementedError
+
+    def convert_observation_to_gymspace(self, obs):
+        """
+        Convert the observation to the gym space.
+        :param obs: The observation to convert.
+        :return: The converted observation.
+        """
+        raise NotImplementedError
+
+    def _set_observation_space(self, observation):
+        """
+        Set the observation space.
+        :param observation: The observation to set the observation space.
+        """
+        self.observation_space = self.convert_observation_to_gymspace(
+            observation)
         return self.observation_space
-    
-   def __del__(self):
+
+    def ScreenCapture(self, interval):
+        """
+        Enable saving screen and set the screen capture interval.
+        :param interval: The interval to set the screen capture.
+        """
+        try:
+            self.myapplication.SetVideoframeSave(True)
+            self.myapplication.SetVideoframeSaveInterval(interval)
+
+        except:
+            print('No ChIrrApp found. Cannot save video frames.')
+
+    def __del__(self):
         if self.render_setup:
             self.myapplication.GetDevice().closeDevice()
             print('Destructor called, Device deleted.')
         else:
             print('Destructor called, No device to delete.')
-        
-   def __setstate__(self, state):
+
+    def __setstate__(self, state):
         self.__init__()
         return {self}
 
-   def __getstate__(self):
+    def __getstate__(self):
 
         return {}
-        
