@@ -17,6 +17,11 @@ This repository is structured as follows:
 
 Currently, this repository also contains scripts to train simple RL models using stable-baselines3 (see gym_chrono/training). So, you would also need to install stable-baselines3
 The setup has a few rough edges which will be evened out in due time.  
+
+## Downloading data files
+1) Download the data files [here]([url](https://drive.google.com/drive/folders/1u4nwAlpPXtgkSJeBLlSM9B_utEoUIY41?usp=drive_link), unzip if necessary, you should obtain a folder named "data".
+2) Copy the data to DIR_OF_REPO/gym-chrono/envs.
+   
 ## Installing dependencies
 ### Installing pychrono
 1) First you need to install pychrono from source. The Chrono source that needs to be cloned (for now) is linked [here]([url](https://github.com/zzhou292/chrono/tree/feature/robot_model)https://github.com/zzhou292/chrono/tree/feature/robot_model). Please use the feature/robot_model branch.
