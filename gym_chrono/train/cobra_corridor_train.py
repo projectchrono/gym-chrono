@@ -24,9 +24,9 @@ import os
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import HParam
@@ -63,9 +63,6 @@ class TensorboardCallback(BaseCallback):
         )
 
     def _on_step(self) -> bool:
-        self.logger.record(
-            'reward', self.training_env.get_attr('_debug_reward')[0])
-
         return True
 
 
@@ -94,22 +91,23 @@ if __name__ == '__main__':
     ####### PARALLEL ##################
 
     num_cpu = 12
-    n_steps = 1000  # Set to make an update after the end of 1 episode (50 s)
+    n_steps = 500  # Set to make an update after the end of 1 episode (50 s)
 
     # Set mini batch is the experiences from one episode (50 s) so the whole batch is consumed to make an update
     batch_size = n_steps
 
     # Set the number of timesteps such that we get 100 updates
-    total_timesteps = 1000 * n_steps * num_cpu
+    total_timesteps = 100 * n_steps * num_cpu
 
     policy_kwargs = dict(activation_fn=th.nn.ReLU,
-                         net_arch=dict(pi=[64, 128, 128, 64], vf=[64, 128, 128, 64]))
+                         net_arch=dict(pi=[64, 128, 64], vf=[64, 128, 64]))
 
-    log_path = "logs/"
+    log_path = "cobra_logs/"
     # set up logger
     new_logger = configure(log_path, ["stdout", "csv", "tensorboard"])
     # Vectorized envieroment
-    env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
+    env = make_vec_env(env_id=make_env(0), n_envs=num_cpu,
+                       vec_env_cls=SubprocVecEnv)
     model = PPO('MlpPolicy', env, learning_rate=1e-3, n_steps=n_steps,
                 batch_size=batch_size, verbose=1, n_epochs=10, policy_kwargs=policy_kwargs,  tensorboard_log=log_path)
     print(model.policy)
@@ -120,7 +118,7 @@ if __name__ == '__main__':
     training_steps_per_save = total_timesteps // num_of_saves
     for i in range(num_of_saves):
         model.learn(training_steps_per_save, callback=TensorboardCallback())
-        checkpoint_dir = 'ppo_checkpoints'
+        checkpoint_dir = 'cobra_ppo_checkpoints'
         os.makedirs(checkpoint_dir, exist_ok=True)
         mean_reward, std_reward = evaluate_policy(
             model, env_single, n_eval_episodes=10)
@@ -130,16 +128,3 @@ if __name__ == '__main__':
         model.save(os.path.join(checkpoint_dir, f"ppo_checkpoint{i}"))
         model = PPO.load(os.path.join(
             checkpoint_dir, f"ppo_checkpoint{i}"), env)
-
-    # Write the rewards and std_rewards to a file, for plotting purposes
-    with open('ppo_rewards.txt', 'w') as f:
-        for i in range(len(reward_store)):
-            f.write(f"{reward_store[i]} {std_reward_store[i]}\n")
-###############################
-
-####### SEQUENTIAL ##################
-# model = PPO('MlpPolicy', env, verbose=1).learn(100)
-###########################
-# model.save(f"PPO_cobra")
-# mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=100)
-# print(f"mean_reward:{mean_reward:.2f} +/- {std_reward:.2f}")
