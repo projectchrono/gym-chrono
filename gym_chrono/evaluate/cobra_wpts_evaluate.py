@@ -6,7 +6,6 @@ from gym_chrono.envs.utils.utils import CalcInitialPose, chVector_to_npArray, Se
 
 import os
 
-
 env = cobra_wpts()
 
 checkpoint_dir = '../envs/data/trained_models/'
@@ -14,9 +13,6 @@ checkpoint_dir = '../envs/data/trained_models/'
 loaded_model = PPO.load(os.path.join(
     checkpoint_dir, f"cobra_wpts_example"), env)
 
-# mean_reward, std_reward = evaluate_policy(
-#     loaded_model, env, n_eval_episodes=5)
-# print(f"mean_reward:{mean_reward:.2f} +/- {std_reward:.2f}")
 
 sim_time = 180
 timeStep = 0.2

@@ -9,13 +9,10 @@
 # http://projectchrono.org/license-chrono.txt.
 #
 # =======================================================================================
-# Authors: Huzaifa Unjhawala, Jason Zhou
+# Authors: Json Zhou
 # =======================================================================================
-#
-# This file contains a script to train a PPO Cobra agent to navigate to a goal point
-# A Tensorboard is used for logging of training statistics. The training statistics are
-# saved in the logs folder.  Checkpoints are saved in the ppo_checkpoints folder.
-#
+# This file contains a script to train a quadruped agent to walk. The quadruped agent is
+# imported as a Unitree Go1 robot
 # =======================================================================================
 import gymnasium as gym
 
