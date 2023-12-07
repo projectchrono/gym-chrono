@@ -13,7 +13,7 @@ else:
     env = off_road_gator()
 
 i = 94
-checkpoint_dir = '../train/gator_ppo_checkpoints'
+checkpoint_dir = '../envs/data/trained_models/gator/'
 
 loaded_model = PPO.load(os.path.join(
     checkpoint_dir, f"ppo_checkpoint{i}"), env)

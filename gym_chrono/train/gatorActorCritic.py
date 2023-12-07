@@ -1,23 +1,6 @@
 import torch as th
 from torch import nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3 import PPO
-from stable_baselines3.common.policies import ActorCriticPolicy
-
-import numpy as np
-import gymnasium as gym
-import copy
-
-
-def outputSize(in_size, kernel_size, stride, padding):
-    conv_size = [0, 0]
-    for i in range(len(kernel_size)):
-        conv_size[0] = int((conv_size[0] - kernel_size[i] +
-                           2*(padding[i])) / stride[i]) + 1
-        conv_size[1] = int((conv_size[1] - kernel_size[i] +
-                           2*(padding[i])) / stride[i]) + 1
-
-    return tuple(conv_size)
 
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
@@ -33,9 +16,6 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
                 print(space)
                 n_input_channels = 3
                 features_dim = 10
-                print(space.shape)
-                fc_size = outputSize(space.shape, [8, 4, 3], [
-                                     4, 2, 1], [0, 0, 0])
                 extractors[key] = nn.Sequential(
                     nn.Conv2d(n_input_channels, 32, kernel_size=8, stride=4),
                     nn.ReLU(),
