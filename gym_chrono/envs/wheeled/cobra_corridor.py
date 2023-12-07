@@ -9,7 +9,7 @@
 # http://projectchrono.org/license-chrono.txt.
 #
 # =======================================================================================
-# Authors: Huzaifa Unjhawala, Jason Zhou
+# Authors: Huzaifa Unjhawala, Json Zhou
 # =======================================================================================
 #
 # This file contains a gym environment for the cobra rover in a terrain of 20 x 20. The

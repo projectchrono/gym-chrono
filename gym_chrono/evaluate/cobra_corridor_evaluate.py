@@ -1,18 +1,16 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from gym_chrono.envs.driving.cobra_corridor import cobra_corridor
+from gym_chrono.envs.wheeled.cobra_corridor import cobra_corridor
 from gym_chrono.envs.utils.utils import chVector_to_npArray
 
 import os
 
-
 env = cobra_corridor()
 
-i = 28
-checkpoint_dir = '../train/cobra_ppo_checkpoints'
+checkpoint_dir = '../envs/data/trained_models/'
 
 loaded_model = PPO.load(os.path.join(
-    checkpoint_dir, f"ppo_checkpoint{i}"), env)
+    checkpoint_dir, f"cobra_corridor_example"), env)
 
 sim_time = 50
 timeStep = 0.1

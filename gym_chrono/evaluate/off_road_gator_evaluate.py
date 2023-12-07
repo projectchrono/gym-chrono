@@ -12,11 +12,10 @@ if agent_render:
 else:
     env = off_road_gator()
 
-i = 94
-checkpoint_dir = '../train/gator_ppo_checkpoints'
+checkpoint_dir = '../envs/data/trained_models/'
 
 loaded_model = PPO.load(os.path.join(
-    checkpoint_dir, f"ppo_checkpoint{i}"), env)
+    checkpoint_dir, f"off_road_gator_example"), env)
 
 sim_time = 20
 timeStep = 0.1
