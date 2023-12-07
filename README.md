@@ -68,4 +68,6 @@ For Windows users:
 #### More data
 To make matters worse, there is some more data downloaded.  
 Install the data folder from [here](https://uwmadison.box.com/s/4hhb9ldtzsih5kcupf7ttsjr8t8hs550), and place it `gym_chrono/envs`.
-  
+
+#### Here is a video of the example Gator environment on SCM deformable terrain with an 80 x 45 camera simulated with Chrono::Sensor   
+![Gator demo](https://github.com/projectchrono/gym-chrono/blob/master/images/gator.gif)
