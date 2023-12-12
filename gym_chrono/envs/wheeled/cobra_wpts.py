@@ -110,7 +110,7 @@ class cobra_wpts(ChronoBaseEnv):
         # Frequncy in which we apply control
         self._control_frequency = 5
         # Dynamics timestep
-        self._step_size = 1e-3
+        self._step_size = 5e-4
         # Number of steps dynamics has to take before we apply control
         self._steps_per_control = round(
             1 / (self._step_size * self._control_frequency))
@@ -200,6 +200,8 @@ class cobra_wpts(ChronoBaseEnv):
         # -----------------------------
         self.system = chrono.ChSystemNSC()
         self.system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+        self.system.SetCollisionSystemType(
+            chrono.ChCollisionSystem.Type_BULLET)
         chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
         chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -262,6 +264,7 @@ class cobra_wpts(ChronoBaseEnv):
             goal_body.SetPos(chrono.ChVectorD(
                 self.x_coords[i], self.y_coords[i], 0.2))
             goal_body.SetBodyFixed(True)
+            goal_body.SetCollide(False)
             goal_body.GetVisualShape(0).SetMaterial(0, goal_mat)
 
             self.system.Add(goal_body)
