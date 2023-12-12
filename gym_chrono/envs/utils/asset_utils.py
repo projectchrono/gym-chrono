@@ -134,6 +134,8 @@ class SimulationAssets():
             self.positions.append(pos)
             # Update asset positon
             asset.UpdateAssetPosition(pos, chrono.ChQuaternionD(1, 0, 0, 0))
+            # Bind each item -> Required because we initialize collision system before adding assets
+            self.system.GetCollisionSystem().BindItem(asset.body)
             # Add asset to the system
             self.system.Add(asset.body)
 
@@ -163,7 +165,7 @@ class SimulationAssets():
             # Check for collision using the absolute position of the asset
             pos = chassis_body.GetPos()
             for asset_pos in self.positions:
-                if (pos - asset_pos).Length() < 3:
+                if (pos - asset_pos).Length() < (self.assets_list[0].scale * 3):
                     return 1
             return 0
 
