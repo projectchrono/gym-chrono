@@ -11,6 +11,10 @@
 # ========================================================================================================
 # Authors: Huzaifa Unjhawala
 # ========================================================================================================
+# This environment is solely for the purpose of evaluation
+# ========================================================================================================
+
+
 import gymnasium as gym
 import numpy as np
 import math
@@ -174,7 +178,7 @@ class off_road_art(ChronoBaseEnv):
         self.m_timeout_count = 0
         self.m_success_rate_eval = 0.
 
-        self.m_mean_obstacles = 5  # Starting mean is 1 - at checkpoint 43, its 5
+        self.m_mean_obstacles = 5  # Starting mean is 1
         self.m_std_dev = 2         # Standard deviation
         self.info = {"is_success": False}
 
@@ -809,12 +813,15 @@ class off_road_art(ChronoBaseEnv):
         self.m_assets = SimulationAssets(
             self.m_system, self.m_terrain, self.m_terrain_length, self.m_terrain_width)
 
-        rock1_random = max(
-            0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        rock2_random = max(
-            0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        rock3_random = max(
-            0, min(6, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
+        # rock1_random = max(
+        #     0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
+        # rock2_random = max(
+        #     0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
+        # rock3_random = max(
+        #     0, min(6, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
+        rock1_random = 7
+        rock2_random = 7
+        rock3_random = 6
         # rock1_random = random.randint(0, 10)
         # rock2_random = random.randint(0, 10)
         # rock3_random = random.randint(0, 10)

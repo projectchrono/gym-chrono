@@ -31,6 +31,8 @@ log_dir = sys.argv[1]
 
 tag = 'rollout/ep_rew_mean'
 
+# tag = 'rollout/reward_per_episode'
+
 
 # Custom sorting function
 def numeric_sort_key(s):
@@ -57,7 +59,6 @@ all_data.sort(key=lambda x: x[0])
 steps, values = zip(*all_data)
 
 index = list(range(len(steps)))
-
 plt.figure(figsize=(15, 5))
 plt.plot(index, values)
 plt.xlabel('Update')
@@ -69,13 +70,13 @@ plt.xlim(0)
 plt.grid(True, linestyle=':', alpha=0.5)
 
 # Add dotted vertical lines
-if (log_dir == '../art_logs_3'):
-    vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
-if (log_dir == '../art_logs_lidar_2'):
-    vertical_lines = [25*2, 40*2, 60*2, 65 *
-                      2, 70*2, 75*2, 80*2, 85*2, 90*2, 95*2]
-for line in vertical_lines:
-    plt.axvline(x=line, linestyle=':', color='black', linewidth=1)
+# if (log_dir == '../art_logs_3'):
+#     vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
+# if (log_dir == '../art_logs_lidar_2'):
+#     vertical_lines = [25*2, 40*2, 60*2, 65 *
+#                       2, 70*2, 75*2, 80*2, 85*2, 90*2, 95*2]
+# for line in vertical_lines:
+#     plt.axvline(x=line, linestyle=':', color='black', linewidth=1)
 
 plt.tight_layout()
 plt.show()

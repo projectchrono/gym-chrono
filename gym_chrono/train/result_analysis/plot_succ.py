@@ -31,6 +31,7 @@ log_dir = sys.argv[1]
 
 tag1 = 'rollout/total_success'
 tag2 = 'rollout/total_episode_num'
+tag3 = 'rollout/total_crashes'
 
 # Custom sorting function
 
@@ -41,6 +42,7 @@ def numeric_sort_key(s):
 
 all_data_suc = []
 all_data_epi = []
+all_data_crash = []
 
 # Walk through the base directory
 for root, dirs, files in os.walk(log_dir, topdown=True):
@@ -56,6 +58,8 @@ for root, dirs, files in os.walk(log_dir, topdown=True):
                     extract_data_from_event_file(event_file_path, tag1))
                 all_data_epi.extend(
                     extract_data_from_event_file(event_file_path, tag2))
+                all_data_crash.extend(
+                    extract_data_from_event_file(event_file_path, tag3))
 
 
 # Sorting the data by step
@@ -65,9 +69,13 @@ steps, suc = zip(*all_data_suc)
 all_data_epi.sort(key=lambda x: x[0])
 _, epi = zip(*all_data_epi)
 
+all_data_crash.sort(key=lambda x: x[0])
+_, crash = zip(*all_data_crash)
+
 # convert epi and suc from tuple to list
 epi = list(epi)
 suc = list(suc)
+crash = list(crash)
 steps = list(steps)
 
 # Find the index where the number of episodes decreses compared to the previous one
@@ -88,6 +96,10 @@ for i in index:
     for j in range(i, len(steps)):
         suc[j] += suc[i-1]
 
+# Do the same for crash
+for i in index:
+    for j in range(i, len(steps)):
+        crash[j] += crash[i-1]
 
 # Plot of raw number of succes vs number of episodes
 plt.figure(figsize=(15, 5))
@@ -134,42 +146,89 @@ plt.show()
 # Compute the success rate by taking 100 epsiode windows
 # and computing the success rate in each window
 success_rate = []
-num_update = 10
+num_update = 1
 for i in range(len(epi)):
     if i < num_update:
         continue
     success_rate.append((suc[i]-suc[i-num_update]) /
                         ((epi[i]-epi[i-num_update])))
+# Do the same for crash
+crash_rate = []
+num_update = 1
+for i in range(len(epi)):
+    if i < num_update:
+        continue
+    crash_rate.append((crash[i]-crash[i-num_update]) /
+                      ((epi[i]-epi[i-num_update])))
 
-# Create a list that increaments by 2*num_check_point
+
+# Calculate moving average
+window_size = 10
+moving_average = []
+for i in range(len(success_rate)):
+    if i < window_size:
+        moving_average.append(sum(success_rate[:i+1]) / (i+1))
+    else:
+        moving_average.append(
+            sum(success_rate[i-window_size+1:i+1]) / window_size)
+
+# Do the same for crash
+window_size = 10
+moving_average_crash = []
+for i in range(len(crash_rate)):
+    if i < window_size:
+        moving_average_crash.append(sum(crash_rate[:i+1]) / (i+1))
+    else:
+        moving_average_crash.append(
+            sum(crash_rate[i-window_size+1:i+1]) / window_size)
+
+
+# Create a list that increments by 2*num_check_point
 # This will be used as x axis
 x_axis = [i for i in range(len(success_rate))]
 # Plot the success rate
 plt.figure(figsize=(15, 5))
 plt.plot(x_axis, success_rate,
-         linewidth=2.5, color='darkblue')
+         linewidth=2.5, color='darkblue', label='Success Rate')
+plt.plot(x_axis, moving_average,
+         linewidth=2.5, color='orange', linestyle=':', label='Moving Average - Success', alpha=0.5)
+plt.plot(x_axis, crash_rate,
+         linewidth=2.5, color='red', label='Crash Rate')
+plt.plot(x_axis, moving_average_crash,
+         linewidth=2.5, color='green', linestyle=':', label='Moving Average - Crash', alpha=0.5)
+
+
+# Add legend with slightly bigger font size
+plt.legend(fontsize='large')
+
 plt.xlabel('Number of updates')
-plt.ylabel('Success Rate')
-plt.legend()
+plt.ylabel('Rate')
+plt.grid()
 plt.xlim(0)
 
 # Add dotted vertical lines
 vertical_lines = []
 if (log_dir == '../art_logs_3'):
     vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
-if (log_dir == '../art_logs_lidar_2'):
-    vertical_lines = [25*2, 40*2, 60*2, 65 *
-                      2, 70*2, 75*2, 80*2, 85*2, 90*2, 95*2]
+if (log_dir == '../art_logs_lidar_4'):
+    vertical_lines = [10, 20, 60, 80]
+for line in vertical_lines:
+    plt.axvline(x=line, linestyle='--', color='black', linewidth=2)
 
+# Add dotted vertical lines
+vertical_lines = []
+if (log_dir == '../art_logs_3'):
+    vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
+if (log_dir == '../art_logs_lidar_4'):
+    vertical_lines = [10, 20, 60, 80]
 for line in vertical_lines:
     plt.axvline(x=line, linestyle=':', color='black', linewidth=1)
 
-# Set x ticks every 500 episodes
-# Rotate x tick labels by 45 degrees
-# if (log_dir == '../art_logs_3'):
-#     plt.xticks(range(0, int(epi[-1])+1, 10000), rotation=45, ha='right')
-# if (log_dir == '../art_logs_lidar_2'):
-#     plt.xticks(range(0, int(epi[-1])+1, 1000), rotation=45, ha='right')
+# Add x labels incrementing by 10 and rotated to avoid overlapping
+plt.xticks(range(0, len(x_axis)+10, 10), rotation=45, ha='right')
 
 plt.tight_layout()
+# Save high res vector fig
+plt.savefig('success_rate.pdf', format='pdf', dpi=1200)
+
 plt.show()
