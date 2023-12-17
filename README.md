@@ -51,7 +51,7 @@ Replace `~/.bashrc` with `~/.zshrc` in case you are using `zsh`.<br>
 For Windows users, follow instructions from [here](https://helpdeskgeek.com/how-to/create-custom-environment-variables-in-windows/).
 
 #### Adding Chrono data directory to path
-Since the environments use data files from chrono's build directory, the data folder in the chrono build directory needs to be added to path.  
+Since the environments use data files from chrono's build directory in addition to the data files you previouslly downloaded, the data folder in the chrono build directory needs to be added to path.  
 For Linux or Mac users:  
   Replace bashrc with the shell your using. Could be .zshrc.  
   1. echo 'export CHRONO_DATA_DIR=<chrono's data directory>' >> ~/.bashrc  
@@ -64,10 +64,7 @@ For Windows users:
   2. Under User variables, click New... and create a variable as described below  
       Variable name: CHRONO_DATA_DIR  
       Variable value: <chrono's data directory>  
-          Ex. Variable value: C:\ Users\ user\ chrono\ data\  
-#### More data
-To make matters worse, there is some more data downloaded.  
-Install the data folder from [here](https://uwmadison.box.com/s/4hhb9ldtzsih5kcupf7ttsjr8t8hs550), and place it `gym_chrono/envs`.
-
+          Ex. Variable value: C:\ Users\ user\ chrono\ data\
+     
 #### Here is a video of the example Gator environment on SCM deformable terrain with an 80 x 45 camera simulated with Chrono::Sensor   
 ![Gator demo](https://github.com/projectchrono/gym-chrono/blob/master/images/gator.gif)
