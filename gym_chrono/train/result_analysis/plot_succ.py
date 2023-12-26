@@ -32,6 +32,7 @@ log_dir = sys.argv[1]
 tag1 = 'rollout/total_success'
 tag2 = 'rollout/total_episode_num'
 tag3 = 'rollout/total_crashes'
+tag4 = 'rollout/total_timeout'
 
 # Custom sorting function
 
@@ -43,6 +44,7 @@ def numeric_sort_key(s):
 all_data_suc = []
 all_data_epi = []
 all_data_crash = []
+all_data_timeout = []
 
 # Walk through the base directory
 for root, dirs, files in os.walk(log_dir, topdown=True):
@@ -60,6 +62,8 @@ for root, dirs, files in os.walk(log_dir, topdown=True):
                     extract_data_from_event_file(event_file_path, tag2))
                 all_data_crash.extend(
                     extract_data_from_event_file(event_file_path, tag3))
+                all_data_timeout.extend(
+                    extract_data_from_event_file(event_file_path, tag4))
 
 
 # Sorting the data by step
@@ -72,10 +76,14 @@ _, epi = zip(*all_data_epi)
 all_data_crash.sort(key=lambda x: x[0])
 _, crash = zip(*all_data_crash)
 
+all_data_timeout.sort(key=lambda x: x[0])
+_, timeout = zip(*all_data_timeout)
+
 # convert epi and suc from tuple to list
 epi = list(epi)
 suc = list(suc)
 crash = list(crash)
+timeout = list(timeout)
 steps = list(steps)
 
 # Find the index where the number of episodes decreses compared to the previous one
@@ -100,6 +108,12 @@ for i in index:
 for i in index:
     for j in range(i, len(steps)):
         crash[j] += crash[i-1]
+
+# Do the same for timeout
+for i in index:
+    for j in range(i, len(steps)):
+        timeout[j] += timeout[i-1]
+
 
 # Plot of raw number of succes vs number of episodes
 plt.figure(figsize=(15, 5))
@@ -160,6 +174,14 @@ for i in range(len(epi)):
         continue
     crash_rate.append((crash[i]-crash[i-num_update]) /
                       ((epi[i]-epi[i-num_update])))
+# Do the same for timeout
+timeout_rate = []
+num_update = 1
+for i in range(len(epi)):
+    if i < num_update:
+        continue
+    timeout_rate.append((timeout[i]-timeout[i-num_update]) /
+                        ((epi[i]-epi[i-num_update])))
 
 
 # Calculate moving average
@@ -182,20 +204,33 @@ for i in range(len(crash_rate)):
         moving_average_crash.append(
             sum(crash_rate[i-window_size+1:i+1]) / window_size)
 
+# Do the same for timeout
+window_size = 10
+moving_average_timeout = []
+for i in range(len(timeout_rate)):
+    if i < window_size:
+        moving_average_timeout.append(sum(timeout_rate[:i+1]) / (i+1))
+    else:
+        moving_average_timeout.append(
+            sum(timeout_rate[i-window_size+1:i+1]) / window_size)
 
 # Create a list that increments by 2*num_check_point
 # This will be used as x axis
 x_axis = [i for i in range(len(success_rate))]
 # Plot the success rate
 plt.figure(figsize=(15, 5))
-plt.plot(x_axis, success_rate,
-         linewidth=2.5, color='darkblue', label='Success Rate')
+# plt.plot(x_axis, success_rate,
+#          linewidth=2.5, color='darkblue', label='Success Rate', alpha=0.75)
 plt.plot(x_axis, moving_average,
-         linewidth=2.5, color='orange', linestyle=':', label='Moving Average - Success', alpha=0.5)
-plt.plot(x_axis, crash_rate,
-         linewidth=2.5, color='red', label='Crash Rate')
+         linewidth=2.5, color='darkblue', linestyle='-', label='Success', alpha=1)
+# plt.plot(x_axis, crash_rate,
+#          linewidth=2.5, color='red', label='Crash Rate', alpha=0.75)
 plt.plot(x_axis, moving_average_crash,
-         linewidth=2.5, color='green', linestyle=':', label='Moving Average - Crash', alpha=0.5)
+         linewidth=2.5, color='red', linestyle='-', label='Crash', alpha=1)
+# plt.plot(x_axis, timeout_rate,
+#          linewidth=2.5, color='purple', label='Timeout Rate', alpha=0.75)
+plt.plot(x_axis, moving_average_timeout,
+         linewidth=2.5, color='purple', linestyle='-', label='Timeout', alpha=1)
 
 
 # Add legend with slightly bigger font size
@@ -206,29 +241,42 @@ plt.ylabel('Rate')
 plt.grid()
 plt.xlim(0)
 
-# Add dotted vertical lines
-vertical_lines = []
-if (log_dir == '../art_logs_3'):
-    vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
-if (log_dir == '../art_logs_lidar_4'):
-    vertical_lines = [10, 20, 60, 80]
-for line in vertical_lines:
-    plt.axvline(x=line, linestyle='--', color='black', linewidth=2)
+
+# Rest of the code...
 
 # Add dotted vertical lines
 vertical_lines = []
 if (log_dir == '../art_logs_3'):
     vertical_lines = [25*2, 35*2, 60*2, 85*2, 90*2, 95*2, 110*2]
 if (log_dir == '../art_logs_lidar_4'):
-    vertical_lines = [10, 20, 60, 80]
+    vertical_lines = [10, 20, 60, 100]
+    hilly_rigid_terrain_lines = [200]
+    deformable_rigid_terrain_lines = [400, 450, 550]
+
 for line in vertical_lines:
-    plt.axvline(x=line, linestyle=':', color='black', linewidth=1)
+    plt.axvline(x=line, linestyle='--', color='blue', linewidth=2)
+
+for line in hilly_rigid_terrain_lines:
+    plt.axvline(x=line, linestyle='--', color='green', linewidth=2)
+
+for line in deformable_rigid_terrain_lines:
+    plt.axvline(x=line, linestyle='--', color='orange', linewidth=2)
+
+# for line in vertical_lines:
+#     plt.axvline(x=line, linestyle='--', color='blue', linewidth=2)
+
+# for line in hilly_rigid_terrain_lines:
+#     plt.axvline(x=line, linestyle='--', color='green', linewidth=2)
+
+# for line in deformable_rigid_terrain_lines:
+#     plt.axvline(x=line, linestyle='--', color='orange', linewidth=2)
 
 # Add x labels incrementing by 10 and rotated to avoid overlapping
-plt.xticks(range(0, len(x_axis)+10, 10), rotation=45, ha='right')
+plt.xticks(range(0, len(x_axis)+50, 50), rotation=45, ha='right')
 
 plt.tight_layout()
 # Save high res vector fig
-plt.savefig('success_rate.pdf', format='pdf', dpi=1200)
+# plt.savefig('success_rate_full.pdf', format='pdf', dpi=1200)
+plt.savefig('success_rate_full.png', format='png', dpi=600)
 
 plt.show()
