@@ -1,8 +1,12 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
 from gym_chrono.envs.wheeled.off_road_art_lidar import off_road_art
-
 import os
+
+# ========================================================================================
+# This environment is primarily for visualizing and evaluating how the policy is performing
+# For a more statistically evaluation consider, off_road_art_lidar_evaluate_stats.py
+# ========================================================================================
 
 render = True
 agent_render = True
@@ -12,17 +16,23 @@ if agent_render:
 else:
     env = off_road_art()
 
-checkpoint_dir = '../train/art_ppo_checkpoints_lidar_2/'
+checkpoint_dir = '../envs/data/trained_models/'
 
 loaded_model = PPO.load(os.path.join(
-    checkpoint_dir, f"ppo_checkpoint99"), env)
+    checkpoint_dir, f"off_road_art_flat"), env)
 
 sim_time = 40
+# This is the control timestep not the timestep with which the dynamics is simulated
 timeStep = 0.1
 
 totalSteps = int(sim_time / timeStep)
 
 env.set_nice_vehicle_mesh()
+# Set terrain style on which the policy is to be evaluated
+env.set_isRigid(True)
+env.set_isFlat(True)
+env.set_mean_obstacles(5)
+
 obs, _ = env.reset(seed=0)
 if render:
     env.render('follow')

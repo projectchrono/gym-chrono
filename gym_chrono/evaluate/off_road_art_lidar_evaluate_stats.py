@@ -1,9 +1,14 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from gym_chrono.envs.wheeled.off_road_art_lidar_evaluate import off_road_art
+from gym_chrono.envs.wheeled.off_road_art_lidar import off_road_art
 import os
 import numpy as np
 
+# ========================================================================================
+# This environment is primarily for evaluating the success rate of the off_road_art policy
+# trained with LIDAR. The success rate is measure with epi_to_run episodes. Rendering is
+# turned off for speed
+# ========================================================================================
 
 sucess_count = 0
 episode_reward_list = []
@@ -12,15 +17,20 @@ epi_to_run = 100
 
 deterministic = True
 
-checkpoint_dir = '../train/art_ppo_checkpoints_lidar_4/'
+checkpoint_dir = '../envs/data/trained_models/'
 
-checkpoint = "ppo_checkpoint100"
+checkpoint = "off_road_art_hilly_rigid"
+
 
 loaded_model = PPO.load(os.path.join(
     checkpoint_dir, checkpoint), env_single)
 
 for _ in range(0, epi_to_run):
     Accumulated_reward = 0
+    # Set terrain style on which the policy is to be evaluated
+    env_single.set_isRigid(True)
+    env_single.set_isFlat(False)
+    env_single.set_mean_obstacles(5)
     obs, some = env_single.reset()
     done = False
     while not done:
@@ -45,9 +55,9 @@ print("standard deviation of reward of loaded model: ", std_reward)
 
 # Write these to a file
 if (deterministic):
-    f = open("./eval_rewards_" + checkpoint + ".txt", "a")
+    f = open("./eval_rewards_" + checkpoint + "_hilly.txt", "a")
 else:
-    f = open("./eval_rewards_" + checkpoint + "_stochastic.txt", "a")
+    f = open("./eval_rewards_" + checkpoint + "_stochastic_hilly.txt", "a")
 
 f.write(f"Sucess rate of loaded model: {sucess_count/epi_to_run}\n")
 f.write(

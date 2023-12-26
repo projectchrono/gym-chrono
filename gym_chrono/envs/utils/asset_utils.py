@@ -148,7 +148,7 @@ class SimulationAssets():
         """
         x = random.randint(int(-self.length / 2), int(self.length / 2))
         y = random.randint(int(-self.width / 2), int(self.width / 2))
-        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + offset
+        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 10)) + offset
         return chrono.ChVectorD(x, y, z)
 
     def CheckContact(self, chassis_body, proper_collision=False):
@@ -165,7 +165,7 @@ class SimulationAssets():
             # Check for collision using the absolute position of the asset
             pos = chassis_body.GetPos()
             for asset_pos in self.positions:
-                if (pos - asset_pos).Length() < (self.assets_list[0].scale * 3):
+                if (pos - asset_pos).Length() < (self.assets_list[0].scale * 2.5):
                     return 1
             return 0
 

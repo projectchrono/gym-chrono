@@ -9,7 +9,7 @@
 # http://projectchrono.org/license-chrono.txt.
 #
 # ========================================================================================================
-# Authors: Huzaifa Unjhawala (refactored from original code by Simone Benatti, Aaron Young, Asher Elmquist)
+# Authors: Huzaifa Unjhawala
 # ========================================================================================================
 import gymnasium as gym
 import numpy as np

@@ -11,6 +11,29 @@
 # ========================================================================================================
 # Authors: Huzaifa Unjhawala
 # ========================================================================================================
+#
+# This file contains a gym environment for the ART Vehicle in a terrain of 60 x 60. The terrain
+# can be flat or non flat and rigid or deformable. These parameters can be set using setter methods. The terrain
+# texture can also be randomly set. The environment is used to train the ART to reach a goal point in the terrain.
+# The goal point is randomly generated in the terrain. The vehicle is also initialized randomly on
+# the terrain. Obstacles, in the form of three types of rocks can be randomly generated in the terrain.
+# The Lidar and GPS sensors are used to get the observation of the environment.
+#
+# =======================================================================================
+#
+# Action Space: The action space is normalized throttle and steering between -1 and 1.
+# Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float64)
+#
+# =======================================================================================
+#
+# Observation Space: The observation space is a 1D array consisting of the following:
+# 1. Lidar scan of (90,)
+# 2. Delta x of the goal in local frame of the vehicle
+# 3. Delta y of the goal in local frame of the vehicle
+# 4. Difference in heading of the vehicle and the heading to the goal
+# 5. Velocity of the vehicle (Using sim velocity without estimation)
+# =======================================================================================
+
 import gymnasium as gym
 import numpy as np
 import math
@@ -37,6 +60,7 @@ try:
     from pychrono import irrlicht as chronoirr
 except:
     print('Could not import ChronoIrrlicht')
+import threading
 
 
 # Bunch of utilities required for the environment
@@ -112,10 +136,12 @@ class off_road_art(ChronoBaseEnv):
 
         # Terrrain
         self.m_terrain = None  # Actual deformable terrain
-        self.m_min_terrain_height = -1.5  # min terrain height
-        self.m_max_terrain_height = 1.5  # max terrain height
+        self.m_min_terrain_height = -1.0  # min terrain height - Start at 0.5
+        self.m_max_terrain_height = 1.0  # max terrain height - Start at 0.5
         self.m_terrain_length = 40.0  # size in X direction
         self.m_terrain_width = 40.0  # size in Y direction
+        self.m_isRigid = True  # Flag to determine if the terrain is rigid or not
+        self.m_isFlat = True  # Flag to determine if the terrain is flat or not
         self.m_assets = []
         self.m_positions = []
         # Sensor manager
@@ -174,9 +200,8 @@ class off_road_art(ChronoBaseEnv):
         self.m_timeout_count = 0
         self.m_success_rate_eval = 0.
 
-        self.m_mean_obstacles = 5  # Starting mean is 1 - at checkpoint 43, its 5
+        self.m_mean_obstacles = 1  # Starting mean is 1 - at checkpoint 43, its 5
         self.m_std_dev = 2         # Standard deviation
-        self.info = {"is_success": False}
 
     def reset(self, seed=None, options=None):
         """
@@ -196,9 +221,8 @@ class off_road_art(ChronoBaseEnv):
         # -------------------------------
         # Reset the terrain
         # -------------------------------
-        self.m_isFlat = True
         terrain_delta = 0.05
-        self.m_isRigid = True
+        print(self.m_isFlat, self.m_isRigid)
 
         texture_file_options = [
             "terrain/textures/grass.jpg", "terrain/textures/dirt.jpg", "terrain/textures/Gravel034_1K-JPG/Gravel034_1K_Color.jpg", "terrain/textures/concrete.jpg"]
@@ -215,21 +239,23 @@ class off_road_art(ChronoBaseEnv):
                 patch = self.m_terrain.AddPatch(
                     patch_mat, chrono.CSYSNORM, self.m_terrain_length*1.5, self.m_terrain_width*1.5)
             else:
+                # To prevent race conditions and corrupt bitmap files we need to generate a unique bitmap file for each thread
+
+                thread_id = threading.get_native_id()
                 # Initialize the terrain using a bitmap for the height map
                 bitmap_file = os.path.dirname(os.path.realpath(
-                    __file__)) + "/../data/terrain_bitmaps/height_map.bmp"
+                    __file__)) + "/../data/terrain_bitmaps/height_map" + str(thread_id) + ".bmp"
 
-                # Some bitmap file backup (don't know why this is done in OG code)
+                # Some bitmap file backup
                 bitmap_file_backup = os.path.dirname(os.path.realpath(
                     __file__)) + "/../data/terrain_bitmaps/height_map_backup.bmp"
-
                 generate_random_bitmap(shape=(252, 252), resolutions=[(2, 2)], mappings=[
                     (-1.5, 1.5)], file_name=bitmap_file)
                 try:
                     patch = self.m_terrain.AddPatch(
                         patch_mat, chrono.CSYSNORM, bitmap_file, self.m_terrain_length*1.5, self.m_terrain_width*1.5, self.m_min_terrain_height, self.m_max_terrain_height)
-                except:
-                    print('Corrupt Bitmap File')
+                except Exception as e:
+                    print('Corrupt Bitmap File:', str(e))
                     patch = self.m_terrain.AddPatch(
                         patch_mat, chrono.CSYSNORM, bitmap_file_backup, self.m_terrain_length*1.5, self.m_terrain_width*1.5, self.m_min_terrain_height, self.m_max_terrain_height)
 
@@ -245,7 +271,7 @@ class off_road_art(ChronoBaseEnv):
             terrain_params.InitializeParametersAsHard()
             terrain_params.SetParameters(self.m_terrain)
             # Enable bulldozing effects
-            self.m_terrain.EnableBulldozing(False)
+            self.m_terrain.EnableBulldozing(True)
             self.m_terrain.SetBulldozingParameters(
                 55,  # angle of friction for erosion of displaced material at the border of the rut
                 1,  # displaced material vs downward pressed material.
@@ -261,14 +287,15 @@ class off_road_art(ChronoBaseEnv):
                     self.m_terrain_length * 1.5,  # Size in Y direction
                     terrain_delta)  # Mesh resolution
             else:
+                # To prevent race conditions and corrupt bitmap files we need to generate a unique bitmap file for each thread
+                thread_id = threading.get_native_id()
                 # Initialize the terrain using a bitmap for the height map
                 bitmap_file = os.path.dirname(os.path.realpath(
-                    __file__)) + "/../data/terrain_bitmaps/height_map.bmp"
+                    __file__)) + "/../data/terrain_bitmaps/height_map" + str(thread_id) + ".bmp"
 
-                # Some bitmap file backup (don't know why this is done in OG code)
+                # Some bitmap file backup
                 bitmap_file_backup = os.path.dirname(os.path.realpath(
                     __file__)) + "/../data/terrain_bitmaps/height_map_backup.bmp"
-
                 generate_random_bitmap(shape=(252, 252), resolutions=[(2, 2)], mappings=[
                     (-1.5, 1.5)], file_name=bitmap_file)
 
@@ -287,8 +314,9 @@ class off_road_art(ChronoBaseEnv):
                                               self.m_min_terrain_height,  # hMin
                                               self.m_max_terrain_height,  # hMax
                                               terrain_delta)
+                self.m_terrain.SetMeshWireframe(False)
 
-        # Intialize the collision system -> only then can we query the height of the terrain in the rigid case
+        # Intialize the collision system -> only then can we query the height of the terrain in the rigid non-flat terrain
         if (self.m_isRigid):
             self.m_system.GetCollisionSystem().Initialize()
         # -------------------------------
@@ -342,7 +370,7 @@ class off_road_art(ChronoBaseEnv):
         # ===============================
         if (self.m_isRigid == False):
             self.m_terrain.AddMovingPatch(self.m_chassis_body, chrono.ChVectorD(
-                0, 0, 0), chrono.ChVectorD(5, 3, 1))
+                0, 0, 0), chrono.ChVectorD(1.5, 1.5, 1))
             # Set a texture for the terrain
             self.m_terrain.SetTexture(veh.GetDataFile(
                 texture_file), self.m_terrain_length*2, self.m_terrain_width*2)
@@ -359,27 +387,26 @@ class off_road_art(ChronoBaseEnv):
         # -------------------------------
         # Reset the obstacles
         # -------------------------------
+        # Proper collision = True -> Uses bounding box collision
+        # Proper collision = False -> Use distance constraint for collision
         self.add_obstacles(proper_collision=False)
 
         # -------------------------------
         # Initialize the sensors
         # -------------------------------
-        del self.m_sens_manager
         self.m_sens_manager = sens.ChSensorManager(self.m_system)
         # Set the lighting scene
         self.m_sens_manager.scene.AddPointLight(chrono.ChVectorF(
             100, 100, 100), chrono.ChColor(1, 1, 1), 5000.0)
 
-        # Add all the sensors -> For now orientation is ground truth
-        self.add_sensors(lidar=True, camera=False, gps=True, imu=False)
+        # Add all the sensors -> For now orientation (magnetometer) is ground truth
+        self.add_sensors(lidar=True, gps=True, imu=False)
 
         # -------------------------------
         # Get the initial observation
         # -------------------------------
         self.m_observation = self.get_observation()
         self.m_old_distance = self.m_vector_to_goal.Length()
-        self.m_old_action = np.zeros((2,))
-        self.m_contact_force = 0
         self.m_debug_reward = 0
         self.m_reward = 0
         self.m_render_setup = False
@@ -389,8 +416,7 @@ class off_road_art(ChronoBaseEnv):
         print("Mean obstacle at reset ", self.m_mean_obstacles)
         self.m_terminated = False
         self.m_truncated = False
-        self.info["is_success"] = False
-        return self.m_observation, self.info
+        return self.m_observation, {}
 
     def step(self, action):
         """
@@ -405,10 +431,7 @@ class off_road_art(ChronoBaseEnv):
             throttle = action[1]
             braking = 0
 
-        # This is used in the reward function
-        self.m_action = action
-
-        # smooth the driver inputs by preventing large changes
+        # smooth the driver inputs by preventing large changes using cliping
         self.m_driver_inputs.m_steering = np.clip(
             steering, self.m_driver_inputs.m_steering - self.m_steeringDelta, self.m_driver_inputs.m_steering + self.m_steeringDelta)
         self.m_driver_inputs.m_throttle = np.clip(
@@ -433,10 +456,13 @@ class off_road_art(ChronoBaseEnv):
             if (self.m_render_setup and self.render_mode == 'follow'):
                 self.vis.Advance(self.m_step_size)
 
+            # We need to do step dynamics because the system is standalone and not derived from
+            # the vehicle. Thus Advance() does not automatically call DoStepDynamics()
             self.m_system.DoStepDynamics(self.m_step_size)
             # Sensor update
             self.m_sens_manager.Update()
 
+            # If we have contact mid loop, we need to break out of the loop
             contact = self.m_assets.CheckContact(
                 self.m_chassis_body, proper_collision=self.m_proper_collision)
             if contact:
@@ -450,7 +476,7 @@ class off_road_art(ChronoBaseEnv):
         self._is_terminated()
         self._is_truncated()
 
-        return self.m_observation, self.m_reward, self.m_terminated, self.m_truncated, self.info
+        return self.m_observation, self.m_reward, self.m_terminated, self.m_truncated, {}
 
     def render(self, mode='human'):
         """
@@ -458,7 +484,9 @@ class off_road_art(ChronoBaseEnv):
         """
 
         # ------------------------------------------------------
-        # Add visualization - only if we want to see "human" POV
+        # Rendering based on mode
+        # mode == human is birds eye view
+        # mode == follow is follow camera
         # ------------------------------------------------------
         if mode == 'human':
             self.render_mode = 'human'
@@ -487,7 +515,7 @@ class off_road_art(ChronoBaseEnv):
                 self.vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
                 self.vis.SetWindowTitle('art in the wild')
                 self.vis.SetWindowSize(1280, 1024)
-                trackPoint = chrono.ChVectorD(2, 0.0, 0.1)
+                trackPoint = chrono.ChVectorD(2, 0.0, 0.4)
                 self.vis.SetChaseCamera(trackPoint, 6.0, 0.5)
                 self.vis.Initialize()
                 self.vis.AddLightDirectional()
@@ -498,8 +526,6 @@ class off_road_art(ChronoBaseEnv):
             self.vis.BeginScene()
             self.vis.Render()
             self.vis.EndScene()
-        # else:
-            # raise NotImplementedError
 
     def get_observation(self):
         """
@@ -507,9 +533,8 @@ class off_road_art(ChronoBaseEnv):
             1. Lidar scan of (90,)
             2. Delta x of the goal in local frame of the vehicle
             3. Delta y of the goal in local frame of the vehicle
-            4. Vehicle heading
-            5. Heading needed to reach the goal
-            6. Velocity of the vehicle     
+            4. Difference in heading of the vehicle and the heading to the goal
+            5. Velocity of the vehicle (Using sim velocity without estimation)
         :return: Observation of the environment
         """
 
@@ -540,14 +565,6 @@ class off_road_art(ChronoBaseEnv):
                 'Lidar not present - This demo needs camera setup')
 
         self.m_vehicle_pos = self.m_chassis_body.GetPos()
-        rgba = None
-        # Get the camera observation
-        if self.m_have_camera:
-            camera_buffer_RGBA8 = self.m_camera.GetMostRecentRGBA8Buffer()
-            if camera_buffer_RGBA8.HasData():
-                rgba = camera_buffer_RGBA8.GetRGBA8Data()[:, :, 0:3]
-            else:
-                rgba = np.zeros((self.m_camera_height, self.m_camera_width, 3))
 
         # Get GPS info
         cur_gps_data = None
@@ -611,7 +628,6 @@ class off_road_art(ChronoBaseEnv):
         Check if the environment is terminated
         """
         # If we are within a certain distance of the goal -> Terminate and give big reward
-        # if np.linalg.norm(self.observation[:3] - self.goal) < 0.4:
         if np.linalg.norm(self.m_vector_to_goal_noNoise.Length()) < 10:
 
             self.m_reward += 250
@@ -626,7 +642,6 @@ class off_road_art(ChronoBaseEnv):
             self.m_success_count += 1
             self.m_success_count_eval += 1
             self.m_episode_num += 1
-            self.info["is_success"] = True
 
         # If we have exceeded the max time -> Terminate and give penalty for how far we are from the goal
         if self.m_system.GetChTime() > self.m_max_time:
@@ -704,7 +719,7 @@ class off_road_art(ChronoBaseEnv):
         theta = random.random() * 2 * np.pi
         x, y = self.m_terrain_length * 0.5 * \
             np.cos(theta), self.m_terrain_width * 0.5 * np.sin(theta)
-        z = self.m_terrain.GetHeight(chrono.ChVectorD(x, y, 100)) + 0.25
+        z = self.m_terrain.GetHeight(chrono.ChVectorD(x, y, 10)) + 0.2
         ang = np.pi + theta
         self.m_initLoc = chrono.ChVectorD(x, y, z)
         self.m_initRot = chrono.Q_from_AngZ(ang)
@@ -716,6 +731,7 @@ class off_road_art(ChronoBaseEnv):
         """
         Set the goal point
         :param seed: Seed for the random number generator
+        :param art_theta: Angle at which the art is oriented
         """
         # Random angle between -pi/2 and pi/2
         delta_theta = (random.random() - 0.5) * 1.0 * np.pi
@@ -725,7 +741,7 @@ class off_road_art(ChronoBaseEnv):
         self.m_goal = chrono.ChVectorD(
             gx, gy, self.m_terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
 
-        # Modify the goal point to be minimum 15 m away from art
+        # Modify the goal point to be minimum 7.5 m away from art
         i = 0
         while (self.m_goal - self.m_initLoc).Length() < 7.5:
             gx = random.random() * self.m_terrain_length - self.m_terrain_length / 2
@@ -741,7 +757,8 @@ class off_road_art(ChronoBaseEnv):
                 break
             i += 1
 
-        # Set the goal visualization
+        # Set the goal visualization if needed at evaluation time
+        # In training time, this should be off as it confuses the LIDAR
         if (self.m_goal_vis):
             goal_contact_material = chrono.ChMaterialSurfaceNSC()
             goal_mat = chrono.ChVisualMaterial()
@@ -769,16 +786,12 @@ class off_road_art(ChronoBaseEnv):
                 print("Success rate is ", self.m_success_rate_eval)
             self.m_success_rate_eval = 0.0   # Reset success rate after adjustment
 
-    def set_succ(self, succ):
-        self.m_success_rate_eval = succ
-
-    def set_mean_obs(self, mean_obs):
-        self.m_mean_obstacles = mean_obs
-
     def add_obstacles(self, proper_collision=False):
         """Add obstacles to the terrain using asset utilities"""
         self.m_proper_collision = proper_collision
+        # Check the success rate and update the mean obstacles if its greater than 0.7
         self.update_mean_based_on_success()
+        # Set the scale of the assets
         scale = 0.5
         if (self.m_proper_collision):
             # Create baseline type of rock assets
@@ -788,10 +801,6 @@ class off_road_art(ChronoBaseEnv):
                           scale=scale, bounding_box=chrono.ChVectorD(4.01152, 2.64947, 0))
             rock3 = Asset(visual_shape_path="sensor/offroad/rock3.obj",
                           scale=scale, bounding_box=chrono.ChVectorD(2.53149, 2.48862, 0))
-            rock4 = Asset(visual_shape_path="sensor/offroad/rock4.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(2.4181, 4.47276, 0))
-            rock5 = Asset(visual_shape_path="sensor/offroad/rock5.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(3.80205, 2.56996, 0))
         else:  # If there is no proper collision then collision just based on distance
             # Create baseline type of rock assets
             rock1 = Asset(visual_shape_path="sensor/offroad/rock1.obj",
@@ -800,32 +809,24 @@ class off_road_art(ChronoBaseEnv):
                           scale=scale)
             rock3 = Asset(visual_shape_path="sensor/offroad/rock3.obj",
                           scale=scale)
-            rock4 = Asset(visual_shape_path="sensor/offroad/rock4.obj",
-                          scale=scale)
-            rock5 = Asset(visual_shape_path="sensor/offroad/rock5.obj",
-                          scale=scale)
 
         # Add these Assets to the simulationAssets
         self.m_assets = SimulationAssets(
             self.m_system, self.m_terrain, self.m_terrain_length, self.m_terrain_width)
 
+        # Randomly choose the number of obstacles based on mean_obstacles and std dev
         rock1_random = max(
             0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
         rock2_random = max(
             0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
         rock3_random = max(
             0, min(6, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        # rock1_random = random.randint(0, 10)
-        # rock2_random = random.randint(0, 10)
-        # rock3_random = random.randint(0, 10)
 
         self.m_num_obstacles = rock1_random + rock2_random + rock3_random
 
         self.m_assets.AddAsset(rock1, number=rock1_random)
         self.m_assets.AddAsset(rock2, number=rock2_random)
         self.m_assets.AddAsset(rock3, number=rock3_random)
-        # self.m_assets.AddAsset(rock4, number=2)
-        # self.m_assets.AddAsset(rock5, number=2)
 
         # Randomly position these assets and add them to the simulation
         self.m_assets.RandomlyPositionAssets(self.m_goal, self.m_chassis_body)
@@ -834,7 +835,6 @@ class off_road_art(ChronoBaseEnv):
         """
         Add sensors to the simulation
         :param lidar: Flag to add lidar sensor
-        :param camera: Flag to add camera sensor
         :param gps: Flag to add gps sensor
         :param imu: Flag to add imu sensor
         """
@@ -869,31 +869,6 @@ class off_road_art(ChronoBaseEnv):
                     sens.ChFilterVisualize(640, 480, "2D Lidar"))
             self.m_sens_manager.AddSensor(self.m_lidar)
 
-        # -------------------------------
-        # Add camera sensor
-        # -------------------------------
-        if camera:
-            self.m_have_camera = True
-            cam_loc = chrono.ChVectorD(0.1, 0, 0.08)
-            cam_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-            cam_frame = chrono.ChFrameD(cam_loc, cam_rot)
-
-            self.m_camera = sens.ChCameraSensor(
-                self.m_chassis_body,  # body camera is attached to
-                self.m_camera_frequency,  # update rate in Hz
-                cam_frame,  # offset pose
-                self.m_camera_width,  # image width
-                self.m_camera_height,  # image height
-                chrono.CH_C_PI / 3,  # FOV
-                # supersampling factor (higher improves quality of the image)
-                6
-            )
-            self.m_camera.SetName("Camera Sensor")
-            self.m_camera.PushFilter(sens.ChFilterRGBA8Access())
-            if (self.m_additional_render_mode == 'agent_pov'):
-                self.m_camera.PushFilter(sens.ChFilterVisualize(
-                    self.m_camera_width, self.m_camera_height, "Agent POV"))
-            self.m_sens_manager.AddSensor(self.m_camera)
         if gps:
             self.m_have_gps = True
             std = 0.01  # GPS noise standard deviation - Good RTK GPS
@@ -937,16 +912,21 @@ class off_road_art(ChronoBaseEnv):
     def set_nice_vehicle_mesh(self):
         self.m_play_mode = True
 
-    def close(self):
-        del self.m_vehicle
-        del self.m_sens_manager
-        del self.m_system
-        del self.m_assets.system
-        del self.m_assets
-        del self
+    # Methoods to set the mean and standard deviation of the number of obstacles
+    def set_std_dev(self, std_dev):
+        self.m_std_dev = std_dev
 
-    def __del__(self):
-        del self.m_sens_manager
-        del self.m_system
-        del self.m_assets.system
-        del self.m_assets
+    def set_mean_obstacles(self, mean_obstacles):
+        self.m_mean_obstacles = mean_obstacles
+
+    # Methods to terrain type
+    def set_isFlat(self, is_flat):
+        self.m_isFlat = is_flat
+
+    def set_isRigid(self, is_rigid):
+        self.m_isRigid = is_rigid
+
+    # Method to set the previoous success rate during training in order
+    # to increase the number of obstacles when a certain threshold is reached
+    def set_succ(self, succ):
+        self.m_success_rate_eval = succ
