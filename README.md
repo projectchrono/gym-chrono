@@ -1,8 +1,8 @@
 # gym-chrono
 This repository consists of a set of gymnasium "environments" which are essentially wrappers around pychrono. In order to install gym-chrono, we must first install its dependecies
-1) pychrono
-2) gymnasium
-3) stable-baselines3[extra]
+1) [pychrono](https://github.com/zzhou292/chrono/tree/feature/robot_model)
+2) [gymnasium](https://pypi.org/project/gymnasium/)
+3) (stable-baselines3[extra])[https://pypi.org/project/stable-baselines3/]
 
 ## Downloading data files
 Before you begin the installation process, you will need to download the `data` folder containing the simulation assets and place it in the right place:
