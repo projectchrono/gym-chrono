@@ -2,7 +2,7 @@
 This repository consists of a set of gymnasium "environments" which are essentially wrappers around pychrono. In order to install gym-chrono, we must first install its dependecies
 1) [pychrono](https://github.com/zzhou292/chrono/tree/feature/robot_model)
 2) [gymnasium](https://pypi.org/project/gymnasium/)
-3) (stable-baselines3[extra])[https://pypi.org/project/stable-baselines3/]
+3) [stable-baselines3[extra]](https://pypi.org/project/stable-baselines3/)
 
 ## Downloading data files
 Before you begin the installation process, you will need to download the `data` folder containing the simulation assets and place it in the right place:
@@ -27,7 +27,7 @@ For Windows users:
 
 ## Installing dependencies
 ### Installing pychrono
-1) First you need to install pychrono from source. The Chrono source that needs to be cloned is linked [here]([url](https://github.com/zzhou292/chrono/tree/feature/robot_model)https://github.com/zzhou292/chrono/tree/feature/robot_model). Please use the feature/robot_model branch. We use this fork with this branch because it contains all the latest robot models that are not currently available in Chrono main.
+1) First you need to install pychrono from source. The Chrono source that needs to be cloned is linked [here](https://github.com/zzhou292/chrono/tree/feature/robot_model). Please use the feature/robot_model branch. We use this fork with this branch because it contains all the latest robot models that are not currently available in Chrono main.
 2) Once you have the source cloned, build pychrono from source using instructions found [here]([url](https://api.projectchrono.org/module_python_installation.html)https://api.projectchrono.org/module_python_installation.html). Enable modules Chrono::Sensor, Chrono::Irrlicht, Chrono::SynChrono, Chrono::Vehicle, Chrono::Python, Chrono::OPENMP and Chrono::Parsers. For each of these modules, please look at the official Chrono documentation.
 3) Make sure you add the appropriate numpy include directory (see linked instructions above)
 4) If you are not doing a system wide install of pychrono, make sure you add to PYTHONPATH the path to the installed python libraries (see linked instructions above)
