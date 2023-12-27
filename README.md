@@ -44,12 +44,8 @@ Note: Conda and pip have separate mechanisms for managing dependencies. While Co
 pip install stable-baselines3[extra] 
 ```
 
-### Installing opencv
-`opencv` is used to generate random terrain height maps in the form of bitmaps. To install use:
-```bash
-pip install opencv-python 
-```
-
+> [!NOTE]
+> `stable-baselines3` installs nupmy as a dependency, so it is recomended to remove this installation and install your own version of numpy. Additionally, `pychrono` requires `numpy=1.24.0`, and it must be installed with conda, so it is necessary to run `pip uninstall numpy` and `conda install -c conda-forge numpy=1.24.0` to not get a `pychrono.sensor` error.
 ### Rough Edges
 #### Adding gym-chrono to path
 Due to the lack of a pip installer for this package currently, you must add gym-chrono to `PYTHONPATH`:
