@@ -35,8 +35,8 @@ For Windows users:
 ```bash
 pip install gymnasium
 ```
-If you are using a conda environment, activate the conda environment and then use the same command above.  
-Note: Conda and pip have separate mechanisms for managing dependencies. While Conda can see and manage the packages installed by pip, pip does not have visibility into the packages managed by Conda. This can sometimes lead to dependency conflicts or issues if a package installed via pip requires a different version of a dependency than what is already installed in the Conda environment by Conda. Since `gymnasium` and `stable-baselines3` do not have conda installers, we recommend using only `pip` even within the conda environment.
+> [!NOTE]
+> If you are using a conda environment, activate the conda environment and then use the same command above.  
 
 ### Installing stable-baselines3
 ```bash
