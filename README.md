@@ -3,7 +3,6 @@ This repository consists of a set of gymnasium "environments" which are essentia
 1) pychrono
 2) gymnasium
 3) stable-baselines3[extra]
-4) opencv
 
 ## Downloading data files
 Before you begin the installation process, you will need to download the `data` folder containing the simulation assets and place it in the right place:
