@@ -4,7 +4,7 @@ folder_path="/sbel/Documents/gym-chrono/gym_chrono/train/art_ppo_checkpoints_pat
 prefix="ppo_checkpoint"
 suffix=".zip"
 
-for ((i=0;i<100;i++)); do
+for ((i=0;i<200;i++)); do
     # Change to the folder directory
     cd "$folder_path" || exit
 

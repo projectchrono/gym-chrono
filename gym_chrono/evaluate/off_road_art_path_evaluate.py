@@ -15,7 +15,7 @@ else:
 checkpoint_dir = '../train/art_ppo_checkpoints_path/'
 
 loaded_model = PPO.load(os.path.join(
-    checkpoint_dir, f"ppo_checkpoint691"), env)
+    checkpoint_dir, f"ppo_checkpoint31"), env)
 
 sim_time = 40
 timeStep = 0.1

@@ -1,6 +1,6 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from gym_chrono.envs.wheeled.off_road_art_path import off_road_art
+from gym_chrono.envs.wheeled.off_road_art_steering import off_road_art
 
 import os
 
@@ -12,10 +12,10 @@ if agent_render:
 else:
     env = off_road_art()
 
-checkpoint_dir = '../train/art_ppo_checkpoints_path/'
+checkpoint_dir = '../train/art_ppo_checkpoints_steering/'
 
 loaded_model = PPO.load(os.path.join(
-    checkpoint_dir, f"ppo_checkpoint15"), env)
+    checkpoint_dir, f"ppo_checkpoint16"), env)
 
 sim_time = 40
 timeStep = 0.1
