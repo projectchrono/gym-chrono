@@ -73,7 +73,7 @@ class off_road_art(ChronoBaseEnv):
         # 1. 2D lidar scan of size (180,)
         # 2. Vehicle state relative to the goal of size (5,)
         self.observation_space = gym.spaces.Dict({
-            "lidar": gym.spaces.Box(low=0, high=30, shape=(90,), dtype=np.float32),
+            # "lidar": gym.spaces.Box(low=0, high=30, shape=(90,), dtype=np.float32),
             "data": gym.spaces.Box(low=-100, high=100, shape=(4,), dtype=np.float32)})
 
         # Action space is the steering, throttle and braking where
@@ -81,7 +81,7 @@ class off_road_art(ChronoBaseEnv):
         # Throttle is between -1 and 1, negative is braking
         # This is done to aide training - part of recommende rl tips to have symmetric action space
         self.action_space = gym.spaces.Box(
-            low=np.array([ -1.0]), high=np.array([1.0]), shape=(1,), dtype=np.float32)
+            low=np.array([-1.0]), high=np.array([1.0]), shape=(1,), dtype=np.float32)
         # -------------------------------
         # Simulation specific class variables
         # -------------------------------
@@ -355,11 +355,6 @@ class off_road_art(ChronoBaseEnv):
         self.set_path(self.m_terrain_length*0.5, self.m_terrain_width*0.5, seed)
 
         # -------------------------------
-        # Reset the obstacles
-        # -------------------------------
-        self.add_obstacles(proper_collision=False)
-
-        # -------------------------------
         # Initialize the sensors
         # -------------------------------
         del self.m_sens_manager
@@ -401,7 +396,7 @@ class off_road_art(ChronoBaseEnv):
         # else:
         #     throttle = action[1]
         #     braking = 0
-        throttle = 0.3
+        throttle = 0.4
         braking = 0
         # This is used in the reward function
         self.m_action = action
@@ -435,10 +430,6 @@ class off_road_art(ChronoBaseEnv):
             # Sensor update
             self.m_sens_manager.Update()
 
-            contact = self.m_assets.CheckContact(
-                self.m_chassis_body, proper_collision=self.m_proper_collision)
-            if contact:
-                break
         # Get the observation
         self.m_observation = self.get_observation()
         #TODO: Add reward.
@@ -535,7 +526,7 @@ class off_road_art(ChronoBaseEnv):
             else:
                 lidar_data = np.zeros((90,), dtype=np.float32)
             for i in range(len(lidar_data)):
-                lidar_data[i] = 30#random.uniform(0, 30)
+                lidar_data[i] = 30
         else:
             raise Exception(
                 'Lidar not present - This demo needs camera setup')
@@ -628,7 +619,7 @@ class off_road_art(ChronoBaseEnv):
 
         self.m_error_state = observation_array
         obs_dict = {
-            "lidar": lidar_data, 
+            # "lidar": lidar_data, 
             "data": observation_array}
         return obs_dict
 
@@ -644,8 +635,8 @@ class off_road_art(ChronoBaseEnv):
         reward = 0
 
         # Smoothness Penalty
-        # steering_penalty = self.calculate_steering_penalty()
-        # reward = reward - steering_penalty
+        # smoothness_penalty = self.calculate_smoothness_penalty()
+        # reward = reward - smoothness_penalty
 
         # Path Proximity Reward
         path_proximity_reward = self.calculate_path_proximity_reward()
@@ -679,19 +670,23 @@ class off_road_art(ChronoBaseEnv):
         # Penalty for deviation larger than 1 meter
         deviation_threshold = 1.0  # 1 meter threshold
         penalty = 0
-        penalty_scaling_factor = 10.0
+        penalty_scaling_factor = 0.1
         if min_distance > deviation_threshold:
             penalty = (min_distance - deviation_threshold) * penalty_scaling_factor  # Define an appropriate scaling factor
 
         return penalty
 
-    def calculate_steering_penalty(self):
+    def calculate_smoothness_penalty(self):
 
-        if(abs(self.m_error_state[2])>np.pi/2):
-            return 1
-        else:
-            return 0
-        
+        v_current = self.m_chassis_body.GetPos_dt().Length()
+
+
+        # Reward is higher for lower standard deviation
+        smoothness_scaling_factor = 100
+        smoothness_penalty = abs(1-v_current) * smoothness_scaling_factor
+
+        return smoothness_penalty
+
     def calculate_path_proximity_reward(self):
         # Helper function
         min_distance = float('inf')
@@ -701,15 +696,10 @@ class off_road_art(ChronoBaseEnv):
                 min_distance = distance
 
         # Reward inversely proportional to distance, with a maximum cutoff
-        max_proximity_reward = 1.0  # Adjust as needed
+        max_proximity_reward = 0.1  # Adjust as needed
         proximity_reward = max_proximity_reward / (1 + min_distance)
-        if proximity_reward > 0.5:
-            proximity_reward += self.calculate_heading_reward()
         return proximity_reward
 
-    def calculate_heading_reward(self):
-        max_heading_reward = 1.0
-        return max_heading_reward/(1+self.m_error_state[2])
     def _is_terminated(self):
         """
         Check if the environment is terminated
@@ -735,29 +725,6 @@ class off_road_art(ChronoBaseEnv):
         """
         Check if we have crashed or fallen off terrain
         """
-        collision = self.m_assets.CheckContact(
-            self.m_chassis_body, proper_collision=self.m_proper_collision)
-        if self.euclidean_distance(self.m_error_state[0],self.m_error_state[1],0,0) > 5:
-            self.m_reward -=30
-            self.m_debug_reward += self.m_reward
-            print('--------------------------------------------------------------')
-            print(f'Deviated from path')
-            print('Accumulated Reward: ', self.m_debug_reward)
-            print('--------------------------------------------------------------')
-            self.m_truncated = True
-            self.m_episode_num += 1
-            self.m_crash_count += 1
-        if collision:
-            #self.m_reward -= 50
-            self.m_debug_reward += self.m_reward
-            print('--------------------------------------------------------------')
-            print(f'Crashed')
-            print('Accumulated Reward: ', self.m_debug_reward)
-            print('--------------------------------------------------------------')
-
-            self.m_truncated = True
-            self.m_episode_num += 1
-            self.m_crash_count += 1
         if (self._fallen_off_terrain()):
             #self.m_reward -= 30
             self.m_debug_reward += self.m_reward
@@ -882,58 +849,7 @@ class off_road_art(ChronoBaseEnv):
     def set_mean_obs(self, mean_obs):
         self.m_mean_obstacles = mean_obs
 
-    def add_obstacles(self, proper_collision=False):
-        """Add obstacles to the terrain using asset utilities"""
-        self.m_proper_collision = proper_collision
-        self.update_mean_based_on_success()
-        scale = 0.5
-        if (self.m_proper_collision):
-            # Create baseline type of rock assets
-            rock1 = Asset(visual_shape_path="sensor/offroad/rock1.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(3.18344, 3.62827, 0))
-            rock2 = Asset(visual_shape_path="sensor/offroad/rock2.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(4.01152, 2.64947, 0))
-            rock3 = Asset(visual_shape_path="sensor/offroad/rock3.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(2.53149, 2.48862, 0))
-            rock4 = Asset(visual_shape_path="sensor/offroad/rock4.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(2.4181, 4.47276, 0))
-            rock5 = Asset(visual_shape_path="sensor/offroad/rock5.obj",
-                          scale=scale, bounding_box=chrono.ChVectorD(3.80205, 2.56996, 0))
-        else:  # If there is no proper collision then collision just based on distance
-            # Create baseline type of rock assets
-            rock1 = Asset(visual_shape_path="sensor/offroad/rock1.obj",
-                          scale=scale)
-            rock2 = Asset(visual_shape_path="sensor/offroad/rock2.obj",
-                          scale=scale)
-            rock3 = Asset(visual_shape_path="sensor/offroad/rock3.obj",
-                          scale=scale)
-            rock4 = Asset(visual_shape_path="sensor/offroad/rock4.obj",
-                          scale=scale)
-            rock5 = Asset(visual_shape_path="sensor/offroad/rock5.obj",
-                          scale=scale)
-
-        # Add these Assets to the simulationAssets
-        self.m_assets = SimulationAssets(
-            self.m_system, self.m_terrain, self.m_terrain_length, self.m_terrain_width)
-
-        rock1_random = 0#max(
-            # 0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        rock2_random = 0#max(
-            # 0, min(7, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        rock3_random = 0#max(
-            # 0, min(6, round(random.gauss(self.m_mean_obstacles, self.m_std_dev))))
-        # rock1_random = random.randint(0, 10)
-        # rock2_random = random.randint(0, 10)
-        # rock3_random = random.randint(0, 10)
-
-        self.m_num_obstacles = rock1_random + rock2_random + rock3_random
-
-        self.m_assets.AddAsset(rock1, number=rock1_random)
-        self.m_assets.AddAsset(rock2, number=rock2_random)
-        self.m_assets.AddAsset(rock3, number=rock3_random)
-        # self.m_assets.AddAsset(rock4, number=2)
-        # self.m_assets.AddAsset(rock5, number=2)
-
+ 
     def add_sensors(self, lidar=True,  camera=True, gps=True, imu=True):
         """
         Add sensors to the simulation
