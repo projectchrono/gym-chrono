@@ -81,7 +81,7 @@ class off_road_art(ChronoBaseEnv):
         # Throttle is between -1 and 1, negative is braking
         # This is done to aide training - part of recommende rl tips to have symmetric action space
         self.action_space = gym.spaces.Box(
-            low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), shape=(2,), dtype=np.float32)
+            low=np.array([ -1.0]), high=np.array([1.0]), shape=(1,), dtype=np.float32)
         # -------------------------------
         # Simulation specific class variables
         # -------------------------------
@@ -375,7 +375,7 @@ class off_road_art(ChronoBaseEnv):
         # Get the initial observation
         # -------------------------------
         self.m_observation = self.get_observation()
-        self.m_old_action = np.zeros((2,))
+        self.m_old_action = np.zeros((1,))
         self.m_contact_force = 0
         self.m_debug_reward = 0
         self.m_reward = 0
@@ -395,13 +395,14 @@ class off_road_art(ChronoBaseEnv):
         """
         steering = action[0]
         # Negative throttle is braking
-        if (action[1] < 0):
-            throttle = 0
-            braking = -action[1]
-        else:
-            throttle = action[1]
-            braking = 0
-
+        # if (action[1] < 0):
+        #     throttle = 0
+        #     braking = -action[1]
+        # else:
+        #     throttle = action[1]
+        #     braking = 0
+        throttle = 0.3
+        braking = 0
         # This is used in the reward function
         self.m_action = action
 
@@ -534,7 +535,7 @@ class off_road_art(ChronoBaseEnv):
             else:
                 lidar_data = np.zeros((90,), dtype=np.float32)
             for i in range(len(lidar_data)):
-                lidar_data[i] = 30
+                lidar_data[i] = 30#random.uniform(0, 30)
         else:
             raise Exception(
                 'Lidar not present - This demo needs camera setup')
@@ -623,80 +624,92 @@ class off_road_art(ChronoBaseEnv):
 
 
 
-
-
-
-
-        # #get the closest point on the path to the vehicle, with lookahead 1 (i.e. add a distance of 1 to the x gps coordinate of the vehicle, in it's local reference frame, not global)
-        # vehicle_heading = self.m_vehicle.GetVehicle().GetRot().Q_to_Euler123().z
-        # x = self.m_vehicle_pos.x+ np.cos(vehicle_heading)
-        # y = self.m_vehicle_pos.y+ np.sin(vehicle_heading)
-        # closest_dist = 1000
-        # closest_point = 0
-        # for i in range(len(self.m_x_path)):
-        #     dist = np.sqrt((self.m_x_path[i] - x)**2 + (self.m_y_path[i] - y)**2)
-        #     if(dist<closest_dist):
-        #         closest_dist = dist
-        #         closest_point = i
-        # #now get the error state, difference between the closest point and the vehicle
-        # egx = self.m_x_path[closest_point] - x
-        # egy = self.m_y_path[closest_point] - y
-        # #rotate the egx, egy into the local reference frame using vehicle_heading
-        # error_x = np.cos(vehicle_heading)*egx - np.sin(vehicle_heading)*egy
-        # error_y = np.sin(vehicle_heading)*egx + np.cos(vehicle_heading)*egy
-        # ref = self.m_theta_path[closest_point]
-        # act = vehicle_heading
-
-        # if( (ref>0 and act>0) or (ref<=0 and act <=0)):
-        #     error_theta = ref-act
-        # elif( ref<=0 and act > 0):
-        #     if(abs(ref-act)<abs(2*np.pi+ref-act)):
-        #         error_theta = -abs(act-ref)
-        #     else:
-        #         error_theta = abs(2*np.pi + ref- act)
-        # else:
-        #     if(abs(ref-act)<abs(2*np.pi-ref+act)):
-        #         error_theta = abs(act-ref)
-        #     else:
-        #         error_theta = -abs(2*np.pi-ref+act)
-
-        # vehicle_speed = self.m_chassis_body.GetPos_dt().Length()
-        # error_speed = 1-vehicle_speed
-
-        # observation_array = np.array(
-        #     [error_x, error_y, error_theta, error_speed]).astype(np.float32)
-        
-
-
-
-
-
-
-
-
-
-
-
         self.m_old_error_state = self.m_error_state
 
         self.m_error_state = observation_array
-        obs_dict = {"lidar": lidar_data, "data": observation_array}
+        obs_dict = {
+            "lidar": lidar_data, 
+            "data": observation_array}
         return obs_dict
-#TODO: get reward
-    def get_reward(self):
-        """
-        Not using delta action for now
-        """
-        # Compute the progress made
-        
-        reward = -abs(2*self.m_error_state[3])-abs(self.m_error_state[1])-abs(self.m_error_state[0])#progress_scale * progress# + error_scale*error
 
-        # If we have not moved even by 1 cm in 0.1 seconds give a penalty
-        # if np.abs(progress) < 0.01:
-        #     reward -= 1
+    def euclidean_distance(self, x1, y1, x2, y2):
+        # Helper function
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+    def get_reward(self):
+    # Reward in this env contains three conponents:
+        # 1. Soothness Penalty
+        # 2. Path Proximity Reweard
+        # 3. Deviation Penalty
+        reward = 0
+
+        # Smoothness Penalty
+        # steering_penalty = self.calculate_steering_penalty()
+        # reward = reward - steering_penalty
+
+        # Path Proximity Reward
+        path_proximity_reward = self.calculate_path_proximity_reward()
+        reward = reward + path_proximity_reward
+
+        # Deviation Penalty
+        path_deviation_penalty = self.calculate_path_deviation_penalty()
+        reward = reward - path_deviation_penalty
+
+        # Debug Output
+        # print("smooth reward:")
+        # print(smoothness_penalty)
+        # print("proxy reward:")
+        # print(path_proximity_reward)
+        # print("dev reward:")
+        # print(path_deviation_penalty)
+        # print("tot reward: ")
+        # print(self.reward)
 
         return reward
+    
+    def calculate_path_deviation_penalty(self):
+        # Helper function
+        # Find the closest waypoint
+        min_distance = float('inf')
+        for x, y in zip(self.m_x_path, self.m_y_path):
+            distance = self.euclidean_distance(self.m_vehicle_pos.x, self.m_vehicle_pos.y, x, y)
+            if distance < min_distance:
+                min_distance = distance
 
+        # Penalty for deviation larger than 1 meter
+        deviation_threshold = 1.0  # 1 meter threshold
+        penalty = 0
+        penalty_scaling_factor = 10.0
+        if min_distance > deviation_threshold:
+            penalty = (min_distance - deviation_threshold) * penalty_scaling_factor  # Define an appropriate scaling factor
+
+        return penalty
+
+    def calculate_steering_penalty(self):
+
+        if(abs(self.m_error_state[2])>np.pi/2):
+            return 1
+        else:
+            return 0
+        
+    def calculate_path_proximity_reward(self):
+        # Helper function
+        min_distance = float('inf')
+        for x, y in zip(self.m_x_path, self.m_y_path):
+            distance = self.euclidean_distance(self.m_vehicle_pos.x, self.m_vehicle_pos.y, x, y)
+            if distance < min_distance:
+                min_distance = distance
+
+        # Reward inversely proportional to distance, with a maximum cutoff
+        max_proximity_reward = 1.0  # Adjust as needed
+        proximity_reward = max_proximity_reward / (1 + min_distance)
+        if proximity_reward > 0.5:
+            proximity_reward += self.calculate_heading_reward()
+        return proximity_reward
+
+    def calculate_heading_reward(self):
+        max_heading_reward = 1.0
+        return max_heading_reward/(1+self.m_error_state[2])
     def _is_terminated(self):
         """
         Check if the environment is terminated
@@ -724,6 +737,16 @@ class off_road_art(ChronoBaseEnv):
         """
         collision = self.m_assets.CheckContact(
             self.m_chassis_body, proper_collision=self.m_proper_collision)
+        if self.euclidean_distance(self.m_error_state[0],self.m_error_state[1],0,0) > 5:
+            self.m_reward -=30
+            self.m_debug_reward += self.m_reward
+            print('--------------------------------------------------------------')
+            print(f'Deviated from path')
+            print('Accumulated Reward: ', self.m_debug_reward)
+            print('--------------------------------------------------------------')
+            self.m_truncated = True
+            self.m_episode_num += 1
+            self.m_crash_count += 1
         if collision:
             #self.m_reward -= 50
             self.m_debug_reward += self.m_reward
