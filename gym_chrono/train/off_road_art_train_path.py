@@ -37,7 +37,7 @@ from stable_baselines3.common.monitor import Monitor
 
 
 from gym_chrono.envs.wheeled.off_road_art_path import off_road_art
-from gym_chrono.train.custom_networks.artCustomLidar import CustomCombinedExtractor
+from gym_chrono.train.custom_networks.artCustomSteering import CustomCombinedExtractor
 
 
 class TensorboardCallback(BaseCallback):
@@ -90,8 +90,6 @@ class TensorboardCallback(BaseCallback):
         total_fallen_count = sum(self.training_env.get_attr("m_fallen_count"))
         total_timeout_count = sum(
             self.training_env.get_attr("m_timeout_count"))
-        total_num_obstacles = sum(
-            self.training_env.get_attr("m_num_obstacles"))
         total_episode_num = sum(self.training_env.get_attr("m_episode_num"))
         print(self.training_env.get_attr("m_debug_reward"))
         total_accumulated_reward = sum(
@@ -102,8 +100,6 @@ class TensorboardCallback(BaseCallback):
         self.logger.record("rollout/total_crashes", total_crash_count)
         self.logger.record("rollout/total_fallen", total_fallen_count)
         self.logger.record("rollout/total_timeout", total_timeout_count)
-        self.logger.record("rollout/obstacles_per_reset",
-                           total_num_obstacles/num_cpu)
         self.logger.record("rollout/total_episode_num", total_episode_num)
         self.logger.record("rollout/reward_per_episode",
                            total_accumulated_reward/num_cpu)
@@ -179,7 +175,7 @@ if __name__ == '__main__':
     #             batch_size=batch_size, policy_kwargs=policy_kwargs, verbose=1, n_epochs=10, use_sde=True, sde_sample_freq=4, tensorboard_log=log_path, stats_window_size=num_cpu*num_epi_per_cpu)
 
     model = PPO('MultiInputPolicy', env, learning_rate=1e-4, n_steps=n_steps,
-                batch_size=batch_size, policy_kwargs=policy_kwargs, verbose=1, n_epochs=10, target_kl=0.1, clip_range_vf=2000, tensorboard_log=log_path, stats_window_size=num_cpu*num_epi_per_cpu)
+                batch_size=batch_size, policy_kwargs=policy_kwargs, verbose=1, n_epochs=10, target_kl=0.1, clip_range_vf=5000, tensorboard_log=log_path, stats_window_size=num_cpu*num_epi_per_cpu)
     print(model.policy)
     model.set_logger(new_logger)
     reward_store = []

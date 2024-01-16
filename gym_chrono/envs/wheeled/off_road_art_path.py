@@ -81,7 +81,7 @@ class off_road_art(ChronoBaseEnv):
         # Throttle is between -1 and 1, negative is braking
         # This is done to aide training - part of recommende rl tips to have symmetric action space
         self.action_space = gym.spaces.Box(
-            low=np.array([-1.0]), high=np.array([1.0]), shape=(1,), dtype=np.float32)
+            low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), shape=(2,), dtype=np.float32)
         # -------------------------------
         # Simulation specific class variables
         # -------------------------------
@@ -390,14 +390,14 @@ class off_road_art(ChronoBaseEnv):
         """
         steering = action[0]
         # Negative throttle is braking
-        # if (action[1] < 0):
-        #     throttle = 0
-        #     braking = -action[1]
-        # else:
-        #     throttle = action[1]
-        #     braking = 0
-        throttle = 0.4
-        braking = 0
+        if (action[1] < 0):
+            throttle = 0
+            braking = -action[1]
+        else:
+            throttle = action[1]
+            braking = 0
+        # throttle = 0.4
+        # braking = 0
         # This is used in the reward function
         self.m_action = action
 
@@ -635,8 +635,8 @@ class off_road_art(ChronoBaseEnv):
         reward = 0
 
         # Smoothness Penalty
-        # smoothness_penalty = self.calculate_smoothness_penalty()
-        # reward = reward - smoothness_penalty
+        smoothness_penalty = self.calculate_smoothness_penalty()
+        reward = reward - smoothness_penalty
 
         # Path Proximity Reward
         path_proximity_reward = self.calculate_path_proximity_reward()
@@ -682,7 +682,7 @@ class off_road_art(ChronoBaseEnv):
 
 
         # Reward is higher for lower standard deviation
-        smoothness_scaling_factor = 100
+        smoothness_scaling_factor = 1.0
         smoothness_penalty = abs(1-v_current) * smoothness_scaling_factor
 
         return smoothness_penalty
@@ -706,6 +706,8 @@ class off_road_art(ChronoBaseEnv):
         """
         # If we have exceeded the max time -> Terminate and give penalty for how far we are from the goal
         if self.m_system.GetChTime() > self.m_max_time:
+            self.m_reward +=10
+            self.m_debug_reward += self.m_reward
             print('--------------------------------------------------------------')
             print('Time out')
             print('Initial position: ', self.m_initLoc)
@@ -725,16 +727,16 @@ class off_road_art(ChronoBaseEnv):
         """
         Check if we have crashed or fallen off terrain
         """
-        if (self._fallen_off_terrain()):
-            #self.m_reward -= 30
+        if self.euclidean_distance(self.m_error_state[0],self.m_error_state[1],0,0) > 5:
+            self.m_reward -=10
             self.m_debug_reward += self.m_reward
             print('--------------------------------------------------------------')
-            print('Fallen off terrain')
+            print(f'Deviated from path')
             print('Accumulated Reward: ', self.m_debug_reward)
             print('--------------------------------------------------------------')
             self.m_truncated = True
             self.m_episode_num += 1
-            self.m_fallen_count += 1
+            self.m_crash_count += 1
 
     def _fallen_off_terrain(self):
         """
@@ -961,12 +963,12 @@ class off_road_art(ChronoBaseEnv):
         del self.m_vehicle
         del self.m_sens_manager
         del self.m_system
-        del self.m_assets.system
+        # del self.m_assets.system
         del self.m_assets
         del self
 
     def __del__(self):
         del self.m_sens_manager
         del self.m_system
-        del self.m_assets.system
+        # del self.m_assets.system
         del self.m_assets
