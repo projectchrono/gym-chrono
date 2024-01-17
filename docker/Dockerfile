@@ -53,13 +53,6 @@ RUN chmod +x $HOME/optix/NVIDIA-OptiX-SDK-7.7.0-linux64-x86_64.sh && \
     mkdir /opt/optix && \
     $HOME/optix/NVIDIA-OptiX-SDK-7.7.0-linux64-x86_64.sh --prefix=/opt/optix --skip-license
 
-####################################################
-# Setup gymchrono
-####################################################
-RUN pip install --upgrade pip && pip install gymnasium stable_baselines3[extra]
-# # RUN pip install gdown
-RUN $HOME/src/gymchrono.sh
-
 # ####################################################
 # # Build Chrono
 # ####################################################
@@ -69,10 +62,14 @@ RUN apt-get update \
     && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin && mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600 \
     && wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-ubuntu2204-12-1-local_12.1.0-530.30.02-1_amd64.deb \
     && dpkg -i cuda-repo-ubuntu2204-12-1-local_12.1.0-530.30.02-1_amd64.deb \
-    && cp /var/cuda-repo-ubuntu2204-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/ && apt-get update && apt-get -y install cuda
-    
-    
-    
+    && cp /var/cuda-repo-ubuntu2204-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/ && apt-get update && apt-get -y install cuda && rm $HOME/cuda-repo-ubuntu2204-12-1-local_12.1.0-530.30.02-1_amd64.deb
+RUN $HOME/src/buildChrono.sh
+####################################################
+# Setup gymchrono
+####################################################
+RUN pip install --upgrade pip && pip install gymnasium stable_baselines3[extra]
+# # RUN pip install gdown
+RUN $HOME/src/gymchrono.sh
     
     
     
@@ -81,9 +78,8 @@ RUN apt-get update \
     # && apt-get -y install cuda-toolkit-12-3 && rm \
     # $HOME/cuda-keyring_1.1-1_all.deb
 # run the buildchrono script
-RUN $HOME/src/buildChrono.sh
 
 #####################################################
 # Startup
 #####################################################
-# ENTRYPOINT ["/sbel/src/vnc_startup.sh"]
+ENTRYPOINT ["/sbel/src/vnc_startup.sh"]
