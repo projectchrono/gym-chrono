@@ -58,7 +58,7 @@ To access a terminal window, you can either use the vnc gui, or attach to the co
 docker exec -it <CONTAINER_NAME> bash
 ```
 
-and replacing <CONTAINER_NAME> with the name of the container, or the container id
+and replacing `<CONTAINER_NAME>` with the name of the container, or the container id
 
 > [!NOTE]
 > You can get the name of the container or the container ID by running `docker ps`
