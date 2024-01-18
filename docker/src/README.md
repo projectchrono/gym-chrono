@@ -1,0 +1,1 @@
+These scripts are used for building `chrono`, `gymchrono`, and starting the `vnc` service.
