@@ -67,8 +67,7 @@ RUN $HOME/src/buildChrono.sh
 ####################################################
 # Setup gymchrono
 ####################################################
-RUN pip install --upgrade pip && pip install gymnasium stable_baselines3[extra]
-# # RUN pip install gdown
+RUN pip install --upgrade pip && pip install gymnasium stable_baselines3[extra] gdown
 RUN $HOME/src/gymchrono.sh
     
 #####################################################
