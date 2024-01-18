@@ -1,0 +1,1 @@
+Add the NVIDIA OptiX 7.7.0 script  for Linux named `NVIDIA-OptiX-SDK-7.7.0-linux64-x86_64.sh` found [here](https://developer.nvidia.com/designworks/optix/downloads/legacy) to this folder.
