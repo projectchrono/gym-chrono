@@ -52,9 +52,9 @@ RUN chmod +x $HOME/optix/NVIDIA-OptiX-SDK-7.7.0-linux64-x86_64.sh && \
     mkdir /opt/optix && \
     $HOME/optix/NVIDIA-OptiX-SDK-7.7.0-linux64-x86_64.sh --prefix=/opt/optix --skip-license
 
-# ####################################################
+####################################################
 # Build Chrono
-# ####################################################
+####################################################
 RUN apt-get update \
     && apt-get install -y libthrust-dev libeigen3-dev libxinerama-dev libxcursor-dev \
     libxi-dev
