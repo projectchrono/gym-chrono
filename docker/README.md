@@ -37,7 +37,7 @@ with `<REPOSITORY>` replaced by the name you would like for the container, and a
 In order to run the container, run the following command in a bash shell:
 
 ```bash
-docker run -d -p <LOCAL_PORT1>:5901 <LOCAL_PORT2>:6901 --gpus all <REPOSITORY>:<TAG>
+docker run -d -p <LOCAL_PORT1>:5901 -p <LOCAL_PORT2>:6901 --gpus all <REPOSITORY>:<TAG>
 ```
 
 In the above command, replace `<REPOSITORY>` and `<TAG>` with the names used in the [previous](#building-the-image) section. Replace `<LOCAL_PORT1>` and `<LOCAL_PORT2>` with the desired target ports for the service. For example, if ports 5901 and 6901 are not used by another service, these can be used. Otherwise, you may consider using other ports. A full example command is included below.
