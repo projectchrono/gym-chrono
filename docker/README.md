@@ -48,7 +48,7 @@ docker run -d -p 5902:5901 -p 6902:6901 --gpus all gymchrono:v1.0
 
 ## Attaching to the container
 
-To view the output of the vnc service, go to your modern browser and in the address bar go to `localhost:<LOCAL_PORT2>` (in the above full example, this would be `local_host:6902`). You should be prompted for a password, which will be `sbel`. After entering the password, you should see this desktop appear:
+To view the output of the vnc service, go to your modern browser and in the address bar go to `localhost:<LOCAL_PORT2>` (in the above full example, this would be `localhost:6902`). You should be prompted for a password, which will be `sbel`. After entering the password, you should see this desktop appear:
 
 <img src="desktop_image.png" width="300">
 
