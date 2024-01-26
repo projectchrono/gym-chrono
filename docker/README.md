@@ -14,7 +14,7 @@ To be able to follow this quickstart guide, you must have:
 - A modern browser installed (such as chrome)
 - A copy of this repository cloned on a local machine
 - [Docker](https://www.docker.com/get-started/) installed on your system
-- The [OptiX 7.7.0](https://www.docker.com/get-started/) script for linux downloaded and placed in the `/gym-chrono/docker/optix/` directory
+- The [OptiX 7.7.0]([https://www.docker.com/get-started/](https://developer.nvidia.com/designworks/optix/downloads/legacy)) script for linux downloaded and placed in the `/gym-chrono/docker/optix/` directory
 
 ## Building the Image
 
