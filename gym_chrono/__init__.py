@@ -1,7 +1,7 @@
 import logging
 import gymnasium as gym
 from gymnasium.envs.registration import register
-
+__version__ = '1.1'
 
 register(
     id='art_wpts-v0',
