@@ -150,10 +150,11 @@ class cobra_corridor(ChronoBaseEnv):
         self._success = False
 
     def reset(self, seed=None, options=None):
-        """
-        Reset the environment to its initial state -> Set up for standard gym API
-        :param seed: Seed for the random number generator
-        :param options: Options for the simulation (dictionary)
+        """Reset the environment to its initial state -> Set up for standard gym API
+
+        Args:
+            seed: Seed for the random number generator
+            options: Options for the simulation (dictionary)
         """
 
         # -----------------------------
@@ -217,8 +218,12 @@ class cobra_corridor(ChronoBaseEnv):
         return self.observation, {}
 
     def step(self, action):
-        """
-        Take a step in the environment - Frequency by default is 10 Hz.
+        """Take a step in the environment - Frequency by default is 10 Hz.
+
+        Steps the simulation environment using the given action. The action is applied for a single step.
+
+        Args:
+            action (2 x 1 np.array): Action to be applied to the environment, consisting of throttle and steering.
         """
 
         # Linearly interpolate steer angle between pi/6 and pi/8
@@ -244,8 +249,7 @@ class cobra_corridor(ChronoBaseEnv):
         return self.observation, self.reward, self._terminated, self._truncated, {}
 
     def render(self, mode='human'):
-        """
-        Render the environment
+        """Render the environment
         """
 
         # ------------------------------------------------------
@@ -274,8 +278,12 @@ class cobra_corridor(ChronoBaseEnv):
             raise NotImplementedError
 
     def get_reward(self):
-        """
-        Get the reward for the current step
+        """Get the reward for the current step
+
+        Get the reward for the current step based on the distance to the goal, and the distance the robot has traveled.
+
+        Returns:
+            float: Reward for the current step
         """
         scale_pos = 200
         scale_neg = 200
@@ -297,8 +305,9 @@ class cobra_corridor(ChronoBaseEnv):
         return reward
 
     def _is_terminated(self):
-        """
-        Check if the environment is terminated
+        """Check if the environment is terminated
+
+        Check if we have reached the goal, and if so terminate and give a large reward. If the simulation environment has timed out, give a penalty based on the distance to the goal.
         """
 
         # If we are within a certain distance of the goal -> Terminate and give big reward
@@ -335,8 +344,9 @@ class cobra_corridor(ChronoBaseEnv):
             self._terminated = True
 
     def _is_truncated(self):
-        """
-        Check if the environment is truncated
+        """Check if the environment is truncated
+
+        Check if the rover has fallen off the terrain, and if so truncate and give a large penalty.
         """
         # Vehicle should not fall off the terrain
         if ((abs(self.vehicle_pos.x) > (self._terrain_length / 2.0 - 0.5)) or (abs(
@@ -351,8 +361,7 @@ class cobra_corridor(ChronoBaseEnv):
             self._truncated = True
 
     def initialize_robot_pos(self, seed=1):
-        """
-        Initialize the pose of the robot
+        """Initialize the pose of the robot
         """
         self._initpos = chrono.ChVectorD(0, -0.2, 0.08144073)
 
@@ -363,8 +372,7 @@ class cobra_corridor(ChronoBaseEnv):
         self.vehicle_pos = self._initpos
 
     def set_goalPoint(self, seed=1):
-        """
-        Set the goal point for the rover
+        """Set the goal point for the rover
         """
         # np.random.seed(seed)
 
@@ -411,13 +419,17 @@ class cobra_corridor(ChronoBaseEnv):
         self.system.Add(goal_body)
 
     def get_observation(self):
-        """
-        Get the observation from the environment
-            1. Delta x of the goal in local frame of the vehicle
-            2. Delta y of the goal in local frame of the vehicle
-            3. Vehicle heading
-            4. Heading needed to reach the goal
-            5. Velocity of vehicle
+        """Get the observation from the environment
+            
+        Get teh observation of the environment, consisting of the distances to the goal and heading and velocity of the vehicle.
+        
+        Returns:
+            observation (5 x 1 np.array): Observation of the environment consisting of:
+                1. Delta x of the goal in local frame of the vehicle
+                2. Delta y of the goal in local frame of the vehicle
+                3. Vehicle heading
+                4. Heading needed to reach the goal
+                5. Velocity of vehicle
         """
         observation = np.zeros(5)
 

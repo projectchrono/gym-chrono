@@ -157,7 +157,7 @@ class quadruped_walk(ChronoBaseEnv):
         Steps the simulation environment using the given action. The action is applied for a single step.
         
         Args:
-            action (12 x n np.array): The action to be applied to the simulation environment.
+            action (12 x 1 np.array): The action to be applied to the simulation environment.
         """
         
         self._sim_time = self.system.GetChTime()
