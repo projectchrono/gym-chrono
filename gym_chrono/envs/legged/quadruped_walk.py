@@ -103,6 +103,10 @@ class quadruped_walk(ChronoBaseEnv):
         self._render_setup = False
 
     def reset(self, seed=None, options=None):
+        """Reset the environment to its initial state.
+
+        Resets the environment to rerun a simulation. This method is called at the end of each episode.
+        """
         self._prev_pos_x = 0
         
         # -----------------------------
@@ -148,6 +152,14 @@ class quadruped_walk(ChronoBaseEnv):
         return self.observation, {}
 
     def step(self, action):
+        """Steps the simulation environment.
+        
+        Steps the simulation environment using the given action. The action is applied for a single step.
+        
+        Args:
+            action (12 x 1 np.array): The action to be applied to the simulation environment.
+        """
+        
         self._sim_time = self.system.GetChTime()
     
         
@@ -183,8 +195,7 @@ class quadruped_walk(ChronoBaseEnv):
         return self.observation, self.reward, self._terminated, self._truncated, {}
 
     def render(self, mode='human'):
-        """
-        Render the environment
+        """Render the environment
         """
 
         # ------------------------------------------------------
@@ -213,6 +224,13 @@ class quadruped_walk(ChronoBaseEnv):
             raise NotImplementedError
 
     def get_reward(self):
+        """Get the reward of the current state of the environment.
+        
+        Get the reward for the current state and actions. The reward is calculated based on the distance the robot moves.
+        
+        Returns:
+            reward (float): The reward for the current state and action.
+        """
         reward = 0.0
         
         reward = (self.unitree.GetTrunkBody().GetPos().x - self._prev_pos_x)
@@ -221,6 +239,7 @@ class quadruped_walk(ChronoBaseEnv):
         return reward
 
     def _is_terminated(self):
+        """Terminate the environment if the maximum time has been reached."""
         
         if self._sim_time > self._max_time:
             self._terminated = True
@@ -228,6 +247,7 @@ class quadruped_walk(ChronoBaseEnv):
             self._terminated = False
 
     def _is_truncated(self):
+        """Truncate teh environment if the robot's position is out of the given bounds. Apply a large penalty to the reward."""
         
         
         if self.unitree.GetTrunkBody().GetPos().z < 0.15 or self.unitree.GetTrunkBody().GetPos().z > 1.0 or self.unitree.GetTrunkBody().GetPos().y < -1.5 or self.unitree.GetTrunkBody().GetPos().y > 1.5:
@@ -239,6 +259,12 @@ class quadruped_walk(ChronoBaseEnv):
 
 
     def get_observation(self):
+        """Get the observation of the environment.
+        
+        Get the observation of the environment, consisting of the robot's various positions and orientationts.
+        
+        Returns:
+            observation (18 x 1 np.array): The observation of the environment."""
         observation = np.zeros(18)
         
         # Get current motor positions
