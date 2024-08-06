@@ -2,7 +2,7 @@
 
 [QUICKSTART GUIDE](/docker/)
 
-This repository consists of a set of gymnasium "environments" which are essentially wrappers around pychrono. In order to install gym-chrono, we must first install its dependecies
+This repository consists of a set of gymnasium "environments" which are essentially wrappers around pychrono. In order to install gym-chrono, we must first install its dependencies
 1) [pychrono](https://github.com/zzhou292/chrono/tree/feature/robot_model)
 2) [gymnasium](https://pypi.org/project/gymnasium/)
 3) [stable-baselines3[extra]](https://pypi.org/project/stable-baselines3/)
