@@ -102,7 +102,8 @@ if __name__ == '__main__':
     log_path = "gator_logs/"
     # set up logger
     new_logger = configure(log_path, ["stdout", "csv", "tensorboard"])
-    # Vectorized envieroment
+
+    # Vectorized environment
     env = make_vec_env(env_id=make_env(0), n_envs=num_cpu,
                        vec_env_cls=SubprocVecEnv)
     policy_kwargs = dict(

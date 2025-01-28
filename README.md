@@ -7,6 +7,10 @@ This repository consists of a set of gymnasium "environments" which are essentia
 2) [gymnasium](https://pypi.org/project/gymnasium/)
 3) [stable-baselines3[extra]](https://pypi.org/project/stable-baselines3/)
 
+### The off-Road Gator Example Update
+
+The `off_road_gator` example has been updated to use the **Chrono main repository**, which can be found at [https://github.com/projectchrono/chrono](https://github.com/projectchrono/chrono).
+
 ## Downloading data files
 Before you begin the installation process, you will need to download the `data` folder containing the simulation assets and place it in the right place:
 1) Download the data files [here](https://drive.google.com/drive/folders/1u4nwAlpPXtgkSJeBLlSM9B_utEoUIY41?usp=drive_link), unzip if necessary, you should obtain a folder named `data`.

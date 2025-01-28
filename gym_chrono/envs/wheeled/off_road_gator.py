@@ -173,7 +173,7 @@ class off_road_gator(ChronoBaseEnv):
         # Reset Chrono system
         # -------------------------------
         self.m_system = chrono.ChSystemNSC()
-        self.m_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+        self.m_system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
         self.m_system.SetCollisionSystemType(
             chrono.ChCollisionSystem.Type_BULLET)
 
@@ -194,7 +194,7 @@ class off_road_gator(ChronoBaseEnv):
         texture_file = texture_file_options[-1]
         if self.m_isRigid:
             self.m_terrain = veh.RigidTerrain(self.m_system)
-            patch_mat = chrono.ChMaterialSurfaceNSC()
+            patch_mat = chrono.ChContactMaterialNSC()
             patch_mat.SetFriction(0.9)
             patch_mat.SetRestitution(0.01)
             if (self.m_isFlat):
@@ -237,7 +237,7 @@ class off_road_gator(ChronoBaseEnv):
                 1,  # displaced material vs downward pressed material.
                 5,  # number of erosion refinements per timestep
                 10)  # number of concentric vertex selections subject to erosion
-            self.m_terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.Q_from_AngX(
+            self.m_terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVector3d(0, -0.5, 0), chrono.Q_from_AngX(
                 -0)))
 
             if self.m_isFlat:
@@ -325,8 +325,8 @@ class off_road_gator(ChronoBaseEnv):
         # Add the moving terrrain patches
         # ===============================
         if (self.m_isRigid == False):
-            self.m_terrain.AddMovingPatch(self.m_chassis_body, chrono.ChVectorD(
-                0, 0, 0), chrono.ChVectorD(5, 3, 1))
+            self.m_terrain.AddMovingPatch(self.m_chassis_body, chrono.ChVector3d(
+                0, 0, 0), chrono.ChVector3d(5, 3, 1))
             # Set a texture for the terrain
             self.m_terrain.SetTexture(veh.GetDataFile(
                 texture_file), self.m_terrain_length*2, self.m_terrain_width*2)
@@ -351,7 +351,7 @@ class off_road_gator(ChronoBaseEnv):
         del self.m_sens_manager
         self.m_sens_manager = sens.ChSensorManager(self.m_system)
         # Set the lighting scene
-        self.m_sens_manager.scene.AddPointLight(chrono.ChVectorF(
+        self.m_sens_manager.scene.AddPointLight(chrono.ChVector3f(
             100, 100, 100), chrono.ChColor(1, 1, 1), 5000.0)
 
         # Add all the sensors -> For now orientation is ground truth
@@ -451,11 +451,11 @@ class off_road_gator(ChronoBaseEnv):
                 self.vis.SetWindowTitle('Gator in the wild')
                 self.vis.Initialize()
                 self.vis.AddSkyBox()
-                self.vis.AddCamera(chrono.ChVectorD(
-                    0, 0, 80), chrono.ChVectorD(0, 0, 1))
+                self.vis.AddCamera(chrono.ChVector3d(
+                    0, 0, 80), chrono.ChVector3d(0, 0, 1))
                 self.vis.AddTypicalLights()
-                self.vis.AddLightWithShadow(chrono.ChVectorD(
-                    1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0.5), 3, 4, 10, 40, 512)
+                self.vis.AddLightWithShadow(chrono.ChVector3d(
+                    1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
                 self.m_render_setup = True
 
             self.vis.BeginScene()
@@ -467,7 +467,7 @@ class off_road_gator(ChronoBaseEnv):
                 self.vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
                 self.vis.SetWindowTitle('Gator in the wild')
                 self.vis.SetWindowSize(1280, 1024)
-                trackPoint = chrono.ChVectorD(0.0, 0.0, 1.75)
+                trackPoint = chrono.ChVector3d(0.0, 0.0, 1.75)
                 self.vis.SetChaseCamera(trackPoint, 6.0, 0.5)
                 self.vis.Initialize()
                 self.vis.AddLightDirectional()
@@ -512,10 +512,10 @@ class off_road_gator(ChronoBaseEnv):
             gps_buffer = self.m_gps.GetMostRecentGPSBuffer()
             if gps_buffer.HasData():
                 cur_gps_data = gps_buffer.GetGPSData()
-                cur_gps_data = chrono.ChVectorD(
+                cur_gps_data = chrono.ChVector3d(
                     cur_gps_data[1], cur_gps_data[0], cur_gps_data[2])
             else:
-                cur_gps_data = chrono.ChVectorD(self.m_gps_origin)
+                cur_gps_data = chrono.ChVector3d(self.m_gps_origin)
 
             # Convert to cartesian coordinates
             sens.GPS2Cartesian(cur_gps_data, self.m_gps_origin)
@@ -529,12 +529,12 @@ class off_road_gator(ChronoBaseEnv):
         self.m_vector_to_goal_noNoise = self.m_goal - self.m_vehicle_pos
         vector_to_goal_local = self.m_chassis_body.GetRot().RotateBack(self.m_vector_to_goal)
 
-        vehicle_heading = self.m_chassis_body.GetRot().Q_to_Euler123().z
-        vehicle_heading = self.m_vehicle.GetVehicle().GetRot().Q_to_Euler123().z
+        vehicle_heading = self.m_chassis_body.GetRot().GetCardanAnglesXYZ().z
+        vehicle_heading = self.m_vehicle.GetVehicle().GetRot().GetCardanAnglesXYZ().z
 
         target_heading_to_goal = np.arctan2(
             self.m_vector_to_goal.y, self.m_vector_to_goal.x)
-        vehicle_speed = self.m_chassis_body.GetPos_dt().Length()
+        vehicle_speed = self.m_chassis_body.GetPosDt().Length()
         observation_array = np.array(
             [vector_to_goal_local.x, vector_to_goal_local.y, vehicle_heading, target_heading_to_goal, vehicle_speed]).astype(np.float32)
 
@@ -647,12 +647,12 @@ class off_road_gator(ChronoBaseEnv):
         theta = random.random() * 2 * np.pi
         x, y = self.m_terrain_length * 0.5 * \
             np.cos(theta), self.m_terrain_width * 0.5 * np.sin(theta)
-        z = self.m_terrain.GetHeight(chrono.ChVectorD(x, y, 0.)) + 0.25
+        z = self.m_terrain.GetHeight(chrono.ChVector3d(x, y, 0.)) + 0.25
         ang = np.pi + theta
-        self.m_initLoc = chrono.ChVectorD(x, y, z)
-        self.m_initRot = chrono.Q_from_AngZ(ang)
+        self.m_initLoc = chrono.ChVector3d(x, y, z)
+        self.m_initRot = chrono.QuatFromAngleZ(ang)
         self.m_vehicle.SetInitPosition(
-            chrono.ChCoordsysD(self.m_initLoc, self.m_initRot))
+            chrono.ChCoordsysd(self.m_initLoc, self.m_initRot))
         return theta
 
     def set_goal(self, gator_theta, seed):
@@ -665,15 +665,15 @@ class off_road_gator(ChronoBaseEnv):
         # ensure that the goal is always an angle between -pi/2 and pi/2 from the gator
         gx, gy = self.m_terrain_length * 0.5 * np.cos(gator_theta + np.pi + delta_theta), self.m_terrain_width * 0.5 * np.sin(
             gator_theta + np.pi + delta_theta)
-        self.m_goal = chrono.ChVectorD(
-            gx, gy, self.m_terrain.GetHeight(chrono.ChVectorD(gx, gy, 0)) + 1.0)
+        self.m_goal = chrono.ChVector3d(
+            gx, gy, self.m_terrain.GetHeight(chrono.ChVector3d(gx, gy, 0)) + 1.0)
 
         # Modify the goal point to be minimum 15 m away from gator
         i = 0
         while (self.m_goal - self.m_initLoc).Length() < 15:
             gx = random.random() * self.m_terrain_length - self.m_terrain_length / 2
             gy = random.random() * self.m_terrain_width - self.m_terrain_width / 2
-            self.m_goal = chrono.ChVectorD(
+            self.m_goal = chrono.ChVector3d(
                 gx, gy, self.m_max_terrain_height + 1)
             if i > 100:
                 print('Failed setting goal randomly, using default')
@@ -685,7 +685,7 @@ class off_road_gator(ChronoBaseEnv):
             i += 1
 
         # Set the goal visualization
-        goal_contact_material = chrono.ChMaterialSurfaceNSC()
+        goal_contact_material = chrono.ChContactMaterialNSC()
         goal_mat = chrono.ChVisualMaterial()
         goal_mat.SetAmbientColor(chrono.ChColor(1., 0., 0.))
         goal_mat.SetDiffuseColor(chrono.ChColor(1., 0., 0.))
@@ -694,7 +694,7 @@ class off_road_gator(ChronoBaseEnv):
             0.55, 1000, True, False, goal_contact_material)
 
         goal_body.SetPos(self.m_goal)
-        goal_body.SetBodyFixed(True)
+        goal_body.SetFixed(True)
         goal_body.GetVisualShape(0).SetMaterial(0, goal_mat)
 
         self.m_system.Add(goal_body)
@@ -706,15 +706,15 @@ class off_road_gator(ChronoBaseEnv):
         if (self.m_proper_collision):
             # Create baseline type of rock assets
             rock1 = Asset(visual_shape_path="sensor/offroad/rock1.obj",
-                          scale=1, bounding_box=chrono.ChVectorD(3.18344, 3.62827, 0))
+                          scale=1, bounding_box=chrono.ChVector3d(3.18344, 3.62827, 0))
             rock2 = Asset(visual_shape_path="sensor/offroad/rock2.obj",
-                          scale=1, bounding_box=chrono.ChVectorD(4.01152, 2.64947, 0))
+                          scale=1, bounding_box=chrono.ChVector3d(4.01152, 2.64947, 0))
             rock3 = Asset(visual_shape_path="sensor/offroad/rock3.obj",
-                          scale=1, bounding_box=chrono.ChVectorD(2.53149, 2.48862, 0))
+                          scale=1, bounding_box=chrono.ChVector3d(2.53149, 2.48862, 0))
             rock4 = Asset(visual_shape_path="sensor/offroad/rock4.obj",
-                          scale=1, bounding_box=chrono.ChVectorD(2.4181, 4.47276, 0))
+                          scale=1, bounding_box=chrono.ChVector3d(2.4181, 4.47276, 0))
             rock5 = Asset(visual_shape_path="sensor/offroad/rock5.obj",
-                          scale=1, bounding_box=chrono.ChVectorD(3.80205, 2.56996, 0))
+                          scale=1, bounding_box=chrono.ChVector3d(3.80205, 2.56996, 0))
         else:  # If there is no proper collision then collision just based on distance
             # Create baseline type of rock assets
             rock1 = Asset(visual_shape_path="sensor/offroad/rock1.obj",
@@ -757,9 +757,9 @@ class off_road_gator(ChronoBaseEnv):
         # -------------------------------
         if camera:
             self.m_have_camera = True
-            cam_loc = chrono.ChVectorD(0.65, 0, 0.75)
-            cam_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-            cam_frame = chrono.ChFrameD(cam_loc, cam_rot)
+            cam_loc = chrono.ChVector3d(0.65, 0, 0.75)
+            cam_rot = chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+            cam_frame = chrono.ChFramed(cam_loc, cam_rot)
 
             self.m_camera = sens.ChCameraSensor(
                 self.m_chassis_body,  # body camera is attached to
@@ -767,7 +767,7 @@ class off_road_gator(ChronoBaseEnv):
                 cam_frame,  # offset pose
                 self.m_camera_width,  # image width
                 self.m_camera_height,  # image height
-                chrono.CH_C_PI / 3,  # FOV
+                chrono.CH_PI / 3,  # FOV
                 # supersampling factor (higher improves quality of the image)
                 6
             )
@@ -780,12 +780,12 @@ class off_road_gator(ChronoBaseEnv):
         if gps:
             self.m_have_gps = True
             std = 0.01  # GPS noise standard deviation - Good RTK GPS
-            gps_noise = sens.ChNoiseNormal(chrono.ChVectorD(
-                0, 0, 0), chrono.ChVectorD(std, std, std))
-            gps_loc = chrono.ChVectorD(0, 0, 0)
-            gps_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-            gps_frame = chrono.ChFrameD(gps_loc, gps_rot)
-            self.m_gps_origin = chrono.ChVectorD(43.073268, -89.400636, 260.0)
+            gps_noise = sens.ChNoiseNormal(chrono.ChVector3d(
+                0, 0, 0), chrono.ChVector3d(std, std, std))
+            gps_loc = chrono.ChVector3d(0, 0, 0)
+            gps_rot = chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+            gps_frame = chrono.ChFramed(gps_loc, gps_rot)
+            self.m_gps_origin = chrono.ChVector3d(43.073268, -89.400636, 260.0)
 
             self.m_gps = sens.ChGPSSensor(
                 self.m_chassis_body,
@@ -800,12 +800,12 @@ class off_road_gator(ChronoBaseEnv):
         if imu:
             self.m_have_imu = True
             std = 0.01
-            imu_noise = sens.ChNoiseNormal(chrono.ChVectorD(
-                0, 0, 0), chrono.ChVectorD(std, std, std))
-            imu_loc = chrono.ChVectorD(0, 0, 0)
-            imu_rot = chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
-            imu_frame = chrono.ChFrameD(imu_loc, imu_rot)
-            self.m_imu_origin = chrono.ChVectorD(43.073268, -89.400636, 260.0)
+            imu_noise = sens.ChNoiseNormal(chrono.ChVector3d(
+                0, 0, 0), chrono.ChVector3d(std, std, std))
+            imu_loc = chrono.ChVector3d(0, 0, 0)
+            imu_rot = chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+            imu_frame = chrono.ChFramed(imu_loc, imu_rot)
+            self.m_imu_origin = chrono.ChVector3d(43.073268, -89.400636, 260.0)
             self.m_imu = sens.ChIMUSensor(
                 self.m_chassis_body,
                 self.m_imu_frequency,

@@ -23,18 +23,18 @@ class Asset():
         self.collision_shape_path = collision_shape_path
 
         # Intialize a random material
-        self.material = chrono.ChMaterialSurfaceNSC()
+        self.material = chrono.ChContactMaterialNSC()
         # initialize the body
         self.body = chrono.ChBodyAuxRef()
         # set body as fixed
-        self.body.SetBodyFixed(True)
+        self.body.SetFixed(True)
 
         # Get the visual mesh
         visual_shape_obj = chrono.GetChronoDataFile(visual_shape_path)
         visual_mesh = chrono.ChTriangleMeshConnected(
         ).CreateFromWavefrontFile(visual_shape_obj, False, False)
-        visual_mesh.Transform(chrono.ChVectorD(0, 0, 0),
-                              chrono.ChMatrix33D(scale))
+        visual_mesh.Transform(chrono.ChVector3d(0, 0, 0),
+                              chrono.ChMatrix33d(scale))
         # Add this mesh to the visual shape
         self.visual_shape = chrono.ChVisualShapeTriangleMesh()
         self.visual_shape.SetMesh(visual_mesh)
@@ -46,7 +46,7 @@ class Asset():
         if (collision_shape_path == None):
             # Just use the bounding box
             if (bounding_box == None):
-                self.body.SetCollide(False)
+                self.body.EnableCollision(False)
                 self.collide_flag = False
             else:
                 # self.body.GetCollisionModel().ClearModel()
@@ -55,33 +55,33 @@ class Asset():
                 collision_shape = chrono.ChCollisionShapeBox(
                     material, size.x, size.y, 5)
                 self.body.AddCollisionShape(collision_shape)
-                self.body.SetCollide(True)
+                self.body.EnableCollision(True)
                 self.collide_flag = True
         else:
             collision_shape_obj = chrono.GetChronoDataFile(
                 collision_shape_path)
             collision_mesh = chrono.ChTriangleMeshConnected(
             ).CreateFromWavefrontFile(collision_shape_obj, False, False)
-            collision_mesh.Transform(chrono.ChVectorD(0, 0, 0),
-                                     chrono.ChMatrix33D(scale))
+            collision_mesh.Transform(chrono.ChVector3d(0, 0, 0),
+                                     chrono.ChMatrix33d(scale))
             collision_shape = chrono.ChCollisionShapeTriangleMesh(self.material, collision_mesh,
-                                                                  True, True, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+                                                                  True, True, chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
             self.body.AddCollisionShape(collision_shape)
             # Update the collision model
-            self.body.SetCollide(True)
+            self.body.EnableCollision(True)
             self.collide_flag = True
 
         self.collision_shape = collision_shape_obj
         self.bounding_box = bounding_box
 
         # Asset has a position and orientation which will be set by the simulation assets class
-        self.pos = chrono.ChVectorD()
+        self.pos = chrono.ChVector3d()
         self.ang = 0
 
     def UpdateAssetPosition(self, pos, ang):
         self.pos = pos
         self.ang = ang
-        self.body.SetFrame_REF_to_abs(chrono.ChFrameD(
+        self.body.SetFrameRefToAbs(chrono.ChFramed(
             pos, ang))
 
     # Create a copy constructor for the asset
@@ -133,7 +133,7 @@ class SimulationAssets():
             # Append the positon
             self.positions.append(pos)
             # Update asset positon
-            asset.UpdateAssetPosition(pos, chrono.ChQuaternionD(1, 0, 0, 0))
+            asset.UpdateAssetPosition(pos, chrono.ChQuaterniond(1, 0, 0, 0))
             # Add asset to the system
             self.system.Add(asset.body)
 
@@ -146,8 +146,8 @@ class SimulationAssets():
         """
         x = random.randint(int(-self.length / 2), int(self.length / 2))
         y = random.randint(int(-self.width / 2), int(self.width / 2))
-        z = self.terrain.GetHeight(chrono.ChVectorD(x, y, 0)) + offset
-        return chrono.ChVectorD(x, y, z)
+        z = self.terrain.GetHeight(chrono.ChVector3d(x, y, 0)) + offset
+        return chrono.ChVector3d(x, y, z)
 
     def CheckContact(self, chassis_body, proper_collision=False):
         """Checks if the chassis is in contact with any asset"""

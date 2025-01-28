@@ -47,10 +47,10 @@ def SetChronoDataDirectories():
     veh.SetDataPath(os.path.join(CHRONO_DATA_DIR, 'vehicle', ''))
 
 
-def CalcInitialPose(p1: chrono.ChVectorD, p2: chrono.ChVectorD, z=0.1, reversed=0):
-    if not isinstance(p1, chrono.ChVectorD):
+def CalcInitialPose(p1: chrono.ChVector3d, p2: chrono.ChVector3d, z=0.1, reversed=0):
+    if not isinstance(p1, chrono.ChVector3d):
         raise TypeError
-    elif not isinstance(p2, chrono.ChVectorD):
+    elif not isinstance(p2, chrono.ChVector3d):
         raise TypeError
 
     p1.z = p2.z = z
@@ -58,8 +58,8 @@ def CalcInitialPose(p1: chrono.ChVectorD, p2: chrono.ChVectorD, z=0.1, reversed=
     initLoc = p1
 
     vec = p2 - p1
-    theta = math.atan2((vec % chrono.ChVectorD(1, 0, 0)
-                        ).Length(), vec ^ chrono.ChVectorD(1, 0, 0))
+    theta = math.atan2((vec % chrono.ChVector3d(1, 0, 0)
+                        ).Length(), vec ^ chrono.ChVector3d(1, 0, 0))
     if reversed:
         theta *= -1
     initRot = chrono.ChQuaternionD()
@@ -68,8 +68,8 @@ def CalcInitialPose(p1: chrono.ChVectorD, p2: chrono.ChVectorD, z=0.1, reversed=
     return initLoc, initRot
 
 
-def chVector_to_npArray(v: chrono.ChVectorD):
-    if not isinstance(v, chrono.ChVectorD):
+def chVector_to_npArray(v: chrono.ChVector3d):
+    if not isinstance(v, chrono.ChVector3d):
         raise TypeError
 
     return np.array([v.x, v.y, v.z])
@@ -79,4 +79,4 @@ def npArray_to_chVector(v: np.ndarray):
     if not isinstance(v, np.ndarray):
         raise TypeError
 
-    return chrono.ChVectorD(v[0], v[1], v[2])
+    return chrono.ChVector3d(v[0], v[1], v[2])
